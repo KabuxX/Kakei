@@ -19,36 +19,22 @@ let showingDetail = false;
 let currentDetailId = null;
 
 function sampleTransactions() {
-  const month = `${sampleMonth.getFullYear()}-${String(sampleMonth.getMonth() + 1).padStart(2, '0')}`;
-  const entries = [
-    [28, '給与', '収入', 320000, 'income'], [27, '週末の買い物', '食費', 6840, 'expense'],
-    [25, 'カフェとランチ', '食費', 2380, 'expense'], [24, '電車・バス', '交通', 4200, 'expense'],
-    [22, '日用品のまとめ買い', '日用品', 5920, 'expense'], [20, '映画と外食', '娯楽', 7900, 'expense'],
-    [18, 'スーパーマーケット', '食費', 9630, 'expense'], [15, '家賃', '住まい', 86000, 'expense'],
-    [13, '書籍', '娯楽', 3100, 'expense'], [11, '食材の買い出し', '食費', 7340, 'expense'],
-    [9, '電気・水道', '住まい', 12800, 'expense'], [7, '洗剤とティッシュ', '日用品', 3540, 'expense'],
-    [5, '定期券', '交通', 10480, 'expense'], [3, '外食', '食費', 4860, 'expense'],
-    [2, '週末の買い物', '食費', 8910, 'expense'], [1, 'フリマ売上', '収入', 12000, 'income'],
-  ];
-  const sampleDetails = {
-    1: { merchant: '青空スーパー', paymentMethod: 'credit_card', items: [{ name: '食材', amount: 3980 }, { name: '飲み物', amount: 1260 }, { name: 'お菓子', amount: 1600 }] },
-    2: { merchant: '街角カフェ', paymentMethod: 'e_money', items: [{ name: 'ランチ', amount: 1680 }, { name: 'コーヒー', amount: 700 }] },
-  };
-  const lastDay = new Date(sampleMonth.getFullYear(), sampleMonth.getMonth() + 1, 0).getDate();
-  return entries.map(([day, title, category, amount, type], index) => ({
-    id: `sample-${index}`, date: `${month}-${String(Math.min(day, lastDay)).padStart(2, '0')}`, title, category, amount, type, ...(sampleDetails[index] || {}),
-  }));
+  return KakeiSampleData.createSampleTransactions(sampleMonth);
 }
 
 function loadTransactions() {
+  let parsed;
   try {
     const raw = localStorage.getItem(storageKey);
-    if (raw !== null) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed.filter(isValidTransaction);
-    }
+    if (raw === null) return sampleTransactions();
+    parsed = JSON.parse(raw);
   } catch (_) { /* Browser storage can be disabled. The page remains usable. */ }
-  return sampleTransactions();
+  if (!Array.isArray(parsed)) return sampleTransactions();
+  try {
+    return KakeiSampleData.persistEnrichedSamples(parsed, localStorage, storageKey).filter(isValidTransaction);
+  } catch (_) {
+    return parsed.filter(isValidTransaction);
+  }
 }
 
 function isValidTransaction(item) {
