@@ -5,7 +5,7 @@ import { detailHref } from './lib/transaction-detail.js';
 
 const weeks = ['1–7日', '8–14日', '15–21日', '22–28日', '29日–'];
 
-export default function Dashboard({ month, model, transactions, status, error, onMonthChange, onAdd, onRetry, onClearSamples, onExport, onOpenDetail, writePending = false }) {
+export default function Dashboard({ month, model, transactions, status, error, onMonthChange, onAdd, onRetry, onClearSamples, onExport, onOpenDetail, writePending = false, hidden = false }) {
   const [query, setQuery] = useState('');
   const [type, setType] = useState('all');
   const ready = status === 'ready';
@@ -16,7 +16,7 @@ export default function Dashboard({ month, model, transactions, status, error, o
   let point = 0;
   const stops = visibleCategories.map((item) => { const start = point; point += item.amount / expense * 100; return `${item.color} ${start}% ${point}%`; });
   const chartMax = Math.max(...weekly, 1);
-  return <div id="dashboard-view" className={ready ? 'data-ready' : ''} aria-busy={status === 'loading' ? 'true' : undefined}>
+  return <div id="dashboard-view" className={ready ? 'data-ready' : ''} aria-busy={status === 'loading' ? 'true' : undefined} hidden={hidden}>
     <h1 className="sr-only">家計ダッシュボード</h1>
     <div className="dashboard-grid">
       <section className="balance-card" aria-labelledby="balance-title">

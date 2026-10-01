@@ -12,7 +12,7 @@ export function Icon({ name }) {
 }
 
 export default function AppShell({ children, route, onAdd, addDisabled }) {
-  const active = route.startsWith('#transaction/') ? 'transactions' : ['transactions', 'budget', 'insights'].includes(route.slice(1)) ? route.slice(1) : 'overview';
+  const active = route === '#transaction' || route.startsWith('#transaction/') ? 'transactions' : ['transactions', 'budget', 'insights'].includes(route.slice(1)) ? route.slice(1) : 'overview';
   const today = new Intl.DateTimeFormat('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' }).format(new Date());
   return <>
     <a className="skip-link" href="#main">メインコンテンツへ</a>
