@@ -42,7 +42,7 @@
           <a class="nav-link" href="#insights" aria-label="支出の分析"><svg><use href="#i-chart"/></svg><span>支出の分析</span></a>
         </nav>
         <div class="sidebar-bottom">
-          <div class="profile"><span class="avatar">K</span><span><strong>わたしの家計</strong><small>このブラウザに保存</small></span><span class="profile-dot" aria-hidden="true"></span></div>
+          <div class="profile"><span class="avatar">K</span><span><strong>わたしの家計</strong><small>この端末のサーバーに保存</small></span><span class="profile-dot" aria-hidden="true"></span></div>
         </div>
       </aside>
 
@@ -54,6 +54,7 @@
         </header>
 
         <div class="content-wrap">
+          <div id="sync-status" class="sync-status" role="alert" hidden><span id="sync-status-message"></span><button id="retry-sync" class="secondary-button" type="button">表示を再読み込み</button></div>
           <div id="dashboard-view">
           <h1 class="sr-only">家計ダッシュボード</h1>
           <div class="dashboard-grid">
@@ -128,7 +129,7 @@
           </div>
         </div>
         <p id="form-error" class="field-error form-error" role="alert" hidden></p>
-        <p class="form-note" id="form-note">入力した取引はこのブラウザに保存されます。</p>
+        <p class="form-note" id="form-note">入力した取引はこの端末のサーバーに保存されます。</p>
         <div class="dialog-actions"><button type="button" class="secondary-button close-dialog">キャンセル</button><button type="submit" class="primary-button"><svg><use href="#i-plus"/></svg>追加する</button></div>
       </form>
     </dialog>

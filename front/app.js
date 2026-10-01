@@ -9,7 +9,6 @@ const categories = [
   { name: 'その他', color: '#86b6a9', budget: 20000 },
 ];
 const totalBudget = categories.reduce((total, category) => total + category.budget, 0);
-const storageKey = 'kakei-transactions-v1';
 const now = new Date();
 const sampleMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 let visibleMonth = new Date(sampleMonth);
@@ -19,13 +18,12 @@ let showingDetail = false;
 let currentDetailId = null;
 let dataReady = false;
 let loadingData = false;
+let writingData = false;
+let refreshingData = false;
+let needsRefresh = false;
 
 function sampleTransactions() {
   return KakeiSampleData.createSampleTransactions(sampleMonth);
-}
-
-function isValidTransaction(item) {
-  return item && typeof item.id === 'string' && typeof item.title === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(item.date) && Number.isFinite(item.amount) && item.amount > 0 && ['income', 'expense'].includes(item.type) && typeof item.category === 'string';
 }
 
 let transactions = [];
@@ -97,7 +95,7 @@ function renderTransactions(items) {
 }
 
 function render() {
-  if (!dataReady) return;
+  if (!dataReady || needsRefresh) return;
   const items = monthTransactions();
   document.getElementById('demo-note').hidden = !transactions.some((item) => item.id.startsWith('sample-'));
   document.getElementById('month-label').textContent = `${visibleMonth.getFullYear()}年${visibleMonth.getMonth() + 1}月`;
@@ -270,6 +268,7 @@ function syncExpenseFields() {
 }
 
 function openDialog() {
+  if (writingData || needsRefresh) return;
   const dialog = document.getElementById('transaction-dialog');
   const form = document.getElementById('transaction-form');
   form.reset();
@@ -311,9 +310,10 @@ document.getElementById('item-rows').addEventListener('click', (event) => {
   document.getElementById('add-item').focus();
 });
 document.querySelectorAll('.add-trigger').forEach((button) => button.addEventListener('click', openDialog));
-document.querySelectorAll('.close-dialog').forEach((button) => button.addEventListener('click', () => document.getElementById('transaction-dialog').close()));
+document.querySelectorAll('.close-dialog').forEach((button) => button.addEventListener('click', () => { if (!writingData) document.getElementById('transaction-dialog').close(); }));
 document.querySelectorAll('input[name="type"]').forEach((input) => input.addEventListener('change', updateCategoryOptions));
-document.getElementById('transaction-dialog').addEventListener('click', (event) => { if (event.target === event.currentTarget) event.currentTarget.close(); });
+document.getElementById('transaction-dialog').addEventListener('click', (event) => { if (!writingData && event.target === event.currentTarget) event.currentTarget.close(); });
+document.getElementById('transaction-dialog').addEventListener('cancel', (event) => { if (writingData) event.preventDefault(); });
 document.getElementById('prev-month').addEventListener('click', () => { visibleMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() - 1, 1); document.getElementById('month-label').textContent = `${visibleMonth.getFullYear()}年${visibleMonth.getMonth() + 1}月`; render(); });
 document.getElementById('next-month').addEventListener('click', () => { visibleMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 1); document.getElementById('month-label').textContent = `${visibleMonth.getFullYear()}年${visibleMonth.getMonth() + 1}月`; render(); });
 document.getElementById('transaction-search').addEventListener('input', () => renderTransactions(monthTransactions()));
@@ -325,8 +325,57 @@ document.getElementById('transaction-rows').addEventListener('click', (event) =>
 document.querySelectorAll('.sidebar a[href^="#"]').forEach((link) => link.addEventListener('click', () => {
   if (showingDetail && link.hash !== '#transactions') listReturnState = null;
 }));
-document.getElementById('transaction-form').addEventListener('submit', (event) => {
+function syncWriteControls() {
+  const disabled = writingData || refreshingData || needsRefresh || !dataReady;
+  document.querySelectorAll('.add-trigger').forEach((button) => { button.disabled = disabled; });
+  document.getElementById('transaction-form').querySelector('button[type="submit"]').disabled = disabled;
+  document.getElementById('detail-delete').disabled = disabled;
+  document.getElementById('clear-demo').disabled = disabled;
+  document.getElementById('export-button').disabled = refreshingData || needsRefresh || !dataReady;
+  document.querySelectorAll('.close-dialog').forEach((button) => { button.disabled = writingData; });
+}
+
+function showRefreshError(afterWrite) {
+  needsRefresh = true;
+  document.getElementById('dashboard-view').classList.remove('data-ready');
+  document.getElementById('balance-amount').textContent = '—';
+  document.getElementById('balance-message').textContent = '表示を更新してください';
+  document.getElementById('income-total').textContent = '—';
+  document.getElementById('expense-total').textContent = '—';
+  document.getElementById('sync-status-message').textContent = afterWrite
+    ? 'サーバーへの保存は完了しましたが、表示を更新できませんでした。再読み込みしてください。'
+    : '最新の取引を読み込めませんでした。再読み込みしてください。';
+  document.getElementById('sync-status').hidden = false;
+  syncWriteControls();
+}
+
+async function refreshTransactions(afterWrite = false) {
+  if (refreshingData) return false;
+  refreshingData = true;
+  syncWriteControls();
+  try {
+    const updated = await KakeiApi.listTransactions(fetch);
+    transactions = updated;
+    needsRefresh = false;
+    document.getElementById('dashboard-view').classList.add('data-ready');
+    document.getElementById('sync-status').hidden = true;
+    render();
+    renderRoute();
+    return true;
+  } catch (_) {
+    showRefreshError(afterWrite || needsRefresh);
+    return false;
+  } finally {
+    refreshingData = false;
+    syncWriteControls();
+  }
+}
+
+document.getElementById('retry-sync').addEventListener('click', () => refreshTransactions());
+
+document.getElementById('transaction-form').addEventListener('submit', async (event) => {
   event.preventDefault();
+  if (writingData || needsRefresh || !dataReady) return;
   clearFormErrors();
   const data = new FormData(event.currentTarget);
   const title = String(data.get('title')).trim();
@@ -354,56 +403,74 @@ document.getElementById('transaction-form').addEventListener('submit', (event) =
     amount = Number(rawAmount);
     if (!/^\d+$/.test(rawAmount) || !Number.isInteger(amount) || amount < 1 || amount > 999999999) { showFieldError('amount', '1円から999,999,999円までの整数を入力してください。'); return; }
   }
-  const newRecord = { id: globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : `entry-${Date.now()}`, title, amount, date, type, category, ...details };
+  const newRecord = { title, amount, date, type, category, ...details };
+  writingData = true;
+  syncWriteControls();
   try {
-    transactions = KakeiTransactionData.persistAddedTransaction(transactions, newRecord, localStorage, storageKey, isValidTransaction);
-  } catch (_) {
+    await KakeiApi.addTransaction(newRecord, fetch);
+  } catch (cause) {
+    writingData = false;
+    syncWriteControls();
+    if (cause instanceof KakeiApi.ApiError && cause.status === 400 && ['title', 'date', 'amount', 'merchant', 'paymentMethod', 'items'].includes(cause.field)) {
+      showFieldError(cause.field === 'items' ? 'itemRows' : cause.field, cause.message);
+      return;
+    }
     const error = document.getElementById('form-error');
-    error.textContent = '保存できませんでした。ブラウザの保存設定をご確認ください。';
+    error.textContent = '保存できませんでした。サーバーへの接続を確認して再試行してください。';
     error.hidden = false;
     return;
   }
   visibleMonth = new Date(parsedDate.getFullYear(), parsedDate.getMonth(), 1);
   document.getElementById('transaction-dialog').close();
-  render();
-  showToast('取引を追加しました。');
+  document.getElementById('month-label').textContent = `${visibleMonth.getFullYear()}年${visibleMonth.getMonth() + 1}月`;
+  const refreshed = await refreshTransactions(true);
+  writingData = false;
+  syncWriteControls();
+  showToast(refreshed ? '取引を追加しました。' : '取引を保存しました。表示を更新してください。');
 });
-document.getElementById('detail-delete').addEventListener('click', () => {
+document.getElementById('detail-delete').addEventListener('click', async () => {
+  if (writingData || needsRefresh || !dataReady) return;
   const id = KakeiDetail.detailIdFromHash(window.location.hash);
   const item = transactions.find((entry) => entry.id === id);
   if (!item) { renderRoute(); return; }
   if (!confirm(`「${item.title}」を削除しますか？`)) return;
+  writingData = true;
+  syncWriteControls();
   try {
-    transactions = KakeiDetail.removePersistedTransaction(transactions, id, localStorage, storageKey, isValidTransaction);
+    await KakeiApi.removeTransaction(id, fetch);
   } catch (_) {
-    showToast('保存できませんでした。ブラウザの保存設定をご確認ください。');
+    writingData = false;
+    syncWriteControls();
+    showToast('削除できませんでした。サーバーへの接続を確認してください。');
     return;
   }
   listReturnState = null;
-  render();
   window.location.hash = '#transactions';
-  showToast('取引を削除しました。');
+  const refreshed = await refreshTransactions(true);
+  writingData = false;
+  syncWriteControls();
+  showToast(refreshed ? '取引を削除しました。' : '取引を削除しました。表示を更新してください。');
 });
-document.getElementById('clear-demo').addEventListener('click', () => {
+document.getElementById('clear-demo').addEventListener('click', async () => {
+  if (writingData || needsRefresh || !dataReady) return;
   if (!confirm('サンプルデータをすべて削除しますか？')) return;
+  writingData = true;
+  syncWriteControls();
   try {
-    transactions = KakeiDetail.removePersistedSamples(transactions, localStorage, storageKey, isValidTransaction);
+    await KakeiApi.removeSamples(fetch);
   } catch (_) {
-    showToast('保存できませんでした。ブラウザの保存設定をご確認ください。');
+    writingData = false;
+    syncWriteControls();
+    showToast('サンプルを削除できませんでした。サーバーへの接続を確認してください。');
     return;
   }
-  render();
-  showToast('サンプルデータを削除しました。');
+  const refreshed = await refreshTransactions(true);
+  writingData = false;
+  syncWriteControls();
+  showToast(refreshed ? 'サンプルデータを削除しました。' : 'サンプルを削除しました。表示を更新してください。');
 });
-window.addEventListener('storage', (event) => {
-  if (event.key !== storageKey) return;
-  try {
-    const updated = event.newValue === null ? [] : JSON.parse(event.newValue);
-    if (!Array.isArray(updated)) return;
-    transactions = updated.filter(isValidTransaction);
-    render();
-    renderRoute();
-  } catch (_) { /* Ignore malformed updates from another tab. */ }
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && dataReady && !writingData) refreshTransactions();
 });
 document.getElementById('export-button').addEventListener('click', () => {
   const items = monthTransactions();
@@ -427,15 +494,17 @@ async function loadFromServer() {
   status.hidden = true;
   document.getElementById('balance-amount').textContent = '—';
   document.getElementById('balance-message').textContent = '取引を読み込んでいます';
-  document.querySelectorAll('.add-trigger').forEach((button) => { button.disabled = true; });
-  document.getElementById('export-button').disabled = true;
+  syncWriteControls();
   try {
-    transactions = await KakeiApi.loadInitialTransactions({ fetchImpl: fetch, storage: localStorage, sampleFactory: sampleTransactions });
+    transactions = await KakeiApi.loadInitialTransactions({
+      fetchImpl: fetch,
+      storage: { getItem: (key) => window.localStorage.getItem(key) },
+      sampleFactory: sampleTransactions,
+    });
     dataReady = true;
     dashboard.classList.add('data-ready');
     dashboard.removeAttribute('aria-busy');
-    document.querySelectorAll('.add-trigger').forEach((button) => { button.disabled = false; });
-    document.getElementById('export-button').disabled = false;
+    syncWriteControls();
     render();
     renderRoute();
   } catch (error) {

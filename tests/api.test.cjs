@@ -79,3 +79,38 @@ test('an initialization conflict loads the winning server data', async () => {
   assert.deepEqual(records, [winner]);
   assert.deepEqual(urls, ['/api/status', '/api/initialize', '/api/transactions']);
 });
+
+test('create, delete, and clear samples use the expected API requests', async () => {
+  const calls = [];
+  const draft = { title: '給与', date: '2026-09-01', type: 'income', category: '収入', amount: 100 };
+  const fetchImpl = async (url, options) => {
+    calls.push({ url, options });
+    if (url === '/api/transactions') return response(201, { transaction: income });
+    if (url === '/api/samples') return response(200, { deletedCount: 2 });
+    return response(204);
+  };
+  assert.deepEqual(await KakeiApi.addTransaction(draft, fetchImpl), income);
+  assert.equal(await KakeiApi.removeTransaction('a/b ?', fetchImpl), undefined);
+  assert.equal(await KakeiApi.removeSamples(fetchImpl), 2);
+  assert.deepEqual(calls.map(({ url, options }) => [options.method, url]), [
+    ['POST', '/api/transactions'],
+    ['DELETE', '/api/transactions/a%2Fb%20%3F'],
+    ['DELETE', '/api/samples'],
+  ]);
+  assert.deepEqual(JSON.parse(calls[0].options.body), draft);
+  assert.equal(calls[1].options.body, undefined);
+});
+
+test('failed writes reject without changing the draft', async () => {
+  const draft = { title: '給与', date: '2026-09-01', type: 'income', category: '収入', amount: 100 };
+  const original = structuredClone(draft);
+  const fetchImpl = async () => response(400, { error: { code: 'invalid_transaction', field: 'title', message: '内容を確認してください。' } });
+  await assert.rejects(() => KakeiApi.addTransaction(draft, fetchImpl), (error) => {
+    assert.equal(error.status, 400);
+    assert.equal(error.field, 'title');
+    return true;
+  });
+  await assert.rejects(() => KakeiApi.removeTransaction('old-1', fetchImpl), KakeiApi.ApiError);
+  await assert.rejects(() => KakeiApi.removeSamples(fetchImpl), KakeiApi.ApiError);
+  assert.deepEqual(draft, original);
+});

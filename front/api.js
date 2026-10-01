@@ -46,7 +46,27 @@ const KakeiApi = (() => {
     return listTransactions(fetchImpl);
   }
 
-  return { ApiError, listTransactions, loadInitialTransactions };
+  async function addTransaction(draft, fetchImpl = fetch) {
+    const result = await request('POST', '/api/transactions', draft, fetchImpl);
+    if (!result?.transaction || typeof result.transaction.id !== 'string') {
+      throw new ApiError(201, { code: 'invalid_response', message: '保存結果を確認できませんでした。' });
+    }
+    return result.transaction;
+  }
+
+  async function removeTransaction(id, fetchImpl = fetch) {
+    await request('DELETE', `/api/transactions/${encodeURIComponent(id)}`, undefined, fetchImpl);
+  }
+
+  async function removeSamples(fetchImpl = fetch) {
+    const result = await request('DELETE', '/api/samples', undefined, fetchImpl);
+    if (!Number.isInteger(result?.deletedCount)) {
+      throw new ApiError(200, { code: 'invalid_response', message: '削除結果を確認できませんでした。' });
+    }
+    return result.deletedCount;
+  }
+
+  return { ApiError, listTransactions, loadInitialTransactions, addTransaction, removeTransaction, removeSamples };
 })();
 globalThis.KakeiApi = KakeiApi;
 if (typeof module !== 'undefined') module.exports = KakeiApi;

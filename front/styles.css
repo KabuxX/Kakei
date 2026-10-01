@@ -25,7 +25,10 @@
 #dashboard-view:not(.data-ready) .balance-card{grid-column:span 12}
 .data-status{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-top:16px;font-size:12px;line-height:1.5;color:var(--ink);position:relative;z-index:2}
 .data-status .secondary-button{min-height:44px}
+.sync-status{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin:0 0 18px;padding:14px 18px;border:1px solid #e7c5bd;border-radius:14px;background:#fff5f2;color:#843b35;font-size:12px;line-height:1.5}
+.sync-status .secondary-button{min-height:44px}
 .primary-button:disabled,.secondary-button:disabled{opacity:.55;cursor:default;box-shadow:none}
+.detail-danger button:disabled,.demo-note button:disabled{opacity:.55;cursor:default}
 .table-scroll{position:relative}
 .transaction-link{display:inline-flex;align-items:center;min-height:44px;min-width:0;color:var(--ink);text-decoration:underline;text-decoration-color:transparent;text-underline-offset:3px;overflow-wrap:anywhere;transition:text-decoration-color .2s,color .2s}
 .transaction-link:hover,.transaction-link:focus-visible{text-decoration-color:currentColor}
