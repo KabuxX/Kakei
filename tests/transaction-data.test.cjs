@@ -5,6 +5,7 @@ const {
   readExpenseDetails,
   parseExpenseDraft,
   persistAddedTransaction,
+  serializeTransactionsCsv,
 } = require('../front/transaction-data.js');
 
 const draft = (changes = {}) => ({
@@ -97,4 +98,52 @@ test('malformed saved data is not overwritten', () => {
   const storage = { getItem() { return '{broken'; }, setItem() { writes += 1; } };
   assert.throws(() => persistAddedTransaction([], { id: 'new' }, storage, 'key'), SyntaxError);
   assert.equal(writes, 0);
+});
+
+function parseCsvRows(csv) {
+  const rows = [];
+  let row = [];
+  let cell = '';
+  let quoted = false;
+  for (let index = 1; index < csv.length; index += 1) {
+    const character = csv[index];
+    if (character === '"') {
+      if (quoted && csv[index + 1] === '"') { cell += '"'; index += 1; }
+      else quoted = !quoted;
+    } else if (character === ',' && !quoted) {
+      row.push(cell); cell = '';
+    } else if (character === '\r' && csv[index + 1] === '\n' && !quoted) {
+      row.push(cell); rows.push(row); row = []; cell = ''; index += 1;
+    } else {
+      cell += character;
+    }
+  }
+  row.push(cell); rows.push(row);
+  return rows;
+}
+
+test('CSV adds expense details and preserves quoted item names', () => {
+  const items = [{ name: 'パン, "大"', amount: 200 }, { name: '牛乳', amount: 100 }];
+  const csv = serializeTransactionsCsv([{
+    date: '2026-10-01', type: 'expense', title: '買い物', category: '食費', amount: 300,
+    merchant: '=店名', paymentMethod: 'cash', items,
+  }]);
+  assert.equal(csv[0], '\uFEFF');
+  assert.ok(csv.includes('"店名・取引先","支払方法","品目"'));
+  assert.ok(csv.includes("'=店名"));
+  const [headers, record] = parseCsvRows(csv);
+  assert.deepEqual(headers, ['日付', '種類', '内容', 'カテゴリ', '金額', '店名・取引先', '支払方法', '品目']);
+  assert.deepEqual(record.slice(0, 7), ['2026-10-01', '支出', '買い物', '食費', '300', "'=店名", '現金']);
+  assert.deepEqual(JSON.parse(record[7]), items);
+});
+
+test('CSV leaves new columns empty for old and income records', () => {
+  const rows = parseCsvRows(serializeTransactionsCsv([
+    { date: '2026-10-01', type: 'expense', title: '旧取引', category: '食費', amount: 300 },
+    { date: '2026-10-02', type: 'income', title: '給与', category: '収入', amount: 500, merchant: '無視' },
+    { date: '2026-10-03', type: 'expense', title: '不正品目', category: '食費', amount: 300, items: [{ name: 'パン', amount: 200 }] },
+  ]));
+  assert.deepEqual(rows[1].slice(5), ['', '', '']);
+  assert.deepEqual(rows[2].slice(5), ['', '', '']);
+  assert.deepEqual(rows[3].slice(5), ['', '', '']);
 });

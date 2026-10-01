@@ -67,7 +67,30 @@ const KakeiTransactionData = (() => {
     return next;
   }
 
-  return { PAYMENT_METHOD_LABELS, ValidationError, readExpenseDetails, parseExpenseDraft, persistAddedTransaction };
+  function serializeTransactionsCsv(records) {
+    const quote = (value) => {
+      const text = String(value);
+      const safe = /^[=+\-@]/.test(text) && typeof value !== 'number' ? `'${text}` : text;
+      return `"${safe.replace(/"/g, '""')}"`;
+    };
+    const rows = [['日付', '種類', '内容', 'カテゴリ', '金額', '店名・取引先', '支払方法', '品目']];
+    for (const record of records) {
+      const details = readExpenseDetails(record);
+      rows.push([
+        record.date,
+        record.type === 'income' ? '収入' : '支出',
+        record.title,
+        record.category,
+        record.amount,
+        details.merchant || '',
+        PAYMENT_METHOD_LABELS[details.paymentMethod] || '',
+        details.items.length ? JSON.stringify(details.items) : '',
+      ]);
+    }
+    return `\uFEFF${rows.map((row) => row.map(quote).join(',')).join('\r\n')}`;
+  }
+
+  return { PAYMENT_METHOD_LABELS, ValidationError, readExpenseDetails, parseExpenseDraft, persistAddedTransaction, serializeTransactionsCsv };
 })();
 
 globalThis.KakeiTransactionData = KakeiTransactionData;

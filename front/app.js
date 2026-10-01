@@ -431,9 +431,7 @@ window.addEventListener('storage', (event) => {
 document.getElementById('export-button').addEventListener('click', () => {
   const items = monthTransactions();
   if (!items.length) { showToast('この月に保存できる取引はありません。'); return; }
-  const quote = (value) => { const text = String(value); const safe = /^[=+\-@]/.test(text) && typeof value !== 'number' ? `'${text}` : text; return `"${safe.replace(/"/g, '""')}"`; };
-  const rows = [['日付', '種類', '内容', 'カテゴリ', '金額'], ...items.map((item) => [item.date, item.type === 'income' ? '収入' : '支出', item.title, item.category, item.amount])];
-  const csv = `\uFEFF${rows.map((row) => row.map(quote).join(',')).join('\r\n')}`;
+  const csv = KakeiTransactionData.serializeTransactionsCsv(items);
   const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
   const link = document.createElement('a'); link.href = url; link.download = `kakei-${monthKey(visibleMonth)}.csv`; link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
