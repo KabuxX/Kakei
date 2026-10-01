@@ -29,7 +29,7 @@
 
 ---
 
-### タスク1: URLと削除処理の補助関数
+### Task 1: URLと削除処理の補助関数
 
 **ファイル:**
 - 新規: `front/transaction-detail.js`
@@ -45,7 +45,7 @@
 - [ ] **手順4: `node --test tests/transaction-detail.test.cjs` を実行する。** 全件成功することを確認する。
 - [ ] **手順5: 補助ファイルとテストだけをコミットする。** メッセージは `feat: add transaction detail URL and storage helpers`。
 
-### タスク2: 詳細表示と画面遷移
+### Task 2: 詳細表示と画面遷移
 
 **ファイル:**
 - 変更: `front/index.html`
@@ -63,7 +63,7 @@
 - [ ] **手順4: `front/styles.css` に詳細画面と幅ごとのスタイルを追加する。** 既存トークンを使い、非表示の画面をレイアウトから除外し、操作領域を44px以上にし、長い文字列を折り返し、固定の下部ナビゲーションが内容を隠さないようにする。
 - [ ] **手順5: 手順1の項目をデスクトップと幅375pxのブラウザで確認し、結果を同じ確認書へ記録する。** 不具合があれば直し、画面の3ファイルと確認書を `feat: show transaction details with back navigation` でコミットする。
 
-### タスク3: 確認付き削除と別タブの変更
+### Task 3: 確認付き削除と別タブの変更
 
 **ファイル:**
 - 変更: `front/app.js`
@@ -79,7 +79,7 @@
 - [ ] **手順3: `kakei-transactions-v1` の `storage` イベントを処理する。** 有効な配列を `isValidTransaction` で絞り、キーが削除されたら空配列とする。現在の画面を再描画し、対象が消えた詳細は未発見状態にする。
 - [ ] **手順4: `node --test tests/transaction-detail.test.cjs` と手順1のブラウザ確認を実行し、結果を確認書に記録する。** キャンセルと保存失敗では詳細とデータが保たれることを確認し、`front/app.js`、確認書、変更したテストを `feat: safely delete transaction from detail` でコミットする。
 
-### タスク4: 最終確認
+### Task 4: 最終確認
 
 **ファイル:** 追加変更は想定しない。
 

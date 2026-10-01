@@ -6,7 +6,11 @@
     <meta name="theme-color" content="#ffffff" />
     <meta name="description" content="Kakeiの家計ダッシュボード。月ごとの収支、予算、取引を確認できます。" />
     <title>家計の概要 | Kakei</title>
+    <link rel="icon" type="image/png" href="./assets/kakei-logo.png" />
     <link rel="stylesheet" href="./styles.css" />
+    <script src="./transaction-detail.js" defer></script>
+    <script src="./transaction-data.js" defer></script>
+    <script src="./sample-data.js" defer></script>
     <script src="./app.js" defer></script>
   </head>
   <body>
@@ -29,12 +33,12 @@
     <a class="skip-link" href="#main">メインコンテンツへ</a>
     <div class="app-shell">
       <aside class="sidebar" aria-label="サイドバー">
-        <a class="brand" href="#overview" aria-label="Kakei ホーム"><span class="brand-mark">k<span>.</span></span><span>Kakei</span></a>
+        <a class="brand" href="#overview" aria-label="Kakei ホーム"><span class="brand-mark"><img src="./assets/kakei-logo.png" alt="" width="44" height="44" /></span><span>Kakei</span></a>
         <nav class="side-nav" aria-label="メインナビゲーション">
-          <a class="nav-link active" href="#overview" aria-current="page"><svg><use href="#i-grid"/></svg><span>概要</span></a>
-          <a class="nav-link" href="#transactions"><svg><use href="#i-list"/></svg><span>取引履歴</span></a>
-          <a class="nav-link" href="#budget"><svg><use href="#i-wallet"/></svg><span>予算</span></a>
-          <a class="nav-link" href="#insights"><svg><use href="#i-chart"/></svg><span>支出の分析</span></a>
+          <a class="nav-link active" href="#overview" aria-label="概要" aria-current="page"><svg><use href="#i-grid"/></svg><span>概要</span></a>
+          <a class="nav-link" href="#transactions" aria-label="取引履歴"><svg><use href="#i-list"/></svg><span>取引履歴</span></a>
+          <a class="nav-link" href="#budget" aria-label="予算"><svg><use href="#i-wallet"/></svg><span>予算</span></a>
+          <a class="nav-link" href="#insights" aria-label="支出の分析"><svg><use href="#i-chart"/></svg><span>支出の分析</span></a>
         </nav>
         <div class="sidebar-bottom">
           <div class="profile"><span class="avatar">K</span><span><strong>わたしの家計</strong><small>このブラウザに保存</small></span><span class="profile-dot" aria-hidden="true"></span></div>
@@ -43,12 +47,13 @@
 
       <main id="main" class="main-content">
         <header class="topbar" id="overview">
-          <div class="mobile-brand"><span class="brand-mark">k<span>.</span></span><strong>Kakei</strong></div>
-          <div class="breadcrumb"><strong>家計の概要</strong></div>
+          <div class="mobile-brand"><span class="brand-mark"><img src="./assets/kakei-logo.png" alt="" width="44" height="44" /></span><strong>Kakei</strong></div>
+          <div class="breadcrumb"><strong id="current-page-label">家計の概要</strong></div>
           <div class="topbar-actions"><span class="today-label" id="today-label"></span><button class="primary-button add-trigger" type="button" aria-label="取引を追加"><svg aria-hidden="true"><use href="#i-plus"/></svg><span>取引を追加</span></button></div>
         </header>
 
         <div class="content-wrap">
+          <div id="dashboard-view">
           <h1 class="sr-only">家計ダッシュボード</h1>
           <div class="dashboard-grid">
             <section class="balance-card" aria-labelledby="balance-title">
@@ -66,13 +71,66 @@
 
             <section class="trend-card card" aria-labelledby="trend-title"><div class="card-head"><div><h2 id="trend-title">週ごとの支出</h2></div><span class="card-note">円 / 週</span></div><div id="weekly-chart" class="weekly-chart" aria-label="週ごとの支出額"></div><p class="chart-caption">月内の各週に記録された支出を表示しています。</p></section>
 
-            <section id="transactions" class="transactions-card card" aria-labelledby="transactions-title"><div class="card-head transaction-heading"><div><h2 id="transactions-title">取引履歴 <span id="transaction-count" class="count-pill">0</span></h2></div><button id="export-button" class="secondary-button" type="button" aria-label="取引をCSVで保存"><svg aria-hidden="true"><use href="#i-download"/></svg><span>CSVで保存</span></button></div><p id="demo-note" class="demo-note">サンプルデータあり <button id="clear-demo" type="button">サンプルを削除</button></p><div class="transaction-tools"><label class="search-field"><svg><use href="#i-search"/></svg><span class="sr-only">取引を検索</span><input id="transaction-search" type="search" placeholder="取引を検索" /></label><label class="select-wrap"><span class="sr-only">取引種別</span><select id="type-filter"><option value="all">すべての取引</option><option value="expense">支出のみ</option><option value="income">収入のみ</option></select></label></div><div class="table-scroll"><table><thead><tr><th scope="col">取引</th><th scope="col">カテゴリ</th><th scope="col">日付</th><th scope="col" class="amount-col">金額</th><th scope="col"><span class="sr-only">操作</span></th></tr></thead><tbody id="transaction-rows"></tbody></table></div><div id="transaction-empty" class="empty-state" hidden><span class="empty-mark"><svg><use href="#i-list"/></svg></span><strong>取引がありません</strong><p>検索条件を変えるか、新しい取引を追加してください。</p><button class="text-link add-trigger" type="button">取引を追加する <span aria-hidden="true">↗</span></button></div></section>
+            <section id="transactions" class="transactions-card card" aria-labelledby="transactions-title"><div class="card-head transaction-heading"><div><h2 id="transactions-title" tabindex="-1">取引履歴 <span id="transaction-count" class="count-pill">0</span></h2></div><button id="export-button" class="secondary-button" type="button" aria-label="取引をCSVで保存"><svg aria-hidden="true"><use href="#i-download"/></svg><span>CSVで保存</span></button></div><p id="demo-note" class="demo-note">サンプルデータあり <button id="clear-demo" type="button">サンプルを削除</button></p><div class="transaction-tools"><label class="search-field"><svg><use href="#i-search"/></svg><span class="sr-only">取引を検索</span><input id="transaction-search" type="search" placeholder="取引を検索" /></label><label class="select-wrap"><span class="sr-only">取引種別</span><select id="type-filter"><option value="all">すべての取引</option><option value="expense">支出のみ</option><option value="income">収入のみ</option></select></label></div><div class="table-scroll"><table><thead><tr><th scope="col">取引</th><th scope="col">カテゴリ</th><th scope="col">日付</th><th scope="col" class="amount-col">金額</th></tr></thead><tbody id="transaction-rows"></tbody></table></div><div id="transaction-empty" class="empty-state" hidden><span class="empty-mark"><svg><use href="#i-list"/></svg></span><strong>取引がありません</strong><p>検索条件を変えるか、新しい取引を追加してください。</p><button class="text-link add-trigger" type="button">取引を追加する <span aria-hidden="true">↗</span></button></div></section>
           </div>
+          </div>
+          <section id="detail-view" class="detail-view" aria-labelledby="detail-heading" hidden>
+            <a id="detail-back" class="detail-back" href="#transactions"><svg aria-hidden="true"><use href="#i-chevron"/></svg>取引履歴へ戻る</a>
+            <h1 id="detail-heading" tabindex="-1">取引詳細</h1>
+            <div id="detail-present">
+              <article class="detail-hero" aria-labelledby="detail-title">
+                <div class="detail-hero-top"><span id="detail-type" class="detail-type"></span><span id="detail-sample" class="detail-sample" hidden>サンプルデータ</span></div>
+                <strong id="detail-amount" class="detail-amount"></strong>
+                <h2 id="detail-title"></h2>
+              </article>
+              <dl class="detail-fields">
+                <div><dt>日付</dt><dd id="detail-date"></dd></div>
+                <div><dt>カテゴリ</dt><dd id="detail-category"></dd></div>
+              </dl>
+              <div id="detail-expense-fields" hidden>
+                <dl class="detail-fields">
+                  <div><dt>店名・取引先</dt><dd id="detail-merchant"></dd></div>
+                  <div><dt>支払方法</dt><dd id="detail-payment-method"></dd></div>
+                </dl>
+                <section class="detail-items-section" aria-labelledby="detail-items-heading">
+                  <h3 id="detail-items-heading">品目</h3>
+                  <div id="detail-items"></div>
+                </section>
+              </div>
+              <div class="detail-danger"><button id="detail-delete" type="button"><svg aria-hidden="true"><use href="#i-trash"/></svg>取引を削除</button></div>
+            </div>
+            <div id="detail-missing" class="detail-missing" hidden><h2>取引が見つかりません</h2><p>削除されたか、URLが正しくない可能性があります。</p></div>
+          </section>
         </div>
       </main>
     </div>
 
-    <dialog id="transaction-dialog" class="transaction-dialog" aria-labelledby="dialog-title"><form id="transaction-form"><div class="dialog-head"><div><h2 id="dialog-title">取引を追加</h2></div><button type="button" class="icon-button close-dialog" aria-label="閉じる"><svg><use href="#i-close"/></svg></button></div><div class="type-tabs" role="group" aria-label="取引の種類"><label><input type="radio" name="type" value="expense" checked /><span>支出</span></label><label><input type="radio" name="type" value="income" /><span>収入</span></label></div><div class="form-grid"><label class="field full"><span>内容 <em>必須</em></span><input name="title" type="text" maxlength="60" placeholder="例：スーパーで買い物" required /></label><label class="field"><span>金額 <em>必須</em></span><span class="yen-input"><b>¥</b><input name="amount" type="number" inputmode="numeric" min="1" max="999999999" placeholder="0" required /></span></label><label class="field"><span>日付 <em>必須</em></span><input id="date-input" name="date" type="date" required /></label><label class="field full"><span>カテゴリ</span><select id="category-input" name="category"></select></label></div><p class="form-note" id="form-note">入力した取引はこのブラウザに保存されます。</p><div class="dialog-actions"><button type="button" class="secondary-button close-dialog">キャンセル</button><button type="submit" class="primary-button"><svg><use href="#i-plus"/></svg>追加する</button></div></form></dialog>
+    <dialog id="transaction-dialog" class="transaction-dialog" aria-labelledby="dialog-title">
+      <form id="transaction-form" novalidate>
+        <div class="dialog-head"><h2 id="dialog-title">取引を追加</h2><button type="button" class="icon-button close-dialog" aria-label="閉じる"><svg><use href="#i-close"/></svg></button></div>
+        <div class="type-tabs" role="group" aria-label="取引の種類"><label><input type="radio" name="type" value="expense" checked /><span>支出</span></label><label><input type="radio" name="type" value="income" /><span>収入</span></label></div>
+        <div class="form-grid">
+          <label class="field full"><span>内容 <em>必須</em></span><input name="title" type="text" maxlength="60" placeholder="例：スーパーで買い物" aria-describedby="title-error" required /><small id="title-error" class="field-error" hidden></small></label>
+          <label class="field"><span>金額 <em>必須</em></span><span class="yen-input"><b>¥</b><input id="amount-input" name="amount" type="number" inputmode="numeric" min="1" max="999999999" placeholder="0" aria-describedby="amount-error" required /></span><small id="amount-error" class="field-error" hidden></small></label>
+          <label class="field"><span>日付 <em>必須</em></span><input id="date-input" name="date" type="date" aria-describedby="date-error" required /><small id="date-error" class="field-error" hidden></small></label>
+          <label class="field full"><span>カテゴリ</span><select id="category-input" name="category"></select></label>
+        </div>
+        <div id="expense-fields" class="expense-fields">
+          <div class="form-grid">
+            <label class="field full"><span>店名・取引先 <em>必須</em></span><input id="merchant-input" name="merchant" type="text" maxlength="60" placeholder="例：スーパー○○" aria-describedby="merchant-error" required /><small id="merchant-error" class="field-error" hidden></small></label>
+            <label class="field full"><span>支払方法 <em>必須</em></span><select id="payment-method-input" name="paymentMethod" aria-describedby="payment-method-error" required><option value="">選択してください</option><option value="cash">現金</option><option value="credit_card">クレジットカード</option><option value="e_money">電子マネー</option><option value="bank_account">銀行口座</option></select><small id="payment-method-error" class="field-error" hidden></small></label>
+          </div>
+          <div class="item-section" aria-labelledby="item-section-title">
+            <div class="item-section-head"><strong id="item-section-title">品目 <span>任意</span></strong><button id="add-item" type="button" class="item-add">＋ 品目を追加</button></div>
+            <div id="item-rows" class="item-rows"></div>
+            <small id="items-error" class="field-error" role="status" hidden></small>
+          </div>
+        </div>
+        <p id="form-error" class="field-error form-error" role="alert" hidden></p>
+        <p class="form-note" id="form-note">入力した取引はこのブラウザに保存されます。</p>
+        <div class="dialog-actions"><button type="button" class="secondary-button close-dialog">キャンセル</button><button type="submit" class="primary-button"><svg><use href="#i-plus"/></svg>追加する</button></div>
+      </form>
+    </dialog>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
   </body>
 </html>

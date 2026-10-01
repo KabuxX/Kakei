@@ -14,34 +14,27 @@ const now = new Date();
 const sampleMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 let visibleMonth = new Date(sampleMonth);
 let toastTimeout;
+let listReturnState = null;
+let showingDetail = false;
+let currentDetailId = null;
 
 function sampleTransactions() {
-  const month = `${sampleMonth.getFullYear()}-${String(sampleMonth.getMonth() + 1).padStart(2, '0')}`;
-  const entries = [
-    [28, '給与', '収入', 320000, 'income'], [27, '週末の買い物', '食費', 6840, 'expense'],
-    [25, 'カフェとランチ', '食費', 2380, 'expense'], [24, '電車・バス', '交通', 4200, 'expense'],
-    [22, '日用品のまとめ買い', '日用品', 5920, 'expense'], [20, '映画と外食', '娯楽', 7900, 'expense'],
-    [18, 'スーパーマーケット', '食費', 9630, 'expense'], [15, '家賃', '住まい', 86000, 'expense'],
-    [13, '書籍', '娯楽', 3100, 'expense'], [11, '食材の買い出し', '食費', 7340, 'expense'],
-    [9, '電気・水道', '住まい', 12800, 'expense'], [7, '洗剤とティッシュ', '日用品', 3540, 'expense'],
-    [5, '定期券', '交通', 10480, 'expense'], [3, '外食', '食費', 4860, 'expense'],
-    [2, '週末の買い物', '食費', 8910, 'expense'], [1, 'フリマ売上', '収入', 12000, 'income'],
-  ];
-  const lastDay = new Date(sampleMonth.getFullYear(), sampleMonth.getMonth() + 1, 0).getDate();
-  return entries.map(([day, title, category, amount, type], index) => ({
-    id: `sample-${index}`, date: `${month}-${String(Math.min(day, lastDay)).padStart(2, '0')}`, title, category, amount, type,
-  }));
+  return KakeiSampleData.createSampleTransactions(sampleMonth);
 }
 
 function loadTransactions() {
+  let parsed;
   try {
     const raw = localStorage.getItem(storageKey);
-    if (raw !== null) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed.filter(isValidTransaction);
-    }
+    if (raw === null) return sampleTransactions();
+    parsed = JSON.parse(raw);
   } catch (_) { /* Browser storage can be disabled. The page remains usable. */ }
-  return sampleTransactions();
+  if (!Array.isArray(parsed)) return sampleTransactions();
+  try {
+    return KakeiSampleData.persistEnrichedSamples(parsed, localStorage, storageKey).filter(isValidTransaction);
+  } catch (_) {
+    return parsed.filter(isValidTransaction);
+  }
 }
 
 function isValidTransaction(item) {
@@ -49,10 +42,6 @@ function isValidTransaction(item) {
 }
 
 let transactions = loadTransactions();
-function saveTransactions() {
-  try { localStorage.setItem(storageKey, JSON.stringify(transactions)); return true; }
-  catch (_) { showToast('保存できませんでした。ブラウザの保存設定をご確認ください。'); return false; }
-}
 function monthKey(date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`; }
 function monthTransactions() { return transactions.filter((item) => item.date.startsWith(monthKey(visibleMonth))).sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)); }
 function sums(items) { return items.reduce((result, item) => { result[item.type] += item.amount; return result; }, { income: 0, expense: 0 }); }
@@ -109,7 +98,13 @@ function renderTransactions(items) {
   const type = document.getElementById('type-filter').value;
   const filtered = items.filter((item) => (type === 'all' || item.type === type) && (!query || `${item.title} ${item.category}`.toLocaleLowerCase('ja-JP').includes(query)));
   document.getElementById('transaction-count').textContent = String(items.length);
-  document.getElementById('transaction-rows').innerHTML = filtered.map((item) => `<tr><td><div class="transaction-name"><span class="transaction-icon ${item.type === 'income' ? 'income' : ''}"><svg aria-hidden="true"><use href="#i-${item.type === 'income' ? 'arrow-down' : 'arrow-up'}"/></svg></span><span>${escapeHtml(item.title)}</span></div></td><td><span class="category-pill">${escapeHtml(item.category)}</span></td><td>${Number(item.date.slice(5, 7))}月${Number(item.date.slice(8, 10))}日</td><td class="amount-col"><span class="amount ${item.type === 'income' ? 'income' : ''}">${item.type === 'income' ? '+' : '−'}${yen(item.amount)}</span></td><td><button type="button" class="row-delete" data-id="${escapeHtml(item.id)}" aria-label="${escapeHtml(item.title)}を削除"><svg aria-hidden="true"><use href="#i-trash"/></svg></button></td></tr>`).join('');
+  document.getElementById('transaction-rows').innerHTML = filtered.map((item) => `
+    <tr>
+      <td><div class="transaction-name"><span class="transaction-icon ${item.type === 'income' ? 'income' : ''}"><svg aria-hidden="true"><use href="#i-${item.type === 'income' ? 'arrow-down' : 'arrow-up'}"/></svg></span><a class="transaction-link" href="${KakeiDetail.detailHref(item.id)}" data-id="${escapeHtml(item.id)}">${escapeHtml(item.title)}</a></div></td>
+      <td><span class="category-pill">${escapeHtml(item.category)}</span></td>
+      <td>${Number(item.date.slice(5, 7))}月${Number(item.date.slice(8, 10))}日</td>
+      <td class="amount-col"><span class="amount ${item.type === 'income' ? 'income' : ''}">${item.type === 'income' ? '+' : '−'}${yen(item.amount)}</span></td>
+    </tr>`).join('');
   document.getElementById('transaction-empty').hidden = filtered.length > 0;
   document.querySelector('.table-scroll').hidden = filtered.length === 0;
 }
@@ -122,10 +117,176 @@ function render() {
   renderSummary(items); renderInsights(items); renderWeekly(items); renderTransactions(items);
 }
 
+function setActiveNavigation(hash, isDetail) {
+  const current = isDetail || hash === '#transactions' ? '#transactions' : hash === '#budget' ? '#budget' : hash === '#insights' ? '#insights' : '#overview';
+  document.querySelectorAll('.side-nav .nav-link').forEach((link) => {
+    const active = link.getAttribute('href') === current;
+    link.classList.toggle('active', active);
+    if (active) link.setAttribute('aria-current', 'page');
+    else link.removeAttribute('aria-current');
+  });
+}
+
+function renderRoute() {
+  const hash = window.location.hash;
+  const isDetail = hash === '#transaction' || hash.startsWith('#transaction/');
+  const dashboard = document.getElementById('dashboard-view');
+  const detail = document.getElementById('detail-view');
+  setActiveNavigation(hash, isDetail);
+
+  if (!isDetail) {
+    dashboard.hidden = false;
+    detail.hidden = true;
+    document.body.classList.remove('detail-route');
+    document.getElementById('current-page-label').textContent = '家計の概要';
+    document.title = '家計の概要 | Kakei';
+    if (showingDetail) {
+      const saved = listReturnState && listReturnState.id === currentDetailId ? listReturnState : null;
+      requestAnimationFrame(() => {
+        if (saved) {
+          window.scrollTo(0, saved.scrollY);
+          const link = [...document.querySelectorAll('.transaction-link')].find((entry) => entry.dataset.id === saved.id);
+          link?.focus({ preventScroll: true });
+        } else if (hash === '#transactions') {
+          document.getElementById('transactions').scrollIntoView();
+          document.getElementById('transactions-title').focus({ preventScroll: true });
+        } else if (hash === '#overview') {
+          window.scrollTo(0, 0);
+        } else if (hash === '#budget' || hash === '#insights') {
+          document.querySelector(hash).scrollIntoView();
+        }
+      });
+    }
+    showingDetail = false;
+    currentDetailId = null;
+    return;
+  }
+
+  const id = KakeiDetail.detailIdFromHash(hash);
+  const item = transactions.find((entry) => entry.id === id);
+  currentDetailId = id;
+  showingDetail = true;
+  dashboard.hidden = true;
+  detail.hidden = false;
+  document.body.classList.add('detail-route');
+  document.getElementById('current-page-label').textContent = '取引詳細';
+  document.getElementById('detail-present').hidden = !item;
+  document.getElementById('detail-missing').hidden = !!item;
+
+  if (item) {
+    document.getElementById('detail-type').textContent = item.type === 'income' ? '収入' : '支出';
+    document.getElementById('detail-type').classList.toggle('income', item.type === 'income');
+    document.getElementById('detail-amount').textContent = `${item.type === 'income' ? '+' : '−'}${yen(item.amount)}`;
+    document.getElementById('detail-title').textContent = item.title;
+    document.getElementById('detail-date').textContent = `${item.date.slice(0, 4)}年${Number(item.date.slice(5, 7))}月${Number(item.date.slice(8, 10))}日`;
+    document.getElementById('detail-category').textContent = item.category;
+    document.getElementById('detail-sample').hidden = !item.id.startsWith('sample-');
+    const expenseFields = document.getElementById('detail-expense-fields');
+    expenseFields.hidden = item.type !== 'expense';
+    if (item.type === 'expense') {
+      const details = KakeiTransactionData.readExpenseDetails(item);
+      document.getElementById('detail-merchant').textContent = details.merchant || '未登録';
+      document.getElementById('detail-payment-method').textContent = KakeiTransactionData.PAYMENT_METHOD_LABELS[details.paymentMethod] || '未登録';
+      const itemList = document.getElementById('detail-items');
+      itemList.replaceChildren();
+      if (details.items.length) {
+        const list = document.createElement('ul');
+        list.className = 'detail-item-list';
+        details.items.forEach((entry) => {
+          const row = document.createElement('li');
+          const name = document.createElement('span');
+          const amount = document.createElement('strong');
+          name.textContent = entry.name;
+          amount.textContent = yen(entry.amount);
+          row.append(name, amount);
+          list.append(row);
+        });
+        itemList.append(list);
+      } else {
+        const empty = document.createElement('p');
+        empty.className = 'detail-item-empty';
+        empty.textContent = '品目は登録されていません';
+        itemList.append(empty);
+      }
+    }
+    document.title = `${item.title} | Kakei`;
+  } else {
+    document.title = '取引が見つかりません | Kakei';
+  }
+  requestAnimationFrame(() => {
+    window.scrollTo(0, 0);
+    document.getElementById('detail-heading').focus({ preventScroll: true });
+  });
+}
+
+let manualAmountBeforeItems = '';
+let itemRowSequence = 0;
+
+function clearFormErrors() {
+  document.querySelectorAll('#transaction-form .field-error').forEach((element) => { element.hidden = true; element.textContent = ''; });
+  document.querySelectorAll('#transaction-form [aria-invalid]').forEach((element) => element.removeAttribute('aria-invalid'));
+}
+
+function showFieldError(field, message) {
+  const errorIds = { title: 'title-error', date: 'date-error', amount: 'amount-error', merchant: 'merchant-error', paymentMethod: 'payment-method-error', itemRows: 'items-error' };
+  const inputIds = { title: '[name="title"]', date: '#date-input', amount: '#amount-input', merchant: '#merchant-input', paymentMethod: '#payment-method-input', itemRows: '[data-item-name]' };
+  const error = document.getElementById(errorIds[field]);
+  let input = document.querySelector(`#transaction-form ${inputIds[field]}`);
+  if (field === 'itemRows') {
+    const rows = [...document.querySelectorAll('#item-rows .item-row')];
+    const row = rows.find((entry) => {
+      const name = entry.querySelector('[data-item-name]').value.trim();
+      const amount = entry.querySelector('[data-item-amount]').value.trim();
+      return !name || !/^\d+$/.test(amount) || Number(amount) < 1 || Number(amount) > 999999999;
+    }) || rows.at(-1);
+    if (row) input = row.querySelector(row.querySelector('[data-item-name]').value.trim() ? '[data-item-amount]' : '[data-item-name]');
+  }
+  error.textContent = message;
+  error.hidden = false;
+  if (input) { input.setAttribute('aria-invalid', 'true'); input.focus(); }
+}
+
+function itemRowsFromForm() {
+  return [...document.querySelectorAll('#item-rows .item-row')].map((row) => ({
+    name: row.querySelector('[data-item-name]').value,
+    amount: row.querySelector('[data-item-amount]').value,
+  }));
+}
+
+function syncAmountFromItems() {
+  const amountInput = document.getElementById('amount-input');
+  const rows = itemRowsFromForm();
+  const itemized = document.querySelector('input[name="type"]:checked').value === 'expense' && rows.length > 0;
+  amountInput.readOnly = itemized;
+  amountInput.required = !itemized;
+  if (!itemized) return;
+  const amounts = rows.map((row) => Number(row.amount));
+  const valid = rows.every((row, index) => row.name.trim() && /^\d+$/.test(row.amount.trim()) && Number.isInteger(amounts[index]) && amounts[index] > 0);
+  const total = amounts.reduce((sum, amount) => sum + amount, 0);
+  amountInput.value = valid && total <= 999999999 ? String(total) : '';
+}
+
+function syncExpenseFields() {
+  const expense = document.querySelector('input[name="type"]:checked').value === 'expense';
+  const fields = document.getElementById('expense-fields');
+  fields.hidden = !expense;
+  fields.querySelectorAll('input,select,button').forEach((element) => { element.disabled = !expense; });
+  if (expense) syncAmountFromItems();
+  else {
+    const amountInput = document.getElementById('amount-input');
+    if (itemRowsFromForm().length) amountInput.value = manualAmountBeforeItems;
+    amountInput.readOnly = false;
+    amountInput.required = true;
+  }
+}
+
 function openDialog() {
   const dialog = document.getElementById('transaction-dialog');
   const form = document.getElementById('transaction-form');
   form.reset();
+  document.getElementById('item-rows').replaceChildren();
+  manualAmountBeforeItems = '';
+  clearFormErrors();
   const today = new Date();
   document.getElementById('date-input').value = monthKey(visibleMonth) === monthKey(today) ? `${monthKey(today)}-${String(today.getDate()).padStart(2, '0')}` : `${monthKey(visibleMonth)}-01`;
   updateCategoryOptions();
@@ -135,7 +296,31 @@ function openDialog() {
 function updateCategoryOptions() {
   const type = document.querySelector('input[name="type"]:checked').value;
   document.getElementById('category-input').innerHTML = (type === 'income' ? ['収入'] : categories.map((item) => item.name)).map((name) => `<option value="${name}">${name}</option>`).join('');
+  syncExpenseFields();
 }
+document.getElementById('add-item').addEventListener('click', () => {
+  const rows = document.getElementById('item-rows');
+  if (!rows.children.length) manualAmountBeforeItems = document.getElementById('amount-input').value;
+  itemRowSequence += 1;
+  const row = document.createElement('div');
+  row.className = 'item-row';
+  row.innerHTML = `<label><span>品目名</span><input data-item-name type="text" maxlength="60" aria-label="品目${itemRowSequence}の名前" aria-describedby="items-error" placeholder="例：パン" /></label><label><span>金額</span><input data-item-amount type="number" inputmode="numeric" min="1" max="999999999" aria-label="品目${itemRowSequence}の金額（円）" aria-describedby="items-error" placeholder="0" /></label><button class="remove-item" type="button" aria-label="品目${itemRowSequence}を削除">×</button>`;
+  rows.append(row);
+  syncAmountFromItems();
+  row.querySelector('[data-item-name]').focus();
+});
+document.getElementById('item-rows').addEventListener('input', () => {
+  syncAmountFromItems();
+  document.getElementById('items-error').hidden = true;
+});
+document.getElementById('item-rows').addEventListener('click', (event) => {
+  const button = event.target.closest('.remove-item');
+  if (!button) return;
+  button.closest('.item-row').remove();
+  if (!document.getElementById('item-rows').children.length) document.getElementById('amount-input').value = manualAmountBeforeItems;
+  syncAmountFromItems();
+  document.getElementById('add-item').focus();
+});
 document.querySelectorAll('.add-trigger').forEach((button) => button.addEventListener('click', openDialog));
 document.querySelectorAll('.close-dialog').forEach((button) => button.addEventListener('click', () => document.getElementById('transaction-dialog').close()));
 document.querySelectorAll('input[name="type"]').forEach((input) => input.addEventListener('change', updateCategoryOptions));
@@ -144,50 +329,103 @@ document.getElementById('prev-month').addEventListener('click', () => { visibleM
 document.getElementById('next-month').addEventListener('click', () => { visibleMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 1); render(); });
 document.getElementById('transaction-search').addEventListener('input', () => renderTransactions(monthTransactions()));
 document.getElementById('type-filter').addEventListener('change', () => renderTransactions(monthTransactions()));
+document.getElementById('transaction-rows').addEventListener('click', (event) => {
+  const link = event.target.closest('.transaction-link');
+  if (link) listReturnState = { id: link.dataset.id, scrollY: window.scrollY };
+});
+document.querySelectorAll('.sidebar a[href^="#"]').forEach((link) => link.addEventListener('click', () => {
+  if (showingDetail && link.hash !== '#transactions') listReturnState = null;
+}));
 document.getElementById('transaction-form').addEventListener('submit', (event) => {
   event.preventDefault();
+  clearFormErrors();
   const data = new FormData(event.currentTarget);
-  const amount = Number(data.get('amount'));
   const title = String(data.get('title')).trim();
   const date = String(data.get('date'));
   const type = String(data.get('type'));
   const category = String(data.get('category'));
   const parsedDate = new Date(`${date}T12:00:00`);
-  if (!title || !Number.isInteger(amount) || amount < 1 || amount > 999999999 || Number.isNaN(parsedDate.getTime()) || date !== `${parsedDate.getFullYear()}-${String(parsedDate.getMonth() + 1).padStart(2, '0')}-${String(parsedDate.getDate()).padStart(2, '0')}`) { showToast('内容、日付、1円以上の金額を確認してください。'); return; }
-  transactions.push({ id: globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : `entry-${Date.now()}`, title, amount, date, type, category });
-  saveTransactions();
+  if (!title) { showFieldError('title', '内容を入力してください。'); return; }
+  if (Number.isNaN(parsedDate.getTime()) || date !== `${parsedDate.getFullYear()}-${String(parsedDate.getMonth() + 1).padStart(2, '0')}-${String(parsedDate.getDate()).padStart(2, '0')}`) { showFieldError('date', '正しい日付を入力してください。'); return; }
+  let amount;
+  let details = {};
+  if (type === 'expense') {
+    try {
+      details = KakeiTransactionData.parseExpenseDraft({
+        merchant: data.get('merchant'), paymentMethod: data.get('paymentMethod'),
+        itemRows: itemRowsFromForm(), manualAmount: document.getElementById('amount-input').value,
+      });
+      amount = details.amount;
+    } catch (error) {
+      if (error instanceof KakeiTransactionData.ValidationError) { showFieldError(error.field, error.message); return; }
+      throw error;
+    }
+  } else {
+    const rawAmount = document.getElementById('amount-input').value.trim();
+    amount = Number(rawAmount);
+    if (!/^\d+$/.test(rawAmount) || !Number.isInteger(amount) || amount < 1 || amount > 999999999) { showFieldError('amount', '1円から999,999,999円までの整数を入力してください。'); return; }
+  }
+  const newRecord = { id: globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : `entry-${Date.now()}`, title, amount, date, type, category, ...details };
+  try {
+    transactions = KakeiTransactionData.persistAddedTransaction(transactions, newRecord, localStorage, storageKey, isValidTransaction);
+  } catch (_) {
+    const error = document.getElementById('form-error');
+    error.textContent = '保存できませんでした。ブラウザの保存設定をご確認ください。';
+    error.hidden = false;
+    return;
+  }
   visibleMonth = new Date(parsedDate.getFullYear(), parsedDate.getMonth(), 1);
   document.getElementById('transaction-dialog').close();
   render();
   showToast('取引を追加しました。');
 });
-document.getElementById('transaction-rows').addEventListener('click', (event) => {
-  const button = event.target.closest('.row-delete');
-  if (!button) return;
-  const item = transactions.find((entry) => entry.id === button.dataset.id);
-  if (!item || !confirm(`「${item.title}」を削除しますか？`)) return;
-  transactions = transactions.filter((entry) => entry.id !== item.id);
-  saveTransactions(); render(); showToast('取引を削除しました。');
+document.getElementById('detail-delete').addEventListener('click', () => {
+  const id = KakeiDetail.detailIdFromHash(window.location.hash);
+  const item = transactions.find((entry) => entry.id === id);
+  if (!item) { renderRoute(); return; }
+  if (!confirm(`「${item.title}」を削除しますか？`)) return;
+  try {
+    transactions = KakeiDetail.removePersistedTransaction(transactions, id, localStorage, storageKey, isValidTransaction);
+  } catch (_) {
+    showToast('保存できませんでした。ブラウザの保存設定をご確認ください。');
+    return;
+  }
+  listReturnState = null;
+  render();
+  window.location.hash = '#transactions';
+  showToast('取引を削除しました。');
 });
 document.getElementById('clear-demo').addEventListener('click', () => {
   if (!confirm('サンプルデータをすべて削除しますか？')) return;
-  transactions = transactions.filter((item) => !item.id.startsWith('sample-'));
-  saveTransactions(); render(); showToast('サンプルデータを削除しました。');
+  try {
+    transactions = KakeiDetail.removePersistedSamples(transactions, localStorage, storageKey, isValidTransaction);
+  } catch (_) {
+    showToast('保存できませんでした。ブラウザの保存設定をご確認ください。');
+    return;
+  }
+  render();
+  showToast('サンプルデータを削除しました。');
+});
+window.addEventListener('storage', (event) => {
+  if (event.key !== storageKey) return;
+  try {
+    const updated = event.newValue === null ? [] : JSON.parse(event.newValue);
+    if (!Array.isArray(updated)) return;
+    transactions = updated.filter(isValidTransaction);
+    render();
+    renderRoute();
+  } catch (_) { /* Ignore malformed updates from another tab. */ }
 });
 document.getElementById('export-button').addEventListener('click', () => {
   const items = monthTransactions();
   if (!items.length) { showToast('この月に保存できる取引はありません。'); return; }
-  const quote = (value) => { const text = String(value); const safe = /^[=+\-@]/.test(text) && typeof value !== 'number' ? `'${text}` : text; return `"${safe.replace(/"/g, '""')}"`; };
-  const rows = [['日付', '種類', '内容', 'カテゴリ', '金額'], ...items.map((item) => [item.date, item.type === 'income' ? '収入' : '支出', item.title, item.category, item.amount])];
-  const csv = `\uFEFF${rows.map((row) => row.map(quote).join(',')).join('\r\n')}`;
+  const csv = KakeiTransactionData.serializeTransactionsCsv(items);
   const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
   const link = document.createElement('a'); link.href = url; link.download = `kakei-${monthKey(visibleMonth)}.csv`; link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
   showToast('CSVを保存しました。');
 });
-document.querySelectorAll('.side-nav .nav-link').forEach((link) => link.addEventListener('click', () => {
-  document.querySelectorAll('.side-nav .nav-link').forEach((item) => { item.classList.remove('active'); item.removeAttribute('aria-current'); });
-  link.classList.add('active'); link.setAttribute('aria-current', 'page');
-}));
+window.addEventListener('hashchange', renderRoute);
 document.getElementById('today-label').textContent = new Intl.DateTimeFormat('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' }).format(now);
 render();
+renderRoute();
