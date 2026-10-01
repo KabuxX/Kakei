@@ -1,17 +1,17 @@
-import http.client
 import json
 import sqlite3
 import sys
 import tempfile
-import threading
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 from urllib.parse import quote
 
+from fastapi.testclient import TestClient
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from server import create_server
+import server
 
 
 class ServerTests(unittest.TestCase):
@@ -25,35 +25,23 @@ class ServerTests(unittest.TestCase):
         (self.front / "index.html").write_text("<title>Kakei</title>", encoding="utf-8")
         (self.front / "app.js").write_text("const app = true;", encoding="utf-8")
         (root / "secret.txt").write_text("private", encoding="utf-8")
-        self.server = create_server(self.db, self.front, port=0)
-        self.port = self.server.server_address[1]
-        self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
-        self.thread.start()
-        self.addCleanup(self._stop)
-
-    def _stop(self):
-        self.server.shutdown()
-        self.server.server_close()
-        self.thread.join(timeout=2)
+        self.app = server.create_app(self.db, self.front)
+        self.client = TestClient(self.app, raise_server_exceptions=False)
+        self.addCleanup(self.client.close)
 
     def request(self, method, path, body=None, *, origin=None, host=None, content_type="application/json"):
-        connection = http.client.HTTPConnection("127.0.0.1", self.port, timeout=3)
-        headers = {"Host": host or f"localhost:{self.port}"}
+        headers = {"Host": host or "localhost:8765"}
         if method in ("POST", "DELETE", "PUT"):
-            headers["Origin"] = origin or f"http://localhost:{self.port}"
+            headers["Origin"] = origin or "http://localhost:8765"
         if body is not None:
             if not isinstance(body, (str, bytes)):
                 body = json.dumps(body, ensure_ascii=False)
             if isinstance(body, str):
                 body = body.encode("utf-8")
             headers["Content-Type"] = content_type
-        connection.request(method, path, body=body, headers=headers)
-        response = connection.getresponse()
-        raw = response.read()
-        content = json.loads(raw) if response.getheader("Content-Type", "").startswith("application/json") and raw else raw
-        status = response.status
-        connection.close()
-        return status, content
+        response = self.client.request(method, path, content=body, headers=headers)
+        content = response.json() if response.headers.get("Content-Type", "").startswith("application/json") and response.content else response.content
+        return response.status_code, content
 
     def test_api_lifecycle_and_codes(self):
         self.assertEqual(self.request("GET", "/api/status"), (200, {"initialized": False}))
@@ -84,6 +72,7 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(self.request("GET", "/api/transactions"), (200, {"transactions": []}))
         self.assertEqual(self.request("POST", "/api/initialize", {"transactions": records})[0], 409)
         self.assertEqual(self.request("PUT", "/api/transactions")[0], 405)
+        self.assertEqual(self.request("GET", "/api/unknown")[1]["error"]["code"], "not_found")
 
     def test_invalid_json_and_body_limits(self):
         self.assertEqual(self.request("POST", "/api/initialize", "{broken")[0], 400)
@@ -118,7 +107,7 @@ class ServerTests(unittest.TestCase):
 
     def test_database_error_response(self):
         self.request("POST", "/api/initialize", {"transactions": []})
-        with patch.object(self.server.store, "list_transactions", side_effect=sqlite3.OperationalError("db unavailable")):
+        with patch.object(self.app.state.store, "list_transactions", side_effect=sqlite3.OperationalError("db unavailable")):
             status, content = self.request("GET", "/api/transactions")
         self.assertEqual((status, content["error"]["code"]), (500, "database_error"))
         self.assertNotIn("db unavailable", content["error"]["message"])

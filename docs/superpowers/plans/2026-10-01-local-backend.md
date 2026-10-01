@@ -1,5 +1,7 @@
 # Kakei Local Backend Implementation Plan
 
+> この計画は最初の標準ライブラリ版を対象とした履歴です。HTTPサーバーは後のFastAPIへのリファクタリングで置き換えました。現行の依存関係と起動手順は `backend/README.md` を参照してください。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** PythonのローカルAPIに取引を保存し、既存画面を接続して `http://localhost:8765/` のブラウザ保存データを初回に引き継ぐ。
