@@ -86,6 +86,16 @@
                 <div><dt>日付</dt><dd id="detail-date"></dd></div>
                 <div><dt>カテゴリ</dt><dd id="detail-category"></dd></div>
               </dl>
+              <div id="detail-expense-fields" hidden>
+                <dl class="detail-fields">
+                  <div><dt>店名・取引先</dt><dd id="detail-merchant"></dd></div>
+                  <div><dt>支払方法</dt><dd id="detail-payment-method"></dd></div>
+                </dl>
+                <section class="detail-items-section" aria-labelledby="detail-items-heading">
+                  <h3 id="detail-items-heading">品目</h3>
+                  <div id="detail-items"></div>
+                </section>
+              </div>
               <div class="detail-danger"><button id="detail-delete" type="button"><svg aria-hidden="true"><use href="#i-trash"/></svg>取引を削除</button></div>
             </div>
             <div id="detail-missing" class="detail-missing" hidden><h2>取引が見つかりません</h2><p>削除されたか、URLが正しくない可能性があります。</p></div>

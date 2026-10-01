@@ -30,9 +30,13 @@ function sampleTransactions() {
     [5, '定期券', '交通', 10480, 'expense'], [3, '外食', '食費', 4860, 'expense'],
     [2, '週末の買い物', '食費', 8910, 'expense'], [1, 'フリマ売上', '収入', 12000, 'income'],
   ];
+  const sampleDetails = {
+    1: { merchant: '青空スーパー', paymentMethod: 'credit_card', items: [{ name: '食材', amount: 3980 }, { name: '飲み物', amount: 1260 }, { name: 'お菓子', amount: 1600 }] },
+    2: { merchant: '街角カフェ', paymentMethod: 'e_money', items: [{ name: 'ランチ', amount: 1680 }, { name: 'コーヒー', amount: 700 }] },
+  };
   const lastDay = new Date(sampleMonth.getFullYear(), sampleMonth.getMonth() + 1, 0).getDate();
   return entries.map(([day, title, category, amount, type], index) => ({
-    id: `sample-${index}`, date: `${month}-${String(Math.min(day, lastDay)).padStart(2, '0')}`, title, category, amount, type,
+    id: `sample-${index}`, date: `${month}-${String(Math.min(day, lastDay)).padStart(2, '0')}`, title, category, amount, type, ...(sampleDetails[index] || {}),
   }));
 }
 
@@ -195,6 +199,34 @@ function renderRoute() {
     document.getElementById('detail-date').textContent = `${item.date.slice(0, 4)}年${Number(item.date.slice(5, 7))}月${Number(item.date.slice(8, 10))}日`;
     document.getElementById('detail-category').textContent = item.category;
     document.getElementById('detail-sample').hidden = !item.id.startsWith('sample-');
+    const expenseFields = document.getElementById('detail-expense-fields');
+    expenseFields.hidden = item.type !== 'expense';
+    if (item.type === 'expense') {
+      const details = KakeiTransactionData.readExpenseDetails(item);
+      document.getElementById('detail-merchant').textContent = details.merchant || '未登録';
+      document.getElementById('detail-payment-method').textContent = KakeiTransactionData.PAYMENT_METHOD_LABELS[details.paymentMethod] || '未登録';
+      const itemList = document.getElementById('detail-items');
+      itemList.replaceChildren();
+      if (details.items.length) {
+        const list = document.createElement('ul');
+        list.className = 'detail-item-list';
+        details.items.forEach((entry) => {
+          const row = document.createElement('li');
+          const name = document.createElement('span');
+          const amount = document.createElement('strong');
+          name.textContent = entry.name;
+          amount.textContent = yen(entry.amount);
+          row.append(name, amount);
+          list.append(row);
+        });
+        itemList.append(list);
+      } else {
+        const empty = document.createElement('p');
+        empty.className = 'detail-item-empty';
+        empty.textContent = '品目は登録されていません';
+        itemList.append(empty);
+      }
+    }
     document.title = `${item.title} | Kakei`;
   } else {
     document.title = '取引が見つかりません | Kakei';
