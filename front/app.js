@@ -17,31 +17,18 @@ let toastTimeout;
 let listReturnState = null;
 let showingDetail = false;
 let currentDetailId = null;
+let dataReady = false;
+let loadingData = false;
 
 function sampleTransactions() {
   return KakeiSampleData.createSampleTransactions(sampleMonth);
-}
-
-function loadTransactions() {
-  let parsed;
-  try {
-    const raw = localStorage.getItem(storageKey);
-    if (raw === null) return sampleTransactions();
-    parsed = JSON.parse(raw);
-  } catch (_) { /* Browser storage can be disabled. The page remains usable. */ }
-  if (!Array.isArray(parsed)) return sampleTransactions();
-  try {
-    return KakeiSampleData.persistEnrichedSamples(parsed, localStorage, storageKey).filter(isValidTransaction);
-  } catch (_) {
-    return parsed.filter(isValidTransaction);
-  }
 }
 
 function isValidTransaction(item) {
   return item && typeof item.id === 'string' && typeof item.title === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(item.date) && Number.isFinite(item.amount) && item.amount > 0 && ['income', 'expense'].includes(item.type) && typeof item.category === 'string';
 }
 
-let transactions = loadTransactions();
+let transactions = [];
 function monthKey(date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`; }
 function monthTransactions() { return transactions.filter((item) => item.date.startsWith(monthKey(visibleMonth))).sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)); }
 function sums(items) { return items.reduce((result, item) => { result[item.type] += item.amount; return result; }, { income: 0, expense: 0 }); }
@@ -110,6 +97,7 @@ function renderTransactions(items) {
 }
 
 function render() {
+  if (!dataReady) return;
   const items = monthTransactions();
   document.getElementById('demo-note').hidden = !transactions.some((item) => item.id.startsWith('sample-'));
   document.getElementById('month-label').textContent = `${visibleMonth.getFullYear()}年${visibleMonth.getMonth() + 1}月`;
@@ -128,6 +116,7 @@ function setActiveNavigation(hash, isDetail) {
 }
 
 function renderRoute() {
+  if (!dataReady) return;
   const hash = window.location.hash;
   const isDetail = hash === '#transaction' || hash.startsWith('#transaction/');
   const dashboard = document.getElementById('dashboard-view');
@@ -325,8 +314,8 @@ document.querySelectorAll('.add-trigger').forEach((button) => button.addEventLis
 document.querySelectorAll('.close-dialog').forEach((button) => button.addEventListener('click', () => document.getElementById('transaction-dialog').close()));
 document.querySelectorAll('input[name="type"]').forEach((input) => input.addEventListener('change', updateCategoryOptions));
 document.getElementById('transaction-dialog').addEventListener('click', (event) => { if (event.target === event.currentTarget) event.currentTarget.close(); });
-document.getElementById('prev-month').addEventListener('click', () => { visibleMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() - 1, 1); render(); });
-document.getElementById('next-month').addEventListener('click', () => { visibleMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 1); render(); });
+document.getElementById('prev-month').addEventListener('click', () => { visibleMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() - 1, 1); document.getElementById('month-label').textContent = `${visibleMonth.getFullYear()}年${visibleMonth.getMonth() + 1}月`; render(); });
+document.getElementById('next-month').addEventListener('click', () => { visibleMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 1); document.getElementById('month-label').textContent = `${visibleMonth.getFullYear()}年${visibleMonth.getMonth() + 1}月`; render(); });
 document.getElementById('transaction-search').addEventListener('input', () => renderTransactions(monthTransactions()));
 document.getElementById('type-filter').addEventListener('change', () => renderTransactions(monthTransactions()));
 document.getElementById('transaction-rows').addEventListener('click', (event) => {
@@ -427,5 +416,37 @@ document.getElementById('export-button').addEventListener('click', () => {
 });
 window.addEventListener('hashchange', renderRoute);
 document.getElementById('today-label').textContent = new Intl.DateTimeFormat('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' }).format(now);
-render();
-renderRoute();
+document.getElementById('month-label').textContent = `${visibleMonth.getFullYear()}年${visibleMonth.getMonth() + 1}月`;
+
+async function loadFromServer() {
+  if (loadingData) return;
+  loadingData = true;
+  const dashboard = document.getElementById('dashboard-view');
+  const status = document.getElementById('data-status');
+  dashboard.setAttribute('aria-busy', 'true');
+  status.hidden = true;
+  document.getElementById('balance-amount').textContent = '—';
+  document.getElementById('balance-message').textContent = '取引を読み込んでいます';
+  document.querySelectorAll('.add-trigger').forEach((button) => { button.disabled = true; });
+  document.getElementById('export-button').disabled = true;
+  try {
+    transactions = await KakeiApi.loadInitialTransactions({ fetchImpl: fetch, storage: localStorage, sampleFactory: sampleTransactions });
+    dataReady = true;
+    dashboard.classList.add('data-ready');
+    dashboard.removeAttribute('aria-busy');
+    document.querySelectorAll('.add-trigger').forEach((button) => { button.disabled = false; });
+    document.getElementById('export-button').disabled = false;
+    render();
+    renderRoute();
+  } catch (error) {
+    dashboard.removeAttribute('aria-busy');
+    document.getElementById('balance-message').textContent = '取引を読み込めませんでした';
+    document.getElementById('data-status-message').textContent = error.message || 'サーバーへの接続を確認してください。';
+    status.hidden = false;
+  } finally {
+    loadingData = false;
+  }
+}
+
+document.getElementById('retry-load').addEventListener('click', loadFromServer);
+loadFromServer();

@@ -21,6 +21,11 @@
 .content-wrap{padding-top:24px}.balance-top{gap:6px}.balance-card .month-picker{gap:0;padding:2px;background:rgba(255,255,255,.68);flex:none;align-self:center}.balance-card .month-picker span{min-width:83px}
 @media(max-width:760px){.content-wrap{padding-top:20px}}
 [hidden]{display:none!important}
+#dashboard-view:not(.data-ready) .dashboard-grid>.card{display:none}
+#dashboard-view:not(.data-ready) .balance-card{grid-column:span 12}
+.data-status{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-top:16px;font-size:12px;line-height:1.5;color:var(--ink);position:relative;z-index:2}
+.data-status .secondary-button{min-height:44px}
+.primary-button:disabled,.secondary-button:disabled{opacity:.55;cursor:default;box-shadow:none}
 .table-scroll{position:relative}
 .transaction-link{display:inline-flex;align-items:center;min-height:44px;min-width:0;color:var(--ink);text-decoration:underline;text-decoration-color:transparent;text-underline-offset:3px;overflow-wrap:anywhere;transition:text-decoration-color .2s,color .2s}
 .transaction-link:hover,.transaction-link:focus-visible{text-decoration-color:currentColor}

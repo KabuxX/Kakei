@@ -11,6 +11,7 @@
     <script src="./transaction-detail.js" defer></script>
     <script src="./transaction-data.js" defer></script>
     <script src="./sample-data.js" defer></script>
+    <script src="./api.js" defer></script>
     <script src="./app.js" defer></script>
   </head>
   <body>
@@ -58,9 +59,9 @@
           <div class="dashboard-grid">
             <section class="balance-card" aria-labelledby="balance-title">
               <div class="balance-top"><span class="card-kicker" id="balance-title">月の収支</span><div class="month-picker" aria-label="表示月"><button id="prev-month" class="icon-button" type="button" aria-label="前の月"><svg aria-hidden="true"><use href="#i-chevron"/></svg></button><span id="month-label" aria-live="polite"></span><button id="next-month" class="icon-button next" type="button" aria-label="次の月"><svg aria-hidden="true"><use href="#i-chevron"/></svg></button></div></div>
-              <div class="balance-main"><span id="balance-amount" class="balance-amount">¥0</span><p id="balance-message">収入と支出の差額</p></div>
+              <div class="balance-main"><span id="balance-amount" class="balance-amount">—</span><p id="balance-message">取引を読み込んでいます</p><div id="data-status" class="data-status" role="status" aria-live="polite" hidden><span id="data-status-message"></span><button id="retry-load" class="secondary-button" type="button">再試行</button></div></div>
               <div class="balance-decoration" aria-hidden="true"><span class="orbit orbit-one"></span><span class="orbit orbit-two"></span><span class="orbit orbit-three"></span></div>
-              <div class="balance-bottom"><div><span class="stat-icon income"><svg><use href="#i-arrow-down"/></svg></span><span><small>収入</small><strong id="income-total">¥0</strong></span></div><div><span class="stat-icon expense"><svg><use href="#i-arrow-up"/></svg></span><span><small>支出</small><strong id="expense-total">¥0</strong></span></div></div>
+              <div class="balance-bottom"><div><span class="stat-icon income"><svg><use href="#i-arrow-down"/></svg></span><span><small>収入</small><strong id="income-total">—</strong></span></div><div><span class="stat-icon expense"><svg><use href="#i-arrow-up"/></svg></span><span><small>支出</small><strong id="expense-total">—</strong></span></div></div>
             </section>
 
             <section class="budget-overview card" aria-labelledby="budget-overview-title"><div class="card-head"><div><h2 id="budget-overview-title">月の予算</h2></div><span class="small-symbol"><svg><use href="#i-wallet"/></svg></span></div><div class="budget-overview-body"><span class="muted-label">あと使える金額</span><strong id="remaining-budget" class="big-number">¥0</strong><div class="progress-track"><span id="budget-progress"></span></div><div class="progress-copy"><span id="budget-used">¥0 使用済み</span><span id="budget-limit">予算 ¥0</span></div></div><a class="text-link" href="#budget">予算の内訳を見る <span aria-hidden="true">↗</span></a></section>
