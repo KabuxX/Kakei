@@ -6,6 +6,10 @@ import sqlite3
 from pathlib import Path
 from typing import Optional
 
+from runtime import require_supported_python
+
+require_supported_python()
+
 import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response

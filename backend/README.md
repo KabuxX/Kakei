@@ -1,12 +1,14 @@
 # Kakei ローカルサーバー
 
-Python 3.9 以上で、リポジトリのルートから次を実行してください。FastAPI と Uvicorn の対応版を `backend/requirements.txt` に固定しています。
+Python 3.14 系で、リポジトリのルートから次を実行してください。`backend/.python-version` に使用する系列を指定し、起動時にも Python 3.14 以上であることを確認します。FastAPI と Uvicorn の対応版は `backend/requirements.txt` に固定しています。
 
 ```sh
-python3 -m venv backend/.venv
+python3.14 -m venv backend/.venv
 backend/.venv/bin/python -m pip install -r backend/requirements.txt
 backend/.venv/bin/python backend/server.py
 ```
+
+以前の Python 3.9 で作った `backend/.venv` が残っている場合は、その仮想環境を作り直してください。`backend/.venv/bin/python --version` で 3.14 系になっていることを確認できます。
 
 `http://localhost:8765/` を開いてください。FastAPI が画面とAPIを同じアドレスから配信します。既に8765番ポートで旧サーバーが動いている場合は、先に停止してください。
 
