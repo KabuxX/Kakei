@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="description" content="Kakeiの家計ダッシュボード。月ごとの収支、予算、取引を確認できます。" />
+    <title>家計の概要 | Kakei</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="./app.js" defer></script>
+  </head>
+  <body>
+    <svg class="icon-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
+      <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01" stroke-linecap="round" stroke-width="3"/></symbol>
+      <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v18h18M7 16l4-5 3 2 6-7"/></symbol>
+      <symbol id="i-wallet" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="15" rx="3"/><path d="M3 9V6a3 3 0 0 1 3-3h12M15 14h6"/><circle cx="16" cy="14" r=".7" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></symbol>
+      <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-arrow-up" viewBox="0 0 24 24"><path d="M12 19V5m0 0-6 6m6-6 6 6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-arrow-down" viewBox="0 0 24 24"><path d="M12 5v14m0 0-6-6m6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 5 5" stroke-linecap="round"/></symbol>
+      <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 16v4h16v-4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-close" viewBox="0 0 24 24"><path d="M5 5l14 14M19 5 5 19" stroke-linecap="round"/></symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 4h4m-8 3 1 13h10l1-13M10 11v6m4-6v6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 10h18" stroke-linecap="round"/></symbol>
+    </svg>
+
+    <a class="skip-link" href="#main">メインコンテンツへ</a>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="サイドバー">
+        <a class="brand" href="#overview" aria-label="Kakei ホーム"><span class="brand-mark">k<span>.</span></span><span>Kakei</span></a>
+        <nav class="side-nav" aria-label="メインナビゲーション">
+          <a class="nav-link active" href="#overview" aria-current="page"><svg><use href="#i-grid"/></svg><span>概要</span></a>
+          <a class="nav-link" href="#transactions"><svg><use href="#i-list"/></svg><span>取引履歴</span></a>
+          <a class="nav-link" href="#budget"><svg><use href="#i-wallet"/></svg><span>予算</span></a>
+          <a class="nav-link" href="#insights"><svg><use href="#i-chart"/></svg><span>支出の分析</span></a>
+        </nav>
+        <div class="sidebar-bottom">
+          <div class="profile"><span class="avatar">K</span><span><strong>わたしの家計</strong><small>このブラウザに保存</small></span><span class="profile-dot" aria-hidden="true"></span></div>
+        </div>
+      </aside>
+
+      <main id="main" class="main-content">
+        <header class="topbar" id="overview">
+          <div class="mobile-brand"><span class="brand-mark">k<span>.</span></span><strong>Kakei</strong></div>
+          <div class="breadcrumb"><strong>家計の概要</strong></div>
+          <div class="topbar-actions"><span class="today-label" id="today-label"></span><button class="primary-button add-trigger" type="button" aria-label="取引を追加"><svg aria-hidden="true"><use href="#i-plus"/></svg><span>取引を追加</span></button></div>
+        </header>
+
+        <div class="content-wrap">
+          <h1 class="sr-only">家計ダッシュボード</h1>
+          <div class="dashboard-grid">
+            <section class="balance-card" aria-labelledby="balance-title">
+              <div class="balance-top"><span class="card-kicker" id="balance-title">月の収支</span><div class="month-picker" aria-label="表示月"><button id="prev-month" class="icon-button" type="button" aria-label="前の月"><svg aria-hidden="true"><use href="#i-chevron"/></svg></button><span id="month-label" aria-live="polite"></span><button id="next-month" class="icon-button next" type="button" aria-label="次の月"><svg aria-hidden="true"><use href="#i-chevron"/></svg></button></div></div>
+              <div class="balance-main"><span id="balance-amount" class="balance-amount">¥0</span><p id="balance-message">収入と支出の差額</p></div>
+              <div class="balance-decoration" aria-hidden="true"><span class="orbit orbit-one"></span><span class="orbit orbit-two"></span><span class="orbit orbit-three"></span></div>
+              <div class="balance-bottom"><div><span class="stat-icon income"><svg><use href="#i-arrow-down"/></svg></span><span><small>収入</small><strong id="income-total">¥0</strong></span></div><div><span class="stat-icon expense"><svg><use href="#i-arrow-up"/></svg></span><span><small>支出</small><strong id="expense-total">¥0</strong></span></div></div>
+            </section>
+
+            <section class="budget-overview card" aria-labelledby="budget-overview-title"><div class="card-head"><div><h2 id="budget-overview-title">月の予算</h2></div><span class="small-symbol"><svg><use href="#i-wallet"/></svg></span></div><div class="budget-overview-body"><span class="muted-label">あと使える金額</span><strong id="remaining-budget" class="big-number">¥0</strong><div class="progress-track"><span id="budget-progress"></span></div><div class="progress-copy"><span id="budget-used">¥0 使用済み</span><span id="budget-limit">予算 ¥0</span></div></div><a class="text-link" href="#budget">予算の内訳を見る <span aria-hidden="true">↗</span></a></section>
+
+            <section id="insights" class="insights-card card" aria-labelledby="insights-title"><div class="card-head"><div><h2 id="insights-title">支出の内訳</h2></div><span class="card-note">カテゴリ別</span></div><div class="insights-body"><div class="donut-wrap"><div id="donut" class="donut" role="img" aria-label="支出の内訳"><div class="donut-hole"><small>支出合計</small><strong id="donut-total">¥0</strong></div></div></div><div id="category-list" class="category-list"></div></div></section>
+
+            <section id="budget" class="budget-card card" aria-labelledby="budget-title"><div class="card-head"><div><h2 id="budget-title">カテゴリ別の予算</h2></div><span class="card-note" id="budget-period"></span></div><div id="budget-list" class="budget-list"></div></section>
+
+            <section class="trend-card card" aria-labelledby="trend-title"><div class="card-head"><div><h2 id="trend-title">週ごとの支出</h2></div><span class="card-note">円 / 週</span></div><div id="weekly-chart" class="weekly-chart" aria-label="週ごとの支出額"></div><p class="chart-caption">月内の各週に記録された支出を表示しています。</p></section>
+
+            <section id="transactions" class="transactions-card card" aria-labelledby="transactions-title"><div class="card-head transaction-heading"><div><h2 id="transactions-title">取引履歴 <span id="transaction-count" class="count-pill">0</span></h2></div><button id="export-button" class="secondary-button" type="button" aria-label="取引をCSVで保存"><svg aria-hidden="true"><use href="#i-download"/></svg><span>CSVで保存</span></button></div><p id="demo-note" class="demo-note">サンプルデータあり <button id="clear-demo" type="button">サンプルを削除</button></p><div class="transaction-tools"><label class="search-field"><svg><use href="#i-search"/></svg><span class="sr-only">取引を検索</span><input id="transaction-search" type="search" placeholder="取引を検索" /></label><label class="select-wrap"><span class="sr-only">取引種別</span><select id="type-filter"><option value="all">すべての取引</option><option value="expense">支出のみ</option><option value="income">収入のみ</option></select></label></div><div class="table-scroll"><table><thead><tr><th scope="col">取引</th><th scope="col">カテゴリ</th><th scope="col">日付</th><th scope="col" class="amount-col">金額</th><th scope="col"><span class="sr-only">操作</span></th></tr></thead><tbody id="transaction-rows"></tbody></table></div><div id="transaction-empty" class="empty-state" hidden><span class="empty-mark"><svg><use href="#i-list"/></svg></span><strong>取引がありません</strong><p>検索条件を変えるか、新しい取引を追加してください。</p><button class="text-link add-trigger" type="button">取引を追加する <span aria-hidden="true">↗</span></button></div></section>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <dialog id="transaction-dialog" class="transaction-dialog" aria-labelledby="dialog-title"><form id="transaction-form"><div class="dialog-head"><div><h2 id="dialog-title">取引を追加</h2></div><button type="button" class="icon-button close-dialog" aria-label="閉じる"><svg><use href="#i-close"/></svg></button></div><div class="type-tabs" role="group" aria-label="取引の種類"><label><input type="radio" name="type" value="expense" checked /><span>支出</span></label><label><input type="radio" name="type" value="income" /><span>収入</span></label></div><div class="form-grid"><label class="field full"><span>内容 <em>必須</em></span><input name="title" type="text" maxlength="60" placeholder="例：スーパーで買い物" required /></label><label class="field"><span>金額 <em>必須</em></span><span class="yen-input"><b>¥</b><input name="amount" type="number" inputmode="numeric" min="1" max="999999999" placeholder="0" required /></span></label><label class="field"><span>日付 <em>必須</em></span><input id="date-input" name="date" type="date" required /></label><label class="field full"><span>カテゴリ</span><select id="category-input" name="category"></select></label></div><p class="form-note" id="form-note">入力した取引はこのブラウザに保存されます。</p><div class="dialog-actions"><button type="button" class="secondary-button close-dialog">キャンセル</button><button type="submit" class="primary-button"><svg><use href="#i-plus"/></svg>追加する</button></div></form></dialog>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>
