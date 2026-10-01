@@ -112,7 +112,13 @@ function renderTransactions(items) {
   const type = document.getElementById('type-filter').value;
   const filtered = items.filter((item) => (type === 'all' || item.type === type) && (!query || `${item.title} ${item.category}`.toLocaleLowerCase('ja-JP').includes(query)));
   document.getElementById('transaction-count').textContent = String(items.length);
-  document.getElementById('transaction-rows').innerHTML = filtered.map((item) => `<tr><td><div class="transaction-name"><span class="transaction-icon ${item.type === 'income' ? 'income' : ''}"><svg aria-hidden="true"><use href="#i-${item.type === 'income' ? 'arrow-down' : 'arrow-up'}"/></svg></span><a class="transaction-link" href="${KakeiDetail.detailHref(item.id)}" data-id="${escapeHtml(item.id)}">${escapeHtml(item.title)}</a></div></td><td><span class="category-pill">${escapeHtml(item.category)}</span></td><td>${Number(item.date.slice(5, 7))}月${Number(item.date.slice(8, 10))}日</td><td class="amount-col"><span class="amount ${item.type === 'income' ? 'income' : ''}">${item.type === 'income' ? '+' : '−'}${yen(item.amount)}</span></td><td><button type="button" class="row-delete" data-id="${escapeHtml(item.id)}" aria-label="${escapeHtml(item.title)}を削除"><svg aria-hidden="true"><use href="#i-trash"/></svg></button></td></tr>`).join('');
+  document.getElementById('transaction-rows').innerHTML = filtered.map((item) => `
+    <tr>
+      <td><div class="transaction-name"><span class="transaction-icon ${item.type === 'income' ? 'income' : ''}"><svg aria-hidden="true"><use href="#i-${item.type === 'income' ? 'arrow-down' : 'arrow-up'}"/></svg></span><a class="transaction-link" href="${KakeiDetail.detailHref(item.id)}" data-id="${escapeHtml(item.id)}">${escapeHtml(item.title)}</a></div></td>
+      <td><span class="category-pill">${escapeHtml(item.category)}</span></td>
+      <td>${Number(item.date.slice(5, 7))}月${Number(item.date.slice(8, 10))}日</td>
+      <td class="amount-col"><span class="amount ${item.type === 'income' ? 'income' : ''}">${item.type === 'income' ? '+' : '−'}${yen(item.amount)}</span></td>
+    </tr>`).join('');
   document.getElementById('transaction-empty').hidden = filtered.length > 0;
   document.querySelector('.table-scroll').hidden = filtered.length === 0;
 }
@@ -238,18 +244,36 @@ document.getElementById('transaction-form').addEventListener('submit', (event) =
   render();
   showToast('取引を追加しました。');
 });
-document.getElementById('transaction-rows').addEventListener('click', (event) => {
-  const button = event.target.closest('.row-delete');
-  if (!button) return;
-  const item = transactions.find((entry) => entry.id === button.dataset.id);
-  if (!item || !confirm(`「${item.title}」を削除しますか？`)) return;
-  transactions = transactions.filter((entry) => entry.id !== item.id);
-  saveTransactions(); render(); showToast('取引を削除しました。');
+document.getElementById('detail-delete').addEventListener('click', () => {
+  const id = KakeiDetail.detailIdFromHash(window.location.hash);
+  const item = transactions.find((entry) => entry.id === id);
+  if (!item) { renderRoute(); return; }
+  if (!confirm(`「${item.title}」を削除しますか？`)) return;
+  try {
+    transactions = KakeiDetail.removePersistedTransaction(transactions, id, localStorage, storageKey);
+  } catch (_) {
+    showToast('保存できませんでした。ブラウザの保存設定をご確認ください。');
+    return;
+  }
+  listReturnState = null;
+  render();
+  window.location.hash = '#transactions';
+  showToast('取引を削除しました。');
 });
 document.getElementById('clear-demo').addEventListener('click', () => {
   if (!confirm('サンプルデータをすべて削除しますか？')) return;
   transactions = transactions.filter((item) => !item.id.startsWith('sample-'));
   saveTransactions(); render(); showToast('サンプルデータを削除しました。');
+});
+window.addEventListener('storage', (event) => {
+  if (event.key !== storageKey) return;
+  try {
+    const updated = event.newValue === null ? [] : JSON.parse(event.newValue);
+    if (!Array.isArray(updated)) return;
+    transactions = updated.filter(isValidTransaction);
+    render();
+    renderRoute();
+  } catch (_) { /* Ignore malformed updates from another tab. */ }
 });
 document.getElementById('export-button').addEventListener('click', () => {
   const items = monthTransactions();
