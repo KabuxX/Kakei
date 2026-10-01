@@ -25,7 +25,7 @@ test('deletion persists the remaining transactions without mutating the input', 
     Object.freeze({ id: 'two', title: '交通' }),
   ]);
   let saved;
-  const storage = { setItem(key, value) { saved = { key, value }; } };
+  const storage = { getItem() { return null; }, setItem(key, value) { saved = { key, value }; } };
 
   const remaining = removePersistedTransaction(items, 'one', storage, 'kakei-transactions-v1');
 
@@ -36,8 +36,22 @@ test('deletion persists the remaining transactions without mutating the input', 
 
 test('a failed storage write leaves the source transactions unchanged', () => {
   const items = Object.freeze([{ id: 'one' }, { id: 'two' }]);
-  const storage = { setItem() { throw new Error('quota exceeded'); } };
+  const storage = { getItem() { return null; }, setItem() { throw new Error('quota exceeded'); } };
 
   assert.throws(() => removePersistedTransaction(items, 'one', storage, 'kakei-transactions-v1'), /quota exceeded/);
   assert.deepEqual(items, [{ id: 'one' }, { id: 'two' }]);
+});
+
+test('deletion preserves a transaction another tab saved during confirmation', () => {
+  const beforeConfirmation = Object.freeze([{ id: 'one' }, { id: 'two' }]);
+  let persisted = JSON.stringify([...beforeConfirmation, { id: 'new-in-other-tab' }]);
+  const storage = {
+    getItem() { return persisted; },
+    setItem(_key, value) { persisted = value; },
+  };
+
+  const remaining = removePersistedTransaction(beforeConfirmation, 'one', storage, 'kakei-transactions-v1');
+
+  assert.deepEqual(remaining, [{ id: 'two' }, { id: 'new-in-other-tab' }]);
+  assert.deepEqual(JSON.parse(persisted), remaining);
 });

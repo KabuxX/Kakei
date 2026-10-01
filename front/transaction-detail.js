@@ -14,8 +14,11 @@ const KakeiDetail = (() => {
     }
   }
 
-  function removePersistedTransaction(items, id, storage, key) {
-    const remaining = items.filter((item) => item.id !== id);
+  function removePersistedTransaction(items, id, storage, key, isValid = () => true) {
+    const raw = storage.getItem(key);
+    const current = raw === null ? items : JSON.parse(raw);
+    if (!Array.isArray(current)) throw new Error('保存された取引データが不正です。');
+    const remaining = current.filter(isValid).filter((item) => item.id !== id);
     storage.setItem(key, JSON.stringify(remaining));
     return remaining;
   }

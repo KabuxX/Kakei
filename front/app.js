@@ -164,6 +164,10 @@ function renderRoute() {
         } else if (hash === '#transactions') {
           document.getElementById('transactions').scrollIntoView();
           document.getElementById('transactions-title').focus({ preventScroll: true });
+        } else if (hash === '#overview') {
+          window.scrollTo(0, 0);
+        } else if (hash === '#budget' || hash === '#insights') {
+          document.querySelector(hash).scrollIntoView();
         }
       });
     }
@@ -227,6 +231,9 @@ document.getElementById('transaction-rows').addEventListener('click', (event) =>
   const link = event.target.closest('.transaction-link');
   if (link) listReturnState = { id: link.dataset.id, scrollY: window.scrollY };
 });
+document.querySelectorAll('.sidebar a[href^="#"]').forEach((link) => link.addEventListener('click', () => {
+  if (showingDetail && link.hash !== '#transactions') listReturnState = null;
+}));
 document.getElementById('transaction-form').addEventListener('submit', (event) => {
   event.preventDefault();
   const data = new FormData(event.currentTarget);
@@ -250,7 +257,7 @@ document.getElementById('detail-delete').addEventListener('click', () => {
   if (!item) { renderRoute(); return; }
   if (!confirm(`「${item.title}」を削除しますか？`)) return;
   try {
-    transactions = KakeiDetail.removePersistedTransaction(transactions, id, localStorage, storageKey);
+    transactions = KakeiDetail.removePersistedTransaction(transactions, id, localStorage, storageKey, isValidTransaction);
   } catch (_) {
     showToast('保存できませんでした。ブラウザの保存設定をご確認ください。');
     return;
