@@ -49,3 +49,21 @@
 .brand-mark{display:block;position:relative;flex:none;background:none;border-radius:0;padding:0}
 .brand-mark img{position:absolute;left:-5px;top:-4px;display:block;width:44px;height:44px;max-width:none;object-fit:contain}
 @media(max-width:760px){.mobile-brand .brand-mark img{left:-4px;top:-3px;width:38px;height:38px}}
+
+.transaction-dialog{width:min(92vw,560px)}
+.expense-fields{border-top:1px solid var(--line);margin-top:22px;padding-top:22px}
+.item-section{margin-top:22px}
+.item-section-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.item-section-head strong{font-size:13px}.item-section-head strong span{font-size:11px;color:var(--gray);font-weight:500;margin-left:4px}
+.item-add{min-height:44px;border:1px solid #dde3ea;border-radius:10px;background:white;color:var(--ink);padding:8px 12px;font-size:12px;font-weight:600;cursor:pointer}
+.item-add:hover,.remove-item:hover{background:var(--cloud)}
+.item-rows{display:grid;gap:12px;margin-top:12px}
+.item-row{display:grid;grid-template-columns:minmax(0,1fr) 125px 44px;gap:8px;align-items:end}
+.item-row label{display:grid;gap:7px;min-width:0;font-size:11px;font-weight:600}
+.item-row input{width:100%;min-height:44px;border:1px solid #dde3ea;border-radius:10px;padding:10px 12px;color:var(--ink);background:white;font-size:14px}
+.item-row input:focus-visible,.item-add:focus-visible,.remove-item:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.remove-item{width:44px;height:44px;border:1px solid #dde3ea;border-radius:10px;background:white;color:var(--ink);font-size:21px;cursor:pointer}
+.field-error{display:block;color:#9a3f37;font-size:11px;line-height:1.4;font-weight:500}.field-error[hidden]{display:none}
+.field input[aria-invalid="true"],.field select[aria-invalid="true"],.item-row input[aria-invalid="true"]{border-color:#b74f45}
+.form-error{margin:18px 0 0}.yen-input input[readonly]{background:#f4f6f8;color:var(--ink)}
+@media(max-width:480px){.item-row{grid-template-columns:minmax(0,1fr) 92px 44px}.item-section-head{align-items:start}.item-add{flex:none}}

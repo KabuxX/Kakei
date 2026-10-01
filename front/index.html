@@ -94,7 +94,32 @@
       </main>
     </div>
 
-    <dialog id="transaction-dialog" class="transaction-dialog" aria-labelledby="dialog-title"><form id="transaction-form"><div class="dialog-head"><div><h2 id="dialog-title">取引を追加</h2></div><button type="button" class="icon-button close-dialog" aria-label="閉じる"><svg><use href="#i-close"/></svg></button></div><div class="type-tabs" role="group" aria-label="取引の種類"><label><input type="radio" name="type" value="expense" checked /><span>支出</span></label><label><input type="radio" name="type" value="income" /><span>収入</span></label></div><div class="form-grid"><label class="field full"><span>内容 <em>必須</em></span><input name="title" type="text" maxlength="60" placeholder="例：スーパーで買い物" required /></label><label class="field"><span>金額 <em>必須</em></span><span class="yen-input"><b>¥</b><input name="amount" type="number" inputmode="numeric" min="1" max="999999999" placeholder="0" required /></span></label><label class="field"><span>日付 <em>必須</em></span><input id="date-input" name="date" type="date" required /></label><label class="field full"><span>カテゴリ</span><select id="category-input" name="category"></select></label></div><p class="form-note" id="form-note">入力した取引はこのブラウザに保存されます。</p><div class="dialog-actions"><button type="button" class="secondary-button close-dialog">キャンセル</button><button type="submit" class="primary-button"><svg><use href="#i-plus"/></svg>追加する</button></div></form></dialog>
+    <dialog id="transaction-dialog" class="transaction-dialog" aria-labelledby="dialog-title">
+      <form id="transaction-form" novalidate>
+        <div class="dialog-head"><h2 id="dialog-title">取引を追加</h2><button type="button" class="icon-button close-dialog" aria-label="閉じる"><svg><use href="#i-close"/></svg></button></div>
+        <div class="type-tabs" role="group" aria-label="取引の種類"><label><input type="radio" name="type" value="expense" checked /><span>支出</span></label><label><input type="radio" name="type" value="income" /><span>収入</span></label></div>
+        <div class="form-grid">
+          <label class="field full"><span>内容 <em>必須</em></span><input name="title" type="text" maxlength="60" placeholder="例：スーパーで買い物" aria-describedby="title-error" required /><small id="title-error" class="field-error" hidden></small></label>
+          <label class="field"><span>金額 <em>必須</em></span><span class="yen-input"><b>¥</b><input id="amount-input" name="amount" type="number" inputmode="numeric" min="1" max="999999999" placeholder="0" aria-describedby="amount-error" required /></span><small id="amount-error" class="field-error" hidden></small></label>
+          <label class="field"><span>日付 <em>必須</em></span><input id="date-input" name="date" type="date" aria-describedby="date-error" required /><small id="date-error" class="field-error" hidden></small></label>
+          <label class="field full"><span>カテゴリ</span><select id="category-input" name="category"></select></label>
+        </div>
+        <div id="expense-fields" class="expense-fields">
+          <div class="form-grid">
+            <label class="field full"><span>店名・取引先 <em>必須</em></span><input id="merchant-input" name="merchant" type="text" maxlength="60" placeholder="例：スーパー○○" aria-describedby="merchant-error" required /><small id="merchant-error" class="field-error" hidden></small></label>
+            <label class="field full"><span>支払方法 <em>必須</em></span><select id="payment-method-input" name="paymentMethod" aria-describedby="payment-method-error" required><option value="">選択してください</option><option value="cash">現金</option><option value="credit_card">クレジットカード</option><option value="e_money">電子マネー</option><option value="bank_account">銀行口座</option></select><small id="payment-method-error" class="field-error" hidden></small></label>
+          </div>
+          <div class="item-section" aria-labelledby="item-section-title">
+            <div class="item-section-head"><strong id="item-section-title">品目 <span>任意</span></strong><button id="add-item" type="button" class="item-add">＋ 品目を追加</button></div>
+            <div id="item-rows" class="item-rows"></div>
+            <small id="items-error" class="field-error" role="status" hidden></small>
+          </div>
+        </div>
+        <p id="form-error" class="field-error form-error" role="alert" hidden></p>
+        <p class="form-note" id="form-note">入力した取引はこのブラウザに保存されます。</p>
+        <div class="dialog-actions"><button type="button" class="secondary-button close-dialog">キャンセル</button><button type="submit" class="primary-button"><svg><use href="#i-plus"/></svg>追加する</button></div>
+      </form>
+    </dialog>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
   </body>
 </html>

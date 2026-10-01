@@ -205,10 +205,74 @@ function renderRoute() {
   });
 }
 
+let manualAmountBeforeItems = '';
+let itemRowSequence = 0;
+
+function clearFormErrors() {
+  document.querySelectorAll('#transaction-form .field-error').forEach((element) => { element.hidden = true; element.textContent = ''; });
+  document.querySelectorAll('#transaction-form [aria-invalid]').forEach((element) => element.removeAttribute('aria-invalid'));
+}
+
+function showFieldError(field, message) {
+  const errorIds = { title: 'title-error', date: 'date-error', amount: 'amount-error', merchant: 'merchant-error', paymentMethod: 'payment-method-error', itemRows: 'items-error' };
+  const inputIds = { title: '[name="title"]', date: '#date-input', amount: '#amount-input', merchant: '#merchant-input', paymentMethod: '#payment-method-input', itemRows: '[data-item-name]' };
+  const error = document.getElementById(errorIds[field]);
+  let input = document.querySelector(`#transaction-form ${inputIds[field]}`);
+  if (field === 'itemRows') {
+    const rows = [...document.querySelectorAll('#item-rows .item-row')];
+    const row = rows.find((entry) => {
+      const name = entry.querySelector('[data-item-name]').value.trim();
+      const amount = entry.querySelector('[data-item-amount]').value.trim();
+      return !name || !/^\d+$/.test(amount) || Number(amount) < 1 || Number(amount) > 999999999;
+    }) || rows.at(-1);
+    if (row) input = row.querySelector(row.querySelector('[data-item-name]').value.trim() ? '[data-item-amount]' : '[data-item-name]');
+  }
+  error.textContent = message;
+  error.hidden = false;
+  if (input) { input.setAttribute('aria-invalid', 'true'); input.focus(); }
+}
+
+function itemRowsFromForm() {
+  return [...document.querySelectorAll('#item-rows .item-row')].map((row) => ({
+    name: row.querySelector('[data-item-name]').value,
+    amount: row.querySelector('[data-item-amount]').value,
+  }));
+}
+
+function syncAmountFromItems() {
+  const amountInput = document.getElementById('amount-input');
+  const rows = itemRowsFromForm();
+  const itemized = document.querySelector('input[name="type"]:checked').value === 'expense' && rows.length > 0;
+  amountInput.readOnly = itemized;
+  amountInput.required = !itemized;
+  if (!itemized) return;
+  const amounts = rows.map((row) => Number(row.amount));
+  const valid = rows.every((row, index) => row.name.trim() && /^\d+$/.test(row.amount.trim()) && Number.isInteger(amounts[index]) && amounts[index] > 0);
+  const total = amounts.reduce((sum, amount) => sum + amount, 0);
+  amountInput.value = valid && total <= 999999999 ? String(total) : '';
+}
+
+function syncExpenseFields() {
+  const expense = document.querySelector('input[name="type"]:checked').value === 'expense';
+  const fields = document.getElementById('expense-fields');
+  fields.hidden = !expense;
+  fields.querySelectorAll('input,select,button').forEach((element) => { element.disabled = !expense; });
+  if (expense) syncAmountFromItems();
+  else {
+    const amountInput = document.getElementById('amount-input');
+    if (itemRowsFromForm().length) amountInput.value = manualAmountBeforeItems;
+    amountInput.readOnly = false;
+    amountInput.required = true;
+  }
+}
+
 function openDialog() {
   const dialog = document.getElementById('transaction-dialog');
   const form = document.getElementById('transaction-form');
   form.reset();
+  document.getElementById('item-rows').replaceChildren();
+  manualAmountBeforeItems = '';
+  clearFormErrors();
   const today = new Date();
   document.getElementById('date-input').value = monthKey(visibleMonth) === monthKey(today) ? `${monthKey(today)}-${String(today.getDate()).padStart(2, '0')}` : `${monthKey(visibleMonth)}-01`;
   updateCategoryOptions();
@@ -218,7 +282,31 @@ function openDialog() {
 function updateCategoryOptions() {
   const type = document.querySelector('input[name="type"]:checked').value;
   document.getElementById('category-input').innerHTML = (type === 'income' ? ['収入'] : categories.map((item) => item.name)).map((name) => `<option value="${name}">${name}</option>`).join('');
+  syncExpenseFields();
 }
+document.getElementById('add-item').addEventListener('click', () => {
+  const rows = document.getElementById('item-rows');
+  if (!rows.children.length) manualAmountBeforeItems = document.getElementById('amount-input').value;
+  itemRowSequence += 1;
+  const row = document.createElement('div');
+  row.className = 'item-row';
+  row.innerHTML = `<label><span>品目名</span><input data-item-name type="text" maxlength="60" aria-label="品目${itemRowSequence}の名前" aria-describedby="items-error" placeholder="例：パン" /></label><label><span>金額</span><input data-item-amount type="number" inputmode="numeric" min="1" max="999999999" aria-label="品目${itemRowSequence}の金額（円）" aria-describedby="items-error" placeholder="0" /></label><button class="remove-item" type="button" aria-label="品目${itemRowSequence}を削除">×</button>`;
+  rows.append(row);
+  syncAmountFromItems();
+  row.querySelector('[data-item-name]').focus();
+});
+document.getElementById('item-rows').addEventListener('input', () => {
+  syncAmountFromItems();
+  document.getElementById('items-error').hidden = true;
+});
+document.getElementById('item-rows').addEventListener('click', (event) => {
+  const button = event.target.closest('.remove-item');
+  if (!button) return;
+  button.closest('.item-row').remove();
+  if (!document.getElementById('item-rows').children.length) document.getElementById('amount-input').value = manualAmountBeforeItems;
+  syncAmountFromItems();
+  document.getElementById('add-item').focus();
+});
 document.querySelectorAll('.add-trigger').forEach((button) => button.addEventListener('click', openDialog));
 document.querySelectorAll('.close-dialog').forEach((button) => button.addEventListener('click', () => document.getElementById('transaction-dialog').close()));
 document.querySelectorAll('input[name="type"]').forEach((input) => input.addEventListener('change', updateCategoryOptions));
@@ -236,16 +324,42 @@ document.querySelectorAll('.sidebar a[href^="#"]').forEach((link) => link.addEve
 }));
 document.getElementById('transaction-form').addEventListener('submit', (event) => {
   event.preventDefault();
+  clearFormErrors();
   const data = new FormData(event.currentTarget);
-  const amount = Number(data.get('amount'));
   const title = String(data.get('title')).trim();
   const date = String(data.get('date'));
   const type = String(data.get('type'));
   const category = String(data.get('category'));
   const parsedDate = new Date(`${date}T12:00:00`);
-  if (!title || !Number.isInteger(amount) || amount < 1 || amount > 999999999 || Number.isNaN(parsedDate.getTime()) || date !== `${parsedDate.getFullYear()}-${String(parsedDate.getMonth() + 1).padStart(2, '0')}-${String(parsedDate.getDate()).padStart(2, '0')}`) { showToast('内容、日付、1円以上の金額を確認してください。'); return; }
-  transactions.push({ id: globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : `entry-${Date.now()}`, title, amount, date, type, category });
-  saveTransactions();
+  if (!title) { showFieldError('title', '内容を入力してください。'); return; }
+  if (Number.isNaN(parsedDate.getTime()) || date !== `${parsedDate.getFullYear()}-${String(parsedDate.getMonth() + 1).padStart(2, '0')}-${String(parsedDate.getDate()).padStart(2, '0')}`) { showFieldError('date', '正しい日付を入力してください。'); return; }
+  let amount;
+  let details = {};
+  if (type === 'expense') {
+    try {
+      details = KakeiTransactionData.parseExpenseDraft({
+        merchant: data.get('merchant'), paymentMethod: data.get('paymentMethod'),
+        itemRows: itemRowsFromForm(), manualAmount: document.getElementById('amount-input').value,
+      });
+      amount = details.amount;
+    } catch (error) {
+      if (error instanceof KakeiTransactionData.ValidationError) { showFieldError(error.field, error.message); return; }
+      throw error;
+    }
+  } else {
+    const rawAmount = document.getElementById('amount-input').value.trim();
+    amount = Number(rawAmount);
+    if (!/^\d+$/.test(rawAmount) || !Number.isInteger(amount) || amount < 1 || amount > 999999999) { showFieldError('amount', '1円から999,999,999円までの整数を入力してください。'); return; }
+  }
+  const newRecord = { id: globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : `entry-${Date.now()}`, title, amount, date, type, category, ...details };
+  try {
+    transactions = KakeiTransactionData.persistAddedTransaction(transactions, newRecord, localStorage, storageKey, isValidTransaction);
+  } catch (_) {
+    const error = document.getElementById('form-error');
+    error.textContent = '保存できませんでした。ブラウザの保存設定をご確認ください。';
+    error.hidden = false;
+    return;
+  }
   visibleMonth = new Date(parsedDate.getFullYear(), parsedDate.getMonth(), 1);
   document.getElementById('transaction-dialog').close();
   render();
