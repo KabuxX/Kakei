@@ -6,6 +6,7 @@
     <meta name="theme-color" content="#ffffff" />
     <meta name="description" content="Kakeiの家計ダッシュボード。月ごとの収支、予算、取引を確認できます。" />
     <title>家計の概要 | Kakei</title>
+    <link rel="icon" type="image/png" href="./assets/kakei-logo.png" />
     <link rel="stylesheet" href="./styles.css" />
     <script src="./transaction-detail.js" defer></script>
     <script src="./app.js" defer></script>
@@ -30,7 +31,7 @@
     <a class="skip-link" href="#main">メインコンテンツへ</a>
     <div class="app-shell">
       <aside class="sidebar" aria-label="サイドバー">
-        <a class="brand" href="#overview" aria-label="Kakei ホーム"><span class="brand-mark">k<span>.</span></span><span>Kakei</span></a>
+        <a class="brand" href="#overview" aria-label="Kakei ホーム"><span class="brand-mark"><img src="./assets/kakei-logo.png" alt="" width="44" height="44" /></span><span>Kakei</span></a>
         <nav class="side-nav" aria-label="メインナビゲーション">
           <a class="nav-link active" href="#overview" aria-current="page"><svg><use href="#i-grid"/></svg><span>概要</span></a>
           <a class="nav-link" href="#transactions"><svg><use href="#i-list"/></svg><span>取引履歴</span></a>
@@ -44,7 +45,7 @@
 
       <main id="main" class="main-content">
         <header class="topbar" id="overview">
-          <div class="mobile-brand"><span class="brand-mark">k<span>.</span></span><strong>Kakei</strong></div>
+          <div class="mobile-brand"><span class="brand-mark"><img src="./assets/kakei-logo.png" alt="" width="44" height="44" /></span><strong>Kakei</strong></div>
           <div class="breadcrumb"><strong id="current-page-label">家計の概要</strong></div>
           <div class="topbar-actions"><span class="today-label" id="today-label"></span><button class="primary-button add-trigger" type="button" aria-label="取引を追加"><svg aria-hidden="true"><use href="#i-plus"/></svg><span>取引を追加</span></button></div>
         </header>
