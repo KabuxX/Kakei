@@ -56,10 +56,6 @@ function isValidTransaction(item) {
 }
 
 let transactions = loadTransactions();
-function saveTransactions() {
-  try { localStorage.setItem(storageKey, JSON.stringify(transactions)); return true; }
-  catch (_) { showToast('保存できませんでした。ブラウザの保存設定をご確認ください。'); return false; }
-}
 function monthKey(date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`; }
 function monthTransactions() { return transactions.filter((item) => item.date.startsWith(monthKey(visibleMonth))).sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)); }
 function sums(items) { return items.reduce((result, item) => { result[item.type] += item.amount; return result; }, { income: 0, expense: 0 }); }
@@ -415,8 +411,14 @@ document.getElementById('detail-delete').addEventListener('click', () => {
 });
 document.getElementById('clear-demo').addEventListener('click', () => {
   if (!confirm('サンプルデータをすべて削除しますか？')) return;
-  transactions = transactions.filter((item) => !item.id.startsWith('sample-'));
-  saveTransactions(); render(); showToast('サンプルデータを削除しました。');
+  try {
+    transactions = KakeiDetail.removePersistedSamples(transactions, localStorage, storageKey, isValidTransaction);
+  } catch (_) {
+    showToast('保存できませんでした。ブラウザの保存設定をご確認ください。');
+    return;
+  }
+  render();
+  showToast('サンプルデータを削除しました。');
 });
 window.addEventListener('storage', (event) => {
   if (event.key !== storageKey) return;

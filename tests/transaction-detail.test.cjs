@@ -1,9 +1,11 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const { readFileSync } = require('node:fs');
 const {
   detailHref,
   detailIdFromHash,
   removePersistedTransaction,
+  removePersistedSamples,
 } = require('../front/transaction-detail.js');
 
 test('special characters in a transaction ID survive a detail URL round trip', () => {
@@ -54,4 +56,33 @@ test('deletion preserves a transaction another tab saved during confirmation', (
 
   assert.deepEqual(remaining, [{ id: 'two' }, { id: 'new-in-other-tab' }]);
   assert.deepEqual(JSON.parse(persisted), remaining);
+});
+
+test('clearing samples preserves a real transaction saved during confirmation', () => {
+  const source = Object.freeze([{ id: 'sample-1' }, { id: 'mine' }]);
+  let persisted = JSON.stringify([...source, { id: 'new-in-other-tab' }]);
+  const storage = { getItem() { return persisted; }, setItem(_key, value) { persisted = value; } };
+
+  const remaining = removePersistedSamples(source, storage, 'kakei-transactions-v1');
+
+  assert.deepEqual(remaining, [{ id: 'mine' }, { id: 'new-in-other-tab' }]);
+  assert.deepEqual(JSON.parse(persisted), remaining);
+  assert.deepEqual(source, [{ id: 'sample-1' }, { id: 'mine' }]);
+});
+
+test('failed sample clearing leaves the source and saved data untouched', () => {
+  const source = Object.freeze([{ id: 'sample-1' }, { id: 'mine' }]);
+  const storage = { getItem() { return JSON.stringify(source); }, setItem() { throw new Error('quota exceeded'); } };
+
+  assert.throws(() => removePersistedSamples(source, storage, 'kakei-transactions-v1'), /quota exceeded/);
+  assert.deepEqual(source, [{ id: 'sample-1' }, { id: 'mine' }]);
+});
+
+test('tablet navigation links retain accessible names', () => {
+  const html = readFileSync(require.resolve('../front/index.html'), 'utf8');
+  const navigation = html.match(/<nav class="side-nav"[^>]*>([\s\S]*?)<\/nav>/)?.[1];
+  assert.ok(navigation);
+  const links = [...navigation.matchAll(/<a\b[^>]*class="nav-link[^>]*>/g)].map(([tag]) => tag);
+  assert.equal(links.length, 4);
+  for (const link of links) assert.match(link, /\baria-label="[^"]+"/);
 });

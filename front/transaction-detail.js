@@ -23,7 +23,16 @@ const KakeiDetail = (() => {
     return remaining;
   }
 
-  return { detailHref, detailIdFromHash, removePersistedTransaction };
+  function removePersistedSamples(items, storage, key, isValid = () => true) {
+    const raw = storage.getItem(key);
+    const current = raw === null ? items : JSON.parse(raw);
+    if (!Array.isArray(current)) throw new Error('保存された取引データが不正です。');
+    const remaining = current.filter(isValid).filter((item) => !item.id.startsWith('sample-'));
+    storage.setItem(key, JSON.stringify(remaining));
+    return remaining;
+  }
+
+  return { detailHref, detailIdFromHash, removePersistedTransaction, removePersistedSamples };
 })();
 
 globalThis.KakeiDetail = KakeiDetail;
