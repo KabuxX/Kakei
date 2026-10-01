@@ -1,7 +1,7 @@
 """Serve Kakei's frontend and local JSON API with FastAPI."""
 
-import argparse
 import json
+import os
 import sqlite3
 from pathlib import Path
 from typing import Optional
@@ -10,7 +10,6 @@ from runtime import require_supported_python
 
 require_supported_python()
 
-import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -154,17 +153,8 @@ def create_app(db_path: Path, front_dir: Path, *, port: int = 8765) -> FastAPI:
     return app
 
 
-def main(argv: Optional[list] = None) -> int:
-    root = Path(__file__).resolve().parent
-    parser = argparse.ArgumentParser(description="Run Kakei's local FastAPI backend and frontend")
-    parser.add_argument("--db", type=Path, default=root / "data" / "kakei.sqlite3",
-                        help="SQLite database path (default: backend/data/kakei.sqlite3)")
-    args = parser.parse_args(argv)
-    app = create_app(args.db, root.parent / "front")
-    print("Kakei: http://localhost:8765/", flush=True)
-    uvicorn.run(app, host="127.0.0.1", port=8765)
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+_backend_dir = Path(__file__).resolve().parent
+app = create_app(
+    Path(os.getenv("KAKEI_DB_PATH") or _backend_dir / "data" / "kakei.sqlite3"),
+    _backend_dir.parent / "front",
+)

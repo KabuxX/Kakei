@@ -1,4 +1,6 @@
 import json
+import os
+import runpy
 import sqlite3
 import sys
 import tempfile
@@ -7,6 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 from urllib.parse import quote
 
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -111,6 +114,18 @@ class ServerTests(unittest.TestCase):
             status, content = self.request("GET", "/api/transactions")
         self.assertEqual((status, content["error"]["code"]), (500, "database_error"))
         self.assertNotIn("db unavailable", content["error"]["message"])
+
+    def test_cli_entrypoint_uses_configured_database(self):
+        with patch.dict(os.environ, {"KAKEI_DB_PATH": str(self.db)}):
+            module = runpy.run_path(str(Path(server.__file__)), run_name="kakei_cli_test")
+        self.assertIsInstance(module.get("app"), FastAPI)
+        with TestClient(module["app"]) as client:
+            response = client.post(
+                "/api/initialize", json={"transactions": []},
+                headers={"Host": "localhost:8765", "Origin": "http://localhost:8765"},
+            )
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(self.db.is_file())
 
 
 if __name__ == "__main__":

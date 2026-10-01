@@ -1,18 +1,18 @@
 # Kakei ローカルサーバー
 
-Python 3.14 系で、リポジトリのルートから次を実行してください。`backend/.python-version` に使用する系列を指定し、起動時にも Python 3.14 以上であることを確認します。FastAPI と Uvicorn の対応版は `backend/requirements.txt` に固定しています。
+Python 3.14 系で、リポジトリのルートから次を実行してください。`backend/.python-version` に使用する系列を指定し、起動時にも Python 3.14 以上であることを確認します。FastAPI CLI と Uvicorn の対応版は `backend/requirements.txt` に固定しています。
 
 ```sh
 python3.14 -m venv backend/.venv
 backend/.venv/bin/python -m pip install -r backend/requirements.txt
-backend/.venv/bin/python backend/server.py
+backend/.venv/bin/fastapi run backend/server.py --host 127.0.0.1 --port 8765
 ```
 
 以前の Python 3.9 で作った `backend/.venv` が残っている場合は、その仮想環境を作り直してください。`backend/.venv/bin/python --version` で 3.14 系になっていることを確認できます。
 
 `http://localhost:8765/` を開いてください。FastAPI が画面とAPIを同じアドレスから配信します。既に8765番ポートで旧サーバーが動いている場合は、先に停止してください。
 
-取引は既定で `backend/data/kakei.sqlite3` に保存します。別の保存先を使う場合は `backend/.venv/bin/python backend/server.py --db /path/to/kakei.sqlite3` を実行してください。DBはGitに含めません。
+取引は既定で `backend/data/kakei.sqlite3` に保存します。別の保存先を使う場合は `KAKEI_DB_PATH=/path/to/kakei.sqlite3 backend/.venv/bin/fastapi run backend/server.py --host 127.0.0.1 --port 8765` を実行してください。DBはGitに含めません。
 
 画面から取引の追加・削除、サンプル削除、月別の表示、検索、CSV保存ができます。APIは `GET /api/status`、`POST /api/initialize`、`GET /api/transactions`、`GET /api/transactions/{id}`、`POST /api/transactions`、`DELETE /api/transactions/{id}`、`DELETE /api/samples` を提供します。追加する取引のIDはサーバーが発行します。
 
