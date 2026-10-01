@@ -7,6 +7,7 @@ export function useTransactions() {
   const [status, setStatus] = useState('loading');
   const [error, setError] = useState(null);
   const [writePending, setWritePending] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [staleAfterWrite, setStaleAfterWrite] = useState(false);
   const pendingRef = useRef(false);
   const refreshingRef = useRef(false);
@@ -35,6 +36,7 @@ export function useTransactions() {
   const refresh = useCallback(async (afterWrite = false) => {
     if (refreshingRef.current) return false;
     refreshingRef.current = true;
+    setRefreshing(true);
     try {
       const next = await api.listTransactions(fetch);
       setTransactions(next);
@@ -49,11 +51,12 @@ export function useTransactions() {
       return false;
     } finally {
       refreshingRef.current = false;
+      setRefreshing(false);
     }
   }, []);
 
   const write = useCallback(async (operation) => {
-    if (pendingRef.current) throw new Error('保存処理中です。');
+    if (pendingRef.current || refreshingRef.current) throw new Error('表示の更新中です。');
     pendingRef.current = true;
     setWritePending(true);
     try {
@@ -75,7 +78,7 @@ export function useTransactions() {
   }, [refresh, status]);
 
   return {
-    transactions, status, error, writePending, staleAfterWrite, load, refresh,
+    transactions, status, error, writePending, refreshing, staleAfterWrite, load, refresh,
     addTransaction: (draft) => write(() => api.addTransaction(draft, fetch)),
     deleteTransaction: (id) => write(() => api.removeTransaction(id, fetch)),
     deleteSamples: () => write(() => api.removeSamples(fetch)),

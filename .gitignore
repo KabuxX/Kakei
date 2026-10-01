@@ -2,3 +2,5 @@
 .superpowers/
 .DS_Store
 front/node_modules/
+front/test-results/
+front/playwright-report/

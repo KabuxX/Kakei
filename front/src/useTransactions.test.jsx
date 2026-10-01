@@ -50,3 +50,16 @@ it('does not refresh or mark stale when the write itself fails', async () => {
   expect(api.listTransactions).not.toHaveBeenCalled();
   expect(result.current.status).toBe('ready');
 });
+
+it('exposes an in-progress refresh so writes can stay disabled', async () => {
+  const { result } = renderHook(() => useTransactions());
+  await waitFor(() => expect(result.current.status).toBe('ready'));
+  let complete;
+  api.listTransactions.mockReturnValueOnce(new Promise((resolve) => { complete = resolve; }));
+  let refreshPromise;
+  act(() => { refreshPromise = result.current.refresh(); });
+  expect(result.current.refreshing).toBe(true);
+  await act(async () => { complete([{ id: 'b' }]); await refreshPromise; });
+  expect(result.current.refreshing).toBe(false);
+  expect(result.current.transactions).toEqual([{ id: 'b' }]);
+});

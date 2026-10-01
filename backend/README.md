@@ -12,6 +12,16 @@ backend/.venv/bin/fastapi run backend/server.py --host 127.0.0.1 --port 8765
 
 `http://localhost:8765/` を開いてください。FastAPI が画面とAPIを同じアドレスから配信します。既に8765番ポートで旧サーバーが動いている場合は、先に停止してください。
 
+画面はReact製で、ビルド済みの `front/dist/` をFastAPIが配信します。通常の起動にNode.jsは不要です。`front/dist/` はGitに含めています。画面のソースを変更したときだけ、リポジトリのルートから次を実行して、更新された `front/dist/` もコミットしてください。
+
+```sh
+cd front
+npm ci
+npm run build
+```
+
+フロントの単体テストは `cd front && npm test` で実行できます。ブラウザテストは一時DBを指定して上記のFastAPIコマンドを起動した状態で `cd front && npm run test:e2e` を実行してください。ブラウザテストは取引を追加・削除するため、普段使いのDBでは実行しないでください。
+
 取引は既定で `backend/data/kakei.sqlite3` に保存します。別の保存先を使う場合は `KAKEI_DB_PATH=/path/to/kakei.sqlite3 backend/.venv/bin/fastapi run backend/server.py --host 127.0.0.1 --port 8765` を実行してください。DBはGitに含めません。
 
 画面から取引の追加・削除、サンプル削除、月別の表示、検索、CSV保存ができます。APIは `GET /api/status`、`POST /api/initialize`、`GET /api/transactions`、`GET /api/transactions/{id}`、`POST /api/transactions`、`DELETE /api/transactions/{id}`、`DELETE /api/samples` を提供します。追加する取引のIDはサーバーが発行します。

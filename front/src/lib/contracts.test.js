@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { loadInitialTransactions, removeTransaction } from './api.js';
+import { ApiError, addTransaction, loadInitialTransactions, removeSamples, removeTransaction } from './api.js';
 import { detailHref, detailIdFromHash } from './transaction-detail.js';
-import { readExpenseDetails, serializeTransactionsCsv } from './transaction-data.js';
+import { parseExpenseDraft, readExpenseDetails, serializeTransactionsCsv } from './transaction-data.js';
 import { createSampleTransactions } from './sample-data.js';
 import { dashboardForMonth } from './dashboard.js';
 
@@ -63,4 +63,76 @@ it('keeps sample values and monthly dashboard totals', () => {
   expect(model.balance).toBe(158100);
   expect(model.items[0].date).toBe('2026-09-28');
   expect(model.weekly).toHaveLength(5);
+});
+
+it('loads an initialized server without touching browser storage', async () => {
+  const fetchImpl = vi.fn()
+    .mockResolvedValueOnce(json(200, { initialized: true }))
+    .mockResolvedValueOnce(json(200, { transactions: [] }));
+  await expect(loadInitialTransactions({ fetchImpl, storage: { getItem: () => { throw new Error('unexpected storage read'); } }, sampleFactory: () => [] })).resolves.toEqual([]);
+  expect(fetchImpl.mock.calls.map(([path]) => path)).toEqual(['/api/status', '/api/transactions']);
+});
+
+it('preserves write methods, payloads, and server field errors', async () => {
+  const draft = { title: '給与', date: '2026-09-01', type: 'income', category: '収入', amount: 100 };
+  const fetchImpl = vi.fn()
+    .mockResolvedValueOnce(json(201, { transaction: { id: 'new', ...draft } }))
+    .mockResolvedValueOnce({ status: 204, ok: true })
+    .mockResolvedValueOnce(json(200, { deletedCount: 2 }))
+    .mockResolvedValueOnce(json(400, { error: { code: 'validation_error', field: 'title', message: '内容を確認してください。' } }));
+  expect(await addTransaction(draft, fetchImpl)).toMatchObject({ id: 'new' });
+  await removeTransaction('a/b ?', fetchImpl);
+  expect(await removeSamples(fetchImpl)).toBe(2);
+  await expect(addTransaction(draft, fetchImpl)).rejects.toMatchObject({ status: 400, field: 'title' });
+  expect(JSON.parse(fetchImpl.mock.calls[0][1].body)).toEqual(draft);
+  expect(fetchImpl.mock.calls.map(([path]) => path)).toEqual([
+    '/api/transactions', '/api/transactions/a%2Fb%20%3F', '/api/samples', '/api/transactions',
+  ]);
+  expect(draft).toEqual({ title: '給与', date: '2026-09-01', type: 'income', category: '収入', amount: 100 });
+});
+
+it('rejects malformed server responses', async () => {
+  const fetchImpl = vi.fn().mockResolvedValue(json(200, { initialized: true }));
+  fetchImpl.mockResolvedValueOnce(json(200, { initialized: 'yes' }));
+  await expect(loadInitialTransactions({ fetchImpl, storage: { getItem: () => null }, sampleFactory: () => [] })).rejects.toBeInstanceOf(ApiError);
+});
+
+it('keeps sample expense details consistent and income fields absent', () => {
+  for (const record of createSampleTransactions(new Date(2026, 8, 1))) {
+    if (record.type === 'income') {
+      expect(Object.hasOwn(record, 'merchant')).toBe(false);
+      continue;
+    }
+    expect(record.merchant.trim().length).toBeGreaterThan(0);
+    expect(['cash', 'credit_card', 'e_money', 'bank_account']).toContain(record.paymentMethod);
+    expect(record.items.reduce((sum, item) => sum + item.amount, 0)).toBe(record.amount);
+  }
+});
+
+it('preserves valid legacy fields and rejects inconsistent items', () => {
+  expect(readExpenseDetails({ type: 'expense', amount: 300, merchant: ' 店 ', paymentMethod: 'cash', items: [{ name: 'パン', amount: 200 }] })).toEqual({ merchant: '店', paymentMethod: 'cash', items: [] });
+  expect(readExpenseDetails({ type: 'expense', amount: 300, merchant: '店', paymentMethod: 'e_money', items: [{ name: 'パン', amount: 200 }, { name: '牛乳', amount: 100 }] }).items).toEqual([{ name: 'パン', amount: 200 }, { name: '牛乳', amount: 100 }]);
+});
+
+it('parses item totals and validates amounts and required expense fields', () => {
+  expect(parseExpenseDraft({ merchant: ' 店 ', paymentMethod: 'cash', itemRows: [{ name: ' パン ', amount: '200' }], manualAmount: '' })).toEqual({ merchant: '店', paymentMethod: 'cash', items: [{ name: 'パン', amount: 200 }], amount: 200 });
+  expect(parseExpenseDraft({ merchant: '店', paymentMethod: 'cash', itemRows: [], manualAmount: '500' }).amount).toBe(500);
+  expect(() => parseExpenseDraft({ merchant: '', paymentMethod: 'cash', itemRows: [], manualAmount: '500' })).toThrow();
+  expect(() => parseExpenseDraft({ merchant: '店', paymentMethod: '', itemRows: [], manualAmount: '500' })).toThrow();
+  expect(() => parseExpenseDraft({ merchant: '店', paymentMethod: 'cash', itemRows: [{ name: 'パン', amount: '1.5' }], manualAmount: '' })).toThrow();
+});
+
+it('exports quoted items and leaves legacy columns empty', () => {
+  const record = { id: 'a', date: '2026-10-01', type: 'expense', title: '買い物', category: '食費', amount: 300, merchant: '=店名', paymentMethod: 'cash', items: [{ name: 'パン, "大"', amount: 300 }] };
+  const csv = serializeTransactionsCsv([record, { ...record, id: 'old', merchant: undefined, paymentMethod: undefined, items: undefined }]);
+  expect(csv.startsWith('\uFEFF')).toBe(true);
+  expect(csv).toContain("'=店名");
+  expect(csv).toContain('パン,');
+  expect(csv).toContain('"300","","",""');
+});
+
+it('ignores non-detail and malformed hash values', () => {
+  expect(detailIdFromHash('#transactions')).toBeNull();
+  expect(detailIdFromHash('#transaction/%ZZ')).toBeNull();
+  expect(detailIdFromHash('#transaction/')).toBeNull();
 });

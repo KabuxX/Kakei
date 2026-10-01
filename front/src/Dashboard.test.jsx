@@ -26,3 +26,11 @@ it('filters rows while leaving the month total intact', () => {
   expect(screen.queryByRole('link', { name: '給与' })).toBeNull();
   expect(screen.getByText('¥298,800')).toBeTruthy();
 });
+
+it('switches transaction type without changing the summary', () => {
+  render(<Dashboard month={month} model={dashboardForMonth(records, month)} transactions={records} status="ready" onMonthChange={vi.fn()} onAdd={vi.fn()} />);
+  fireEvent.change(screen.getByRole('combobox', { name: '取引種別' }), { target: { value: 'expense' } });
+  expect(screen.getByRole('link', { name: '食材' })).toBeTruthy();
+  expect(screen.queryByRole('link', { name: '給与' })).toBeNull();
+  expect(screen.getByText('¥298,800')).toBeTruthy();
+});

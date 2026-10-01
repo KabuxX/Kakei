@@ -50,6 +50,10 @@ export default function App() {
         } else if (route === '#transactions') {
           document.getElementById('transactions')?.scrollIntoView?.();
           document.getElementById('transactions-title')?.focus({ preventScroll: true });
+        } else if (route === '#budget' || route === '#insights') {
+          document.querySelector(route)?.scrollIntoView();
+        } else if (route === '#overview') {
+          window.scrollTo(0, 0);
         }
         previousDetail.current = null;
       }
@@ -59,7 +63,7 @@ export default function App() {
 
   const changeMonth = (step) => setMonth((previous) => new Date(previous.getFullYear(), previous.getMonth() + step, 1));
   const openDialog = (event) => {
-    if (data.status !== 'ready' || data.writePending) return;
+    if (data.status !== 'ready' || data.writePending || data.refreshing) return;
     addTrigger.current = event.currentTarget;
     setDialogOpen(true);
   };
@@ -75,7 +79,7 @@ export default function App() {
     return refreshed;
   };
   const deleteTransaction = async (record) => {
-    if (data.status !== 'ready' || data.writePending || !window.confirm(`「${record.title}」を削除しますか？`)) return;
+    if (data.status !== 'ready' || data.writePending || data.refreshing || !window.confirm(`「${record.title}」を削除しますか？`)) return;
     try {
       const refreshed = await data.deleteTransaction(record.id);
       listReturn.current = null;
@@ -85,7 +89,7 @@ export default function App() {
     } catch (_) { setToast('削除できませんでした。サーバーへの接続を確認してください。'); }
   };
   const deleteSamples = async () => {
-    if (data.status !== 'ready' || data.writePending || !window.confirm('サンプルデータをすべて削除しますか？')) return;
+    if (data.status !== 'ready' || data.writePending || data.refreshing || !window.confirm('サンプルデータをすべて削除しますか？')) return;
     try {
       const refreshed = await data.deleteSamples();
       setToast(refreshed ? 'サンプルデータを削除しました。' : 'サンプルを削除しました。表示を更新してください。');
@@ -103,12 +107,12 @@ export default function App() {
   };
 
   return <>
-    <AppShell route={route} onAdd={openDialog} addDisabled={data.status !== 'ready' || data.writePending}>
+    <AppShell route={route} onAdd={openDialog} addDisabled={data.status !== 'ready' || data.writePending || data.refreshing}>
       <div id="sync-status" className="sync-status" role="alert" hidden={data.status !== 'stale'}><span id="sync-status-message">{data.staleAfterWrite ? 'サーバーへの保存は完了しましたが、表示を更新できませんでした。再読み込みしてください。' : '最新の取引を読み込めませんでした。再読み込みしてください。'}</span><button id="retry-sync" className="secondary-button" type="button" onClick={() => data.refresh()}>表示を再読み込み</button></div>
-      <Dashboard month={month} model={model} transactions={data.transactions} status={data.status} error={data.error} onMonthChange={changeMonth} onAdd={openDialog} onRetry={data.load} onClearSamples={deleteSamples} onExport={exportCsv} onOpenDetail={(id) => { listReturn.current = { id, scrollY: window.scrollY }; }} writePending={data.writePending} hidden={isDetail} />
-      {isDetail && <TransactionDetail record={detailRecord} onDelete={deleteTransaction} busy={data.writePending || data.status !== 'ready'} />}
+      <Dashboard month={month} model={model} transactions={data.transactions} status={data.status} error={data.error} onMonthChange={changeMonth} onAdd={openDialog} onRetry={data.load} onClearSamples={deleteSamples} onExport={exportCsv} onOpenDetail={(id) => { listReturn.current = { id, scrollY: window.scrollY }; }} writePending={data.writePending || data.refreshing} hidden={isDetail} />
+      {isDetail && <TransactionDetail record={detailRecord} onDelete={deleteTransaction} busy={data.writePending || data.refreshing || data.status !== 'ready'} />}
     </AppShell>
-    <TransactionDialog open={dialogOpen} selectedMonth={month} busy={data.writePending} onClose={closeDialog} onSubmit={submitTransaction} />
+    <TransactionDialog open={dialogOpen} selectedMonth={month} busy={data.writePending || data.refreshing} onClose={closeDialog} onSubmit={submitTransaction} />
     <div id="toast" className={`toast${toast ? ' show' : ''}`} role="status" aria-live="polite">{toast}</div>
   </>;
 }
