@@ -7,6 +7,7 @@ export function useTransactions() {
   const [status, setStatus] = useState('loading');
   const [error, setError] = useState(null);
   const [writePending, setWritePending] = useState(false);
+  const [staleAfterWrite, setStaleAfterWrite] = useState(false);
   const pendingRef = useRef(false);
   const refreshingRef = useRef(false);
 
@@ -31,17 +32,19 @@ export function useTransactions() {
     }
   }, []);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (afterWrite = false) => {
     if (refreshingRef.current) return false;
     refreshingRef.current = true;
     try {
       const next = await api.listTransactions(fetch);
       setTransactions(next);
       setError(null);
+      setStaleAfterWrite(false);
       setStatus('ready');
       return true;
     } catch (cause) {
       setError(cause);
+      setStaleAfterWrite(afterWrite);
       setStatus('stale');
       return false;
     } finally {
@@ -55,7 +58,7 @@ export function useTransactions() {
     setWritePending(true);
     try {
       await operation();
-      return await refresh();
+      return await refresh(true);
     } finally {
       pendingRef.current = false;
       setWritePending(false);
@@ -72,7 +75,7 @@ export function useTransactions() {
   }, [refresh, status]);
 
   return {
-    transactions, status, error, writePending, load, refresh,
+    transactions, status, error, writePending, staleAfterWrite, load, refresh,
     addTransaction: (draft) => write(() => api.addTransaction(draft, fetch)),
     deleteTransaction: (id) => write(() => api.removeTransaction(id, fetch)),
     deleteSamples: () => write(() => api.removeSamples(fetch)),

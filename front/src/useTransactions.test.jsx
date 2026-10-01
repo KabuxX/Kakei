@@ -34,8 +34,19 @@ it('keeps a successful write single when refresh fails', async () => {
   await act(async () => { refreshed = await result.current.addTransaction({ title: '食材' }); });
   expect(refreshed).toBe(false);
   expect(result.current.status).toBe('stale');
+  expect(result.current.staleAfterWrite).toBe(true);
   expect(api.addTransaction).toHaveBeenCalledTimes(1);
   await act(async () => { await result.current.refresh(); });
   expect(result.current.status).toBe('ready');
+  expect(result.current.staleAfterWrite).toBe(false);
   expect(api.addTransaction).toHaveBeenCalledTimes(1);
+});
+
+it('does not refresh or mark stale when the write itself fails', async () => {
+  const { result } = renderHook(() => useTransactions());
+  await waitFor(() => expect(result.current.status).toBe('ready'));
+  api.addTransaction.mockRejectedValue(new Error('save failed'));
+  await act(async () => { await expect(result.current.addTransaction({ title: '食材' })).rejects.toThrow('save failed'); });
+  expect(api.listTransactions).not.toHaveBeenCalled();
+  expect(result.current.status).toBe('ready');
 });

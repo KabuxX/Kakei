@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import AppShell from './AppShell.jsx';
 import Dashboard from './Dashboard.jsx';
 import TransactionDetail from './TransactionDetail.jsx';
+import TransactionDialog from './TransactionDialog.jsx';
 import { useTransactions } from './useTransactions.js';
 import { dashboardForMonth, monthKey } from './lib/dashboard.js';
 import { serializeTransactionsCsv } from './lib/transaction-data.js';
@@ -12,6 +13,8 @@ export default function App() {
   const [month, setMonth] = useState(() => new Date(now.getFullYear(), now.getMonth() - 1, 1));
   const [route, setRoute] = useState(() => window.location.hash || '#overview');
   const [toast, setToast] = useState('');
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const addTrigger = useRef(null);
   const listReturn = useRef(null);
   const previousDetail = useRef(null);
   const data = useTransactions();
@@ -55,6 +58,39 @@ export default function App() {
   }, [isDetail, detailId, detailRecord, route]);
 
   const changeMonth = (step) => setMonth((previous) => new Date(previous.getFullYear(), previous.getMonth() + step, 1));
+  const openDialog = (event) => {
+    if (data.status !== 'ready' || data.writePending) return;
+    addTrigger.current = event.currentTarget;
+    setDialogOpen(true);
+  };
+  const closeDialog = () => {
+    setDialogOpen(false);
+    requestAnimationFrame(() => addTrigger.current?.focus({ preventScroll: true }));
+  };
+  const submitTransaction = async (draft) => {
+    const refreshed = await data.addTransaction(draft);
+    const savedDate = new Date(`${draft.date}T12:00:00`);
+    setMonth(new Date(savedDate.getFullYear(), savedDate.getMonth(), 1));
+    setToast(refreshed ? '取引を追加しました。' : '取引を保存しました。表示を更新してください。');
+    return refreshed;
+  };
+  const deleteTransaction = async (record) => {
+    if (data.status !== 'ready' || data.writePending || !window.confirm(`「${record.title}」を削除しますか？`)) return;
+    try {
+      const refreshed = await data.deleteTransaction(record.id);
+      listReturn.current = null;
+      window.location.hash = '#transactions';
+      setRoute('#transactions');
+      setToast(refreshed ? '取引を削除しました。' : '取引を削除しました。表示を更新してください。');
+    } catch (_) { setToast('削除できませんでした。サーバーへの接続を確認してください。'); }
+  };
+  const deleteSamples = async () => {
+    if (data.status !== 'ready' || data.writePending || !window.confirm('サンプルデータをすべて削除しますか？')) return;
+    try {
+      const refreshed = await data.deleteSamples();
+      setToast(refreshed ? 'サンプルデータを削除しました。' : 'サンプルを削除しました。表示を更新してください。');
+    } catch (_) { setToast('サンプルを削除できませんでした。サーバーへの接続を確認してください。'); }
+  };
   const exportCsv = () => {
     if (!model.items.length) { setToast('この月に保存できる取引はありません。'); return; }
     const url = URL.createObjectURL(new Blob([serializeTransactionsCsv(model.items)], { type: 'text/csv;charset=utf-8' }));
@@ -67,11 +103,12 @@ export default function App() {
   };
 
   return <>
-    <AppShell route={route} onAdd={() => {}} addDisabled={data.status !== 'ready' || data.writePending}>
-      <div id="sync-status" className="sync-status" role="alert" hidden={data.status !== 'stale'}><span id="sync-status-message">最新の取引を読み込めませんでした。再読み込みしてください。</span><button id="retry-sync" className="secondary-button" type="button" onClick={data.refresh}>表示を再読み込み</button></div>
-      <Dashboard month={month} model={model} transactions={data.transactions} status={data.status} error={data.error} onMonthChange={changeMonth} onAdd={() => {}} onRetry={data.load} onClearSamples={() => {}} onExport={exportCsv} onOpenDetail={(id) => { listReturn.current = { id, scrollY: window.scrollY }; }} writePending={data.writePending} hidden={isDetail} />
-      {isDetail && <TransactionDetail record={detailRecord} onDelete={() => {}} busy={data.writePending || data.status !== 'ready'} />}
+    <AppShell route={route} onAdd={openDialog} addDisabled={data.status !== 'ready' || data.writePending}>
+      <div id="sync-status" className="sync-status" role="alert" hidden={data.status !== 'stale'}><span id="sync-status-message">{data.staleAfterWrite ? 'サーバーへの保存は完了しましたが、表示を更新できませんでした。再読み込みしてください。' : '最新の取引を読み込めませんでした。再読み込みしてください。'}</span><button id="retry-sync" className="secondary-button" type="button" onClick={() => data.refresh()}>表示を再読み込み</button></div>
+      <Dashboard month={month} model={model} transactions={data.transactions} status={data.status} error={data.error} onMonthChange={changeMonth} onAdd={openDialog} onRetry={data.load} onClearSamples={deleteSamples} onExport={exportCsv} onOpenDetail={(id) => { listReturn.current = { id, scrollY: window.scrollY }; }} writePending={data.writePending} hidden={isDetail} />
+      {isDetail && <TransactionDetail record={detailRecord} onDelete={deleteTransaction} busy={data.writePending || data.status !== 'ready'} />}
     </AppShell>
+    <TransactionDialog open={dialogOpen} selectedMonth={month} busy={data.writePending} onClose={closeDialog} onSubmit={submitTransaction} />
     <div id="toast" className={`toast${toast ? ' show' : ''}`} role="status" aria-live="polite">{toast}</div>
   </>;
 }
