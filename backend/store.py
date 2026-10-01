@@ -147,5 +147,5 @@ class Store:
         with self._connection() as connection:
             connection.execute("BEGIN IMMEDIATE")
             self._require_initialized(connection)
-            cursor = connection.execute("DELETE FROM transactions WHERE id LIKE 'sample-%'")
+            cursor = connection.execute("DELETE FROM transactions WHERE substr(id, 1, 7) = 'sample-'")
             return cursor.rowcount

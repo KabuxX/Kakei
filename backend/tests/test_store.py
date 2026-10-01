@@ -85,6 +85,11 @@ class StoreTests(unittest.TestCase):
         self.assertTrue(self.store.delete_transaction(created["id"]))
         self.assertEqual([item["id"] for item in Store(self.path).list_transactions()], ["old-1"])
 
+    def test_sample_deletion_is_case_sensitive(self):
+        self.store.initialize([income("sample-remove"), income("Sample-keep")])
+        self.assertEqual(self.store.delete_samples(), 1)
+        self.assertEqual([item["id"] for item in self.store.list_transactions()], ["Sample-keep"])
+
 
 if __name__ == "__main__":
     unittest.main()
