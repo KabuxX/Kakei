@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import runpy
 import sqlite3
 import sys
@@ -18,6 +19,19 @@ import server
 
 
 class ServerTests(unittest.TestCase):
+    def test_default_app_serves_built_react_page_and_assets(self):
+        with TestClient(server.app) as client:
+            response = client.get("/", headers={"Host": "localhost:8765"})
+            self.assertEqual(response.status_code, 200)
+            self.assertIn('id="root"', response.text)
+            assets = re.findall(r'(?:src|href)="(/assets/[^"]+)"', response.text)
+            self.assertTrue(any(path.endswith(".js") for path in assets))
+            for path in assets:
+                asset = client.get(path, headers={"Host": "localhost:8765"})
+                self.assertEqual(asset.status_code, 200, path)
+            status = client.get("/api/status", headers={"Host": "localhost:8765"})
+            self.assertEqual(status.status_code, 200)
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)

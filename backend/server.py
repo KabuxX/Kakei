@@ -156,5 +156,5 @@ def create_app(db_path: Path, front_dir: Path, *, port: int = 8765) -> FastAPI:
 _backend_dir = Path(__file__).resolve().parent
 app = create_app(
     Path(os.getenv("KAKEI_DB_PATH") or _backend_dir / "data" / "kakei.sqlite3"),
-    _backend_dir.parent / "front",
+    _backend_dir.parent / "front" / "dist",
 )
