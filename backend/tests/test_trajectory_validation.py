@@ -95,6 +95,38 @@ class TrajectoryValidationTests(unittest.TestCase):
         timeline["days"][0]["events"][0]["transactionId"] = "deleted-from-database"
         self.assertEqual(validate_timeline(timeline), timeline)
 
+    def test_mutable_empty_and_partial_days(self):
+        empty = {"places": {}, "days": [{"date": "2026-10-03", "events": [], "legs": []}]}
+        self.assertEqual(validate_timeline(empty, require_complete=False), empty)
+        with self.assertRaises(ValueError):
+            validate_timeline(empty)
+
+        partial = self.timeline()
+        partial["days"][0]["legs"] = [partial["days"][0]["legs"][1]]
+        self.assertEqual(validate_timeline(partial, require_complete=False), partial)
+        with self.assertRaises(ValueError):
+            validate_timeline(partial)
+
+    def test_mutable_rejects_nonadjacent_or_duplicate_leg(self):
+        timeline = self.timeline()
+        first_day = timeline["days"][0]
+        first_day["legs"] = [{"fromEventId": first_day["events"][0]["id"],
+                              "toEventId": first_day["events"][2]["id"]}]
+        with self.assertRaisesRegex(ValueError, "toEventId"):
+            validate_timeline(timeline, require_complete=False)
+
+        timeline = self.timeline()
+        first_day = timeline["days"][0]
+        first_day["legs"] = [first_day["legs"][0], copy.deepcopy(first_day["legs"][0])]
+        with self.assertRaisesRegex(ValueError, "duplicate"):
+            validate_timeline(timeline, require_complete=False)
+
+    def test_mutable_rejects_nonstring_leg_identity(self):
+        timeline = self.timeline()
+        timeline["days"][0]["legs"][0]["fromEventId"] = []
+        with self.assertRaisesRegex(ValueError, "fromEventId"):
+            validate_timeline(timeline, require_complete=False)
+
 
 if __name__ == "__main__":
     unittest.main()

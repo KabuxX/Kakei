@@ -60,7 +60,7 @@ def load_timeline(path: Path) -> dict:
     return validate_timeline(timeline)
 
 
-def validate_timeline(value: object) -> dict:
+def validate_timeline(value: object, *, require_complete: bool = True) -> dict:
     """Check the timeline's shape and cross references without changing it."""
     _shape(value, {"places", "days"}, set(), "timeline")
     places = value["places"]
@@ -100,7 +100,7 @@ def validate_timeline(value: object) -> dict:
         seen_dates.add(day_date)
 
         events = day["events"]
-        if not isinstance(events, list) or len(events) < 2:
+        if not isinstance(events, list) or (require_complete and len(events) < 2):
             raise ValueError(f"{day_path}.events: at least two events required")
         previous_time = None
         for event_index, event in enumerate(events):
@@ -121,16 +121,26 @@ def validate_timeline(value: object) -> dict:
                 _string(event["transactionId"], f"{event_path}.transactionId")
 
         legs = day["legs"]
-        if not isinstance(legs, list) or len(legs) != len(events) - 1:
+        if not isinstance(legs, list) or (require_complete and len(legs) != len(events) - 1):
             raise ValueError(f"{day_path}.legs: one leg per adjacent event pair required")
+        event_positions = {event["id"]: position for position, event in enumerate(events)}
+        previous_position = -1
         for leg_index, leg in enumerate(legs):
             leg_path = f"{day_path}.legs[{leg_index}]"
             _shape(leg, {"fromEventId", "toEventId"},
                    {"modeHint", "transportTransactionId", "viaPlaceIds"}, leg_path)
-            if leg["fromEventId"] != events[leg_index]["id"]:
+            _string(leg["fromEventId"], f"{leg_path}.fromEventId")
+            _string(leg["toEventId"], f"{leg_path}.toEventId")
+            from_position = event_positions.get(leg["fromEventId"])
+            if from_position is None or from_position >= len(events) - 1:
                 raise ValueError(f"{leg_path}.fromEventId: wrong event")
-            if leg["toEventId"] != events[leg_index + 1]["id"]:
+            if leg["toEventId"] != events[from_position + 1]["id"]:
                 raise ValueError(f"{leg_path}.toEventId: wrong event")
+            if from_position == previous_position:
+                raise ValueError(f"{leg_path}.fromEventId: duplicate leg")
+            if from_position < previous_position or (require_complete and from_position != leg_index):
+                raise ValueError(f"{leg_path}.fromEventId: legs must be chronological")
+            previous_position = from_position
             if "modeHint" in leg and leg["modeHint"] not in ("walk", "train", "bus"):
                 raise ValueError(f"{leg_path}.modeHint: unsupported mode")
             if "transportTransactionId" in leg:
