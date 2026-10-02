@@ -61,6 +61,78 @@ class SchemaTests(unittest.TestCase):
         self.assertEqual(item_columns, {"transaction_id", "position", "name", "amount"})
         self.assertIn("CASCADE", foreign_key_delete_actions)
 
+    def test_fresh_schema_has_trajectory_tables(self):
+        connection = self.connect()
+        ensure_schema(connection)
+        connection.commit()
+
+        table_names = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+        self.assertTrue({
+            "trajectory_places", "trajectory_days", "trajectory_events",
+            "trajectory_legs", "trajectory_leg_via_places",
+        } <= table_names)
+        connection.execute("INSERT INTO trajectory_days (date) VALUES ('2026-09-01')")
+        connection.execute("""
+            INSERT INTO trajectory_places (id, name, address, longitude, latitude, source_url)
+            VALUES ('place', '店', '東京都', 139.7, 35.6, 'https://example.com')
+        """)
+        for position in (0, 1):
+            connection.execute("""
+                INSERT INTO trajectory_events (id, day_date, position, time, place_id)
+                VALUES (?, '2026-09-01', ?, '09:00', 'place')
+            """, (f"event-{position}", position))
+        with self.assertRaises(sqlite3.IntegrityError):
+            connection.execute("""
+                INSERT INTO trajectory_events (id, day_date, position, time, place_id)
+                VALUES ('duplicate-position', '2026-09-01', 0, '10:00', 'place')
+            """)
+        with self.assertRaises(sqlite3.IntegrityError):
+            connection.execute("""
+                INSERT INTO trajectory_events (id, day_date, position, time, place_id)
+                VALUES ('unknown-place', '2026-09-01', 2, '10:00', 'missing')
+            """)
+        connection.execute("""
+            INSERT INTO trajectory_legs (day_date, position, from_event_id, to_event_id, has_via_places)
+            VALUES ('2026-09-01', 0, 'event-0', 'event-1', 1)
+        """)
+        connection.execute("""
+            INSERT INTO trajectory_leg_via_places (day_date, leg_position, via_position, place_id)
+            VALUES ('2026-09-01', 0, 0, 'place')
+        """)
+        with self.assertRaises(sqlite3.IntegrityError):
+            connection.execute("""
+                INSERT INTO trajectory_leg_via_places (day_date, leg_position, via_position, place_id)
+                VALUES ('2026-09-01', 0, 0, 'place')
+            """)
+        connection.execute("DELETE FROM trajectory_days WHERE date = '2026-09-01'")
+        for table in ("trajectory_events", "trajectory_legs", "trajectory_leg_via_places"):
+            self.assertEqual(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0], 0)
+
+    def test_existing_current_schema_gains_trajectory_tables(self):
+        connection = self.connect()
+        ensure_schema(connection)
+        connection.commit()
+        for table in ("trajectory_leg_via_places", "trajectory_legs", "trajectory_events", "trajectory_days", "trajectory_places"):
+            connection.execute(f"DROP TABLE IF EXISTS {table}")
+        connection.commit()
+
+        ensure_schema(connection)
+        connection.commit()
+        table_names = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+        self.assertIn("trajectory_places", table_names)
+        self.assertIn("trajectory_leg_via_places", table_names)
+
+    def test_legacy_migration_keeps_trajectory_schema_and_transactions(self):
+        connection = self.legacy_database()
+        ensure_schema(connection)
+        connection.commit()
+
+        table_names = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+        self.assertTrue({"trajectory_places", "trajectory_days", "trajectory_events", "trajectory_legs", "trajectory_leg_via_places"} <= table_names)
+        self.assertEqual(connection.execute("SELECT COUNT(*) FROM transactions").fetchone()[0], 1)
+        self.assertEqual(connection.execute("SELECT COUNT(*) FROM transaction_items").fetchone()[0], 2)
+        self.assertEqual(connection.execute("SELECT value FROM meta WHERE key = 'initialized'").fetchone()[0], "1")
+
     def test_legacy_migration_preserves_items_and_marker(self):
         connection = self.legacy_database(second_items="[]")
         ensure_schema(connection)
