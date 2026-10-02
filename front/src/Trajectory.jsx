@@ -35,15 +35,7 @@ export default function Trajectory() {
   };
 
   return <div className="trajectory-page">
-    <header className="trajectory-intro">
-      <div>
-        <p className="trajectory-eyebrow">TOKYO · SEPTEMBER 2026</p>
-        <h1 id="trajectory-heading" tabIndex="-1">生活軌跡</h1>
-        <p className="trajectory-caption">2026年9月のサンプル取引から、東京での一日の移動をたどります。</p>
-      </div>
-      <span className="trajectory-demo-badge">固定サンプル</span>
-    </header>
-
+    <h1 id="trajectory-heading" className="sr-only" tabIndex="-1">生活軌跡</h1>
     <section className="trajectory-summary" aria-label="選択した日の概要">
       <div className="trajectory-date-row">
         <div>

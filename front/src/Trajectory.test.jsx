@@ -6,11 +6,12 @@ vi.mock('./TrajectoryMap.jsx', () => ({ default: ({ day, selectedEventId }) => <
 
 afterEach(cleanup);
 
-it('shows the selected sample date and summary before the map and timeline', async () => {
+it('starts with the selected date and summary without a sample badge', async () => {
   const { default: Trajectory } = await import('./Trajectory.jsx');
   const { container } = render(<Trajectory />);
   expect(screen.getByRole('heading', { level: 1, name: '生活軌跡' })).toBeTruthy();
-  expect(screen.getByText(/2026年9月のサンプル/)).toBeTruthy();
+  expect(screen.queryByText('固定サンプル')).toBeNull();
+  expect(container.querySelector('.trajectory-intro')).toBeNull();
   expect(screen.getByRole('combobox', { name: '表示する日付' }).value).toBe('2026-09-19');
   expect(screen.getByText('3地点')).toBeTruthy();
   expect(container.querySelector('.trajectory-summary').compareDocumentPosition(container.querySelector('.trajectory-map-panel')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
