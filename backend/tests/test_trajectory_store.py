@@ -46,11 +46,11 @@ class TrajectoryStoreTests(unittest.TestCase):
             counts = tuple(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0] for table in (
                 "trajectory_places", "trajectory_days", "trajectory_events", "trajectory_legs"
             ))
-        self.assertEqual(counts, (10, 30, 120, 90))
+        self.assertEqual(counts, (10, 12, 36, 24))
 
     def test_optional_via_places_round_trip(self):
         timeline = self.timeline()
-        day = timeline["days"][1]
+        day = timeline["days"][-2]
         day["legs"][1]["viaPlaceIds"] = []
         day["legs"][2]["viaPlaceIds"] = ["jrShibuya", "shibuyaMuji"]
 
@@ -80,11 +80,11 @@ class TrajectoryStoreTests(unittest.TestCase):
         added_day = copy.deepcopy(updated["days"][0])
         added_day["date"] = "2026-10-01"
         for event in added_day["events"]:
-            event["id"] = event["id"].replace("2026-09-01", "2026-10-01")
+            event["id"] = event["id"].replace("2026-09-19", "2026-10-01")
             event.pop("transactionId", None)
         for leg in added_day["legs"]:
-            leg["fromEventId"] = leg["fromEventId"].replace("2026-09-01", "2026-10-01")
-            leg["toEventId"] = leg["toEventId"].replace("2026-09-01", "2026-10-01")
+            leg["fromEventId"] = leg["fromEventId"].replace("2026-09-19", "2026-10-01")
+            leg["toEventId"] = leg["toEventId"].replace("2026-09-19", "2026-10-01")
         updated["days"].append(added_day)
 
         for _ in range(2):
@@ -99,13 +99,13 @@ class TrajectoryStoreTests(unittest.TestCase):
     def test_invalid_fixture_and_insert_failure_roll_back(self):
         timeline = self.timeline()
         self.store.sync_trajectory(timeline)
-        original = self.store.get_trajectory_day("2026-09-01")
+        original = self.store.get_trajectory_day("2026-09-19")
 
         invalid = copy.deepcopy(timeline)
         invalid["days"][0]["events"][0]["placeId"] = "unknown"
         with self.assertRaises(ValueError):
             self.store.sync_trajectory(invalid)
-        self.assertEqual(self.store.get_trajectory_day("2026-09-01"), original)
+        self.assertEqual(self.store.get_trajectory_day("2026-09-19"), original)
 
         with closing(sqlite3.connect(self.db)) as connection:
             connection.execute("""
@@ -117,7 +117,7 @@ class TrajectoryStoreTests(unittest.TestCase):
         modified["places"]["shibuyaStarbucks"]["name"] = "部分更新されてはいけない"
         with self.assertRaises(sqlite3.DatabaseError):
             self.store.sync_trajectory(modified)
-        self.assertEqual(self.store.get_trajectory_day("2026-09-01"), original)
+        self.assertEqual(self.store.get_trajectory_day("2026-09-19"), original)
 
 
 if __name__ == "__main__":

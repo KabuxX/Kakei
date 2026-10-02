@@ -57,12 +57,12 @@ it('preserves old expense fields and safe CSV escaping', () => {
 
 it('uses September transaction JSON for fresh dashboard totals', () => {
   const samples = createSampleTransactions();
-  expect(samples).toHaveLength(103);
+  expect(samples).toHaveLength(37);
   expect(samples.find((record) => record.id === 'sample-0')).toMatchObject({ title: '給与', amount: 320000 });
   const model = dashboardForMonth(samples, new Date(2026, 8, 1));
   expect(model.income).toBe(320000);
-  expect(model.expense).toBe(183800);
-  expect(model.balance).toBe(136200);
+  expect(model.expense).toBe(130390);
+  expect(model.balance).toBe(189610);
   expect(model.items[0].date).toBe('2026-09-30');
   expect(model.weekly).toHaveLength(5);
 });

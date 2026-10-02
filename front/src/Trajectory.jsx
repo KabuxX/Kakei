@@ -51,12 +51,12 @@ export default function Trajectory() {
           <strong className="trajectory-date-title">2026年{dateLabel(selectedDate)}</strong>
         </div>
         <div className="trajectory-date-controls">
-          <button type="button" aria-label="前の日" onClick={() => changeDate(dates[dateIndex - 1])} disabled={dateIndex === 0}>‹</button>
+          <button type="button" aria-label="前の記録日" onClick={() => changeDate(dates[dateIndex - 1])} disabled={dateIndex === 0}>‹</button>
           <label htmlFor="trajectory-date">表示する日付</label>
           <select id="trajectory-date" value={selectedDate} onChange={(event) => changeDate(event.target.value)}>
             {dates.map((date) => <option key={date} value={date}>{dateLabel(date)}</option>)}
           </select>
-          <button type="button" aria-label="次の日" onClick={() => changeDate(dates[dateIndex + 1])} disabled={dateIndex === dates.length - 1}>›</button>
+          <button type="button" aria-label="次の記録日" onClick={() => changeDate(dates[dateIndex + 1])} disabled={dateIndex === dates.length - 1}>›</button>
         </div>
       </div>
       <div className="trajectory-stats">

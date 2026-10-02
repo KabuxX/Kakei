@@ -82,7 +82,7 @@ it('configures Mapbox Standard with Japanese Noto Sans CJK JP labels', async () 
 
 it('shows distinct stage colors without direction or time annotations', async () => {
   const { default: TrajectoryMap } = await import('./TrajectoryMap.jsx');
-  const day = buildTrajectoryDays(transactionsFixture, timelineFixture).get('2026-09-02');
+  const day = buildTrajectoryDays(transactionsFixture, timelineFixture).get('2026-09-29');
   render(<TrajectoryMap day={day} selectedEventId={null} onSelectEvent={vi.fn()} />);
   const layers = mocks.overlays[0].setProps.mock.lastCall[0].layers;
   const paths = layers.find((layer) => layer.id === 'trajectory-paths');

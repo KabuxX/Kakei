@@ -129,10 +129,10 @@ curl -X POST http://localhost:8765/api/transactions \
 
 ### `GET /api/trajectory/{date}`
 
-サーバー生成時に `front/src/data/september-timeline.json` の固定サンプルを検証して SQLite に完全同期します。この GET は軌跡テーブルから指定日 1 日分を返します。JSON の変更は次のサーバー生成時に反映され、同期に失敗するとサーバー生成も失敗します。取引 DB の初期化や取引の更新には依存しません。形式が不正または実在しない日付は `400 invalid_date`、サンプルにない日付は `404 not_found` です。
+取引サンプルは重複整理済み37件、軌跡は9月19〜30日の12日分です。サーバー生成時に `front/src/data/september-timeline.json` の固定サンプルを検証して SQLite に完全同期します。この GET は軌跡テーブルから指定日 1 日分を返します。JSON の変更は次のサーバー生成時に反映され、同期に失敗するとサーバー生成も失敗します。取引 DB の初期化や取引の更新には依存しません。形式が不正または実在しない日付は `400 invalid_date`、サンプルにない日付は `404 not_found` です。
 
 ```sh
-curl http://localhost:8765/api/trajectory/2026-09-01
+curl http://localhost:8765/api/trajectory/2026-09-19
 ```
 
 レスポンス例:
@@ -161,15 +161,15 @@ curl http://localhost:8765/api/trajectory/2026-09-01
   },
   "days": [
     {
-      "date": "2026-09-01",
+      "date": "2026-09-19",
       "events": [
-        {"id": "2026-09-01-1", "time": "09:10", "placeId": "shibuyaStarbucks", "transactionId": "sample-20260901-a"},
-        {"id": "2026-09-01-2", "time": "13:05", "placeId": "shibuyaMuji", "transactionId": "sample-20260901-b"},
-        {"id": "2026-09-01-3", "time": "18:30", "placeId": "shibuyaLife", "transactionId": "sample-20260901-c"}
+        {"id": "2026-09-19-1", "time": "09:10", "placeId": "shibuyaStarbucks", "transactionId": "sample-20260919-a"},
+        {"id": "2026-09-19-2", "time": "13:05", "placeId": "shibuyaMuji", "transactionId": "sample-20260919-b"},
+        {"id": "2026-09-19-3", "time": "18:30", "placeId": "shibuyaLife", "transactionId": "sample-20260919-c"}
       ],
       "legs": [
-        {"fromEventId": "2026-09-01-1", "toEventId": "2026-09-01-2", "modeHint": "walk"},
-        {"fromEventId": "2026-09-01-2", "toEventId": "2026-09-01-3", "modeHint": "walk"}
+        {"fromEventId": "2026-09-19-1", "toEventId": "2026-09-19-2", "modeHint": "walk"},
+        {"fromEventId": "2026-09-19-2", "toEventId": "2026-09-19-3", "modeHint": "walk"}
       ]
     }
   ]
@@ -183,10 +183,10 @@ curl http://localhost:8765/api/trajectory/2026-09-01
 | `events[]` | 時刻順の地点記録。`id`、`time`（`HH:mm`）、`placeId` を持ち、取引に対応する場合は `transactionId` も持つ。`placeId` は `places` のキーを参照する |
 | `legs[]` | 2 件の記録間の区間。`fromEventId` と `toEventId` は `events` の ID を参照する。`modeHint` は移動手段のヒントで、現行サンプルでは `walk` または `train`。交通取引に対応する場合は `transportTransactionId`、経由地点がある場合は `viaPlaceIds` も持つ |
 
-例えば 9 月 2 日の鉄道区間には次の値が含まれます。
+例えば 9 月 29 日の鉄道区間には次の値が含まれます。
 
 ```json
-{"fromEventId": "2026-09-02-2", "toEventId": "2026-09-02-3", "modeHint": "train", "transportTransactionId": "sample-20260902-train"}
+{"fromEventId": "2026-09-29-2", "toEventId": "2026-09-29-3", "modeHint": "train", "transportTransactionId": "sample-20260929-train"}
 ```
 
 `transactionId` と `transportTransactionId` はサンプル取引の ID を示しますが、この API は取引本体を返しません。実際の SQLite の取引を削除・変更しても、軌跡テーブルの参照 ID は更新されません。軌跡テーブルを直接編集した場合は、次のサーバー生成時に JSON の値で上書きされます。軌跡の座標と区間はサンプルデータであり、道路や鉄道に沿った経路形状は返しません。

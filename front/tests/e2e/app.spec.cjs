@@ -17,7 +17,7 @@ test('first viewport shows period and financial state at desktop and phone width
   await expect(page.locator('#dashboard-view')).toHaveClass(/data-ready/);
   await expect(page.locator('#month-label')).toHaveText('2026年9月');
   await expect(page.locator('#balance-amount')).not.toHaveText('—');
-  expect(new Set(initialized.map((transaction) => transaction.date)).size).toBe(30);
+  expect(initialized).toHaveLength(37);
   await expect(page.getByRole('button', { name: '取引を追加' })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   const desktop = await page.locator('.balance-card').boundingBox();
@@ -66,18 +66,19 @@ test('trajectory shows a dated Tokyo sample on desktop and phone', async ({ page
   await expect(page.locator('#trajectory-view')).toHaveCSS('display', 'block');
   await expect(page.getByRole('heading', { name: '生活軌跡' })).toBeVisible();
   await expect(page.getByRole('heading', { name: '生活軌跡' })).toBeFocused();
-  await expect(page.getByRole('combobox', { name: '表示する日付' })).toHaveValue('2026-09-01');
+  await expect(page.getByRole('combobox', { name: '表示する日付' })).toHaveValue('2026-09-19');
   await expect(page.getByText('3地点')).toBeVisible();
   await expect(page.getByRole('heading', { name: '時系列' })).toBeVisible();
   await expect(page.getByText(/Mapbox の公開トークン/)).toBeVisible();
-  await page.getByRole('button', { name: '次の日' }).click();
-  await expect(page.getByRole('combobox', { name: '表示する日付' })).toHaveValue('2026-09-02');
+  await page.getByRole('button', { name: '次の記録日' }).click();
+  await expect(page.getByRole('combobox', { name: '表示する日付' })).toHaveValue('2026-09-20');
+  await page.getByRole('combobox', { name: '表示する日付' }).selectOption('2026-09-29');
   await expect(page.getByText('JR恵比寿駅')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.setViewportSize({ width: 375, height: 812 });
   await expect(page.getByRole('combobox', { name: '表示する日付' })).toBeInViewport();
   await expect(page.getByText('5地点')).toBeInViewport();
-  for (const control of [page.getByRole('button', { name: '前の日' }), page.getByRole('button', { name: '次の日' }), page.getByRole('combobox', { name: '表示する日付' })]) {
+  for (const control of [page.getByRole('button', { name: '前の記録日' }), page.getByRole('button', { name: '次の記録日' }), page.getByRole('combobox', { name: '表示する日付' })]) {
     const box = await control.boundingBox();
     expect(box.height).toBeGreaterThanOrEqual(44);
     expect(box.width).toBeGreaterThanOrEqual(44);

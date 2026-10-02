@@ -24,9 +24,9 @@ class TrajectoryValidationTests(unittest.TestCase):
 
     def test_current_september_fixture_is_valid(self):
         timeline = load_timeline(FIXTURE)
-        self.assertEqual((len(timeline["places"]), len(timeline["days"])), (10, 30))
-        self.assertEqual(sum(len(day["events"]) for day in timeline["days"]), 120)
-        self.assertEqual(sum(len(day["legs"]) for day in timeline["days"]), 90)
+        self.assertEqual((len(timeline["places"]), len(timeline["days"])), (10, 12))
+        self.assertEqual(sum(len(day["events"]) for day in timeline["days"]), 36)
+        self.assertEqual(sum(len(day["legs"]) for day in timeline["days"]), 24)
         self.assertEqual(validate_timeline(timeline), timeline)
 
     def test_duplicate_json_key_is_rejected(self):

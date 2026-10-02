@@ -13,7 +13,7 @@ npm ci
 npm run dev:mock
 ```
 
-`http://127.0.0.1:5173/` を開きます。バックエンドは不要です。mock API の初期データは `src/data/september-transactions.json` の2026年9月30日分の取引で、軌跡は `src/data/september-timeline.json` を組み合わせて表示します。旧16件の `src/data/old-samples.json` は保存用で、mock 環境には読み込みません。画面からの追加・削除は開発サーバーのメモリに反映され、サーバーを再起動すると JSON の内容に戻ります。JSON ファイルを書き換えても画面に反映するには開発サーバーを再起動してください。
+`http://127.0.0.1:5173/` を開きます。バックエンドは不要です。mock API の初期データは `src/data/september-transactions.json` の2026年9月の重複整理済み37件の取引で、軌跡は `src/data/september-timeline.json` の9月19〜30日の12日分を組み合わせて表示します。旧16件の `src/data/old-samples.json` は保存用で、mock 環境には読み込みません。画面からの追加・削除は開発サーバーのメモリに反映され、サーバーを再起動すると JSON の内容に戻ります。JSON ファイルを書き換えても画面に反映するには開発サーバーを再起動してください。
 
 ## 実際の API データ
 

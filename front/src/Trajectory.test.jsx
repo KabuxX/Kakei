@@ -11,25 +11,28 @@ it('shows the selected sample date and summary before the map and timeline', asy
   const { container } = render(<Trajectory />);
   expect(screen.getByRole('heading', { level: 1, name: '生活軌跡' })).toBeTruthy();
   expect(screen.getByText(/2026年9月のサンプル/)).toBeTruthy();
-  expect(screen.getByRole('combobox', { name: '表示する日付' }).value).toBe('2026-09-01');
+  expect(screen.getByRole('combobox', { name: '表示する日付' }).value).toBe('2026-09-19');
   expect(screen.getByText('3地点')).toBeTruthy();
   expect(container.querySelector('.trajectory-summary').compareDocumentPosition(container.querySelector('.trajectory-map-panel')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  expect((await screen.findByTestId('map-props')).textContent).toContain('2026-09-01');
+  expect((await screen.findByTestId('map-props')).textContent).toContain('2026-09-19');
   expect(screen.getByRole('heading', { name: '時系列' })).toBeTruthy();
 });
 
 it('keeps the date within September and shows only the final selection', async () => {
   const { default: Trajectory } = await import('./Trajectory.jsx');
   render(<Trajectory />);
-  const previous = screen.getByRole('button', { name: '前の日' });
-  const next = screen.getByRole('button', { name: '次の日' });
+  const previous = screen.getByRole('button', { name: '前の記録日' });
+  const next = screen.getByRole('button', { name: '次の記録日' });
   const select = screen.getByRole('combobox', { name: '表示する日付' });
+  expect(select.options).toHaveLength(12);
+  expect(select.options[0].value).toBe('2026-09-19');
+  expect(select.options[11].value).toBe('2026-09-30');
   expect(previous.disabled).toBe(true);
   fireEvent.click(next);
-  expect(select.value).toBe('2026-09-02');
+  expect(select.value).toBe('2026-09-20');
   fireEvent.change(select, { target: { value: '2026-09-30' } });
   expect(next.disabled).toBe(true);
-  fireEvent.change(select, { target: { value: '2026-09-15' } });
+  fireEvent.change(select, { target: { value: '2026-09-29' } });
   fireEvent.change(select, { target: { value: '2026-09-21' } });
   expect(select.value).toBe('2026-09-21');
   expect(screen.getByText('Found MUJI 青山')).toBeTruthy();
@@ -41,7 +44,7 @@ it('selects a timeline stop while retaining controls when the map is unavailable
   const { default: Trajectory } = await import('./Trajectory.jsx');
   render(<Trajectory />);
   fireEvent.click(screen.getByRole('button', { name: /13:05.*無印良品 渋谷公園通り/ }));
-  await waitFor(() => expect(screen.getByTestId('map-props').textContent).toContain('2026-09-01-2'));
+  await waitFor(() => expect(screen.getByTestId('map-props').textContent).toContain('2026-09-19-2'));
   expect(screen.getByRole('combobox', { name: '表示する日付' })).toBeTruthy();
   expect(screen.getByRole('heading', { name: '時系列' })).toBeTruthy();
 });

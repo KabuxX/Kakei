@@ -21,12 +21,12 @@ afterEach(async () => {
   delete process.env.KAKEI_API_TARGET;
 });
 
-it('uses the new 30-day September JSON in mock mode and preserves mock operations', async () => {
+it('uses the 37-record September JSON in mock mode and preserves mock operations', async () => {
   let base = await startVite('mock');
   expect(await (await fetch(`${base}/api/status`)).json()).toEqual({ initialized: true });
   const initial = (await (await fetch(`${base}/api/transactions`)).json()).transactions;
   expect(initial).toEqual(septemberTransactions);
-  expect(new Set(initial.map((record) => record.date)).size).toBe(30);
+  expect(initial).toHaveLength(37);
 
   const created = await fetch(`${base}/api/transactions`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },

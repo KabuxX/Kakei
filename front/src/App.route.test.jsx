@@ -37,7 +37,7 @@ it('opens the September trajectory sample from its direct URL', () => {
   expect(screen.getByRole('link', { name: '軌跡' }).getAttribute('aria-current')).toBe('page');
   expect(document.getElementById('dashboard-view').hidden).toBe(true);
   expect(screen.getByRole('heading', { level: 1, name: '生活軌跡' })).toBeTruthy();
-  expect(screen.getByRole('combobox', { name: '表示する日付' }).value).toBe('2026-09-01');
+  expect(screen.getByRole('combobox', { name: '表示する日付' }).value).toBe('2026-09-19');
   expect(screen.getByRole('heading', { name: '時系列' })).toBeTruthy();
 });
 

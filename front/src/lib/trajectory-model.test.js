@@ -32,11 +32,11 @@ it('joins dated transactions and traffic evidence into a measured day', async ()
   expect(day.distanceKm).toBeGreaterThan(1);
 });
 
-it('builds 30 chronological Tokyo days with sourced places and matching purchases', async () => {
+it('builds 12 chronological Tokyo days with sourced places and matching purchases', async () => {
   const { buildTrajectoryDays } = await import('./trajectory-model.js');
   const days = buildTrajectoryDays(transactionsFixture, timelineFixture);
-  expect(days.size).toBe(30);
-  expect([...days.keys()]).toEqual(Array.from({ length: 30 }, (_, index) => `2026-09-${String(index + 1).padStart(2, '0')}`));
+  expect(days.size).toBe(12);
+  expect([...days.keys()]).toEqual(Array.from({ length: 12 }, (_, index) => `2026-09-${String(index + 19).padStart(2, '0')}`));
   for (const day of days.values()) {
     expect(day.events.length).toBeGreaterThanOrEqual(2);
     expect(day.events.map((event) => event.time)).toEqual([...day.events.map((event) => event.time)].sort());
@@ -58,10 +58,26 @@ it('builds 30 chronological Tokyo days with sourced places and matching purchase
       }
     }
   }
-  expect(days.get('2026-09-02').modes).toContain('train');
-  expect(days.get('2026-09-01').modes).toContain('walk_estimated');
-  expect(days.get('2026-09-05').events.some((event) => event.transaction?.id.endsWith('-pass'))).toBe(false);
-  expect(days.get('2026-09-15').events.some((event) => event.transaction?.id.endsWith('-rent'))).toBe(false);
+  expect(Object.keys(timelineFixture.places)).toHaveLength(10);
+  expect(timelineFixture.days.flatMap((day) => day.events)).toHaveLength(36);
+  const legs = timelineFixture.days.flatMap((day) => day.legs);
+  expect(legs).toHaveLength(24);
+  expect(legs.filter((leg) => leg.modeHint === 'train')).toHaveLength(2);
+  for (const day of timelineFixture.days) {
+    for (const event of day.events) {
+      expect(timelineFixture.places[event.placeId]).toBeDefined();
+      if (event.transactionId) expect(transactionsFixture.find((record) => record.id === event.transactionId)?.date).toBe(day.date);
+    }
+    for (const leg of day.legs) {
+      expect(day.events.some((event) => event.id === leg.fromEventId)).toBe(true);
+      expect(day.events.some((event) => event.id === leg.toEventId)).toBe(true);
+      for (const point of leg.viaPlaceIds || []) expect(timelineFixture.places[point]).toBeDefined();
+      if (leg.transportTransactionId) expect(transactionsFixture.find((record) => record.id === leg.transportTransactionId)?.date).toBe(day.date);
+      if (leg.modeHint === 'train') expect(leg.transportTransactionId).toBeTruthy();
+    }
+  }
+  expect(days.get('2026-09-29').modes).toContain('train');
+  expect(days.has('2026-09-02')).toBe(false);
 });
 
 it('rejects unknown, cross-date, and duplicate references', async () => {

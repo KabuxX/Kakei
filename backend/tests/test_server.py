@@ -109,19 +109,19 @@ class ServerTests(unittest.TestCase):
                     "places": {place_id: place for place_id, place in timeline["places"].items() if place_id in used_places},
                     "days": [source_day],
                 })
-        status, payload = self.request("GET", "/api/trajectory/2026-09-02")
+        status, payload = self.request("GET", "/api/trajectory/2026-09-29")
         self.assertEqual(status, 200)
         self.assertEqual(set(payload), {"places", "days"})
         self.assertEqual(len(payload["days"]), 1)
         day = payload["days"][0]
-        self.assertEqual(day["date"], "2026-09-02")
+        self.assertEqual(day["date"], "2026-09-29")
         self.assertEqual(day["events"][0], {
-            "id": "2026-09-02-1", "time": "08:45", "placeId": "shibuyaStarbucks",
-            "transactionId": "sample-20260902-a",
+            "id": "2026-09-29-1", "time": "08:45", "placeId": "shibuyaStarbucks",
+            "transactionId": "sample-20260929-a",
         })
         self.assertEqual(day["legs"][1], {
-            "fromEventId": "2026-09-02-2", "toEventId": "2026-09-02-3",
-            "modeHint": "train", "transportTransactionId": "sample-20260902-train",
+            "fromEventId": "2026-09-29-2", "toEventId": "2026-09-29-3",
+            "modeHint": "train", "transportTransactionId": "sample-20260929-train",
         })
         used_places = {event["placeId"] for event in day["events"]}
         used_places.update(place_id for leg in day["legs"] for place_id in leg.get("viaPlaceIds", []))
@@ -136,24 +136,24 @@ class ServerTests(unittest.TestCase):
             """)
             self.assertEqual(updated.rowcount, 1)
             connection.commit()
-        status, payload = self.request("GET", "/api/trajectory/2026-09-01")
+        status, payload = self.request("GET", "/api/trajectory/2026-09-19")
         self.assertEqual(status, 200)
         self.assertEqual(payload["places"]["shibuyaStarbucks"]["name"], "DB-edited")
 
     def test_trajectory_database_error_response(self):
         with patch.object(self.app.state.store, "get_trajectory_day", side_effect=sqlite3.OperationalError("private details")):
-            status, payload = self.request("GET", "/api/trajectory/2026-09-01")
+            status, payload = self.request("GET", "/api/trajectory/2026-09-19")
         self.assertEqual((status, payload["error"]["code"]), (500, "database_error"))
         self.assertNotIn("private details", payload["error"]["message"])
 
     def test_app_creation_resyncs_changed_fixture(self):
         timeline = json.loads(TIMELINE_PATH.read_text(encoding="utf-8"))
         fixture_path = Path(self.temp.name) / "timeline.json"
-        first = {"places": timeline["places"], "days": timeline["days"][:2]}
+        first = {"places": timeline["places"], "days": [timeline["days"][0], timeline["days"][-2]]}
         fixture_path.write_text(json.dumps(first, ensure_ascii=False), encoding="utf-8")
         app = server.create_app(self.db, self.front, timeline_path=fixture_path)
         with TestClient(app) as client:
-            self.assertEqual(client.get("/api/trajectory/2026-09-02", headers={"Host": "localhost:8765"}).status_code, 200)
+            self.assertEqual(client.get("/api/trajectory/2026-09-29", headers={"Host": "localhost:8765"}).status_code, 200)
 
         second = copy.deepcopy(first)
         second["days"] = second["days"][:1]
@@ -161,28 +161,28 @@ class ServerTests(unittest.TestCase):
         fixture_path.write_text(json.dumps(second, ensure_ascii=False), encoding="utf-8")
         updated_app = server.create_app(self.db, self.front, timeline_path=fixture_path)
         with TestClient(updated_app) as client:
-            response = client.get("/api/trajectory/2026-09-01", headers={"Host": "localhost:8765"})
+            response = client.get("/api/trajectory/2026-09-19", headers={"Host": "localhost:8765"})
             self.assertEqual(response.json()["places"]["shibuyaStarbucks"]["name"], "再同期後の店舗")
-            self.assertEqual(client.get("/api/trajectory/2026-09-02", headers={"Host": "localhost:8765"}).status_code, 404)
+            self.assertEqual(client.get("/api/trajectory/2026-09-29", headers={"Host": "localhost:8765"}).status_code, 404)
 
     def test_invalid_fixture_fails_startup_without_erasing_saved_rows(self):
         timeline = json.loads(TIMELINE_PATH.read_text(encoding="utf-8"))
         fixture_path = Path(self.temp.name) / "timeline.json"
         fixture_path.write_text(json.dumps({"places": timeline["places"], "days": timeline["days"][:1]}, ensure_ascii=False), encoding="utf-8")
         server.create_app(self.db, self.front, timeline_path=fixture_path)
-        previous = Store(self.db).get_trajectory_day("2026-09-01")
+        previous = Store(self.db).get_trajectory_day("2026-09-19")
         fixture_path.write_text("{broken", encoding="utf-8")
 
         with self.assertRaises(ValueError):
             server.create_app(self.db, self.front, timeline_path=fixture_path)
-        self.assertEqual(Store(self.db).get_trajectory_day("2026-09-01"), previous)
+        self.assertEqual(Store(self.db).get_trajectory_day("2026-09-19"), previous)
 
     def test_trajectory_day_rejects_invalid_and_missing_dates(self):
         for date in ("2026-9-02", "2026-09-31"):
             with self.subTest(date=date):
                 status, payload = self.request("GET", f"/api/trajectory/{date}")
                 self.assertEqual((status, payload["error"]["code"]), (400, "invalid_date"))
-        status, payload = self.request("GET", "/api/trajectory/2026-10-01")
+        status, payload = self.request("GET", "/api/trajectory/2026-09-02")
         self.assertEqual((status, payload["error"]["code"]), (404, "not_found"))
         status, payload = self.request("POST", "/api/trajectory/2026-09-02")
         self.assertEqual((status, payload["error"]["code"]), (405, "method_not_allowed"))
