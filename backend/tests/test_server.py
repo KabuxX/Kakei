@@ -91,6 +91,37 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(self.request("PUT", "/api/transactions")[0], 405)
         self.assertEqual(self.request("GET", "/api/unknown")[1]["error"]["code"], "not_found")
 
+    def test_trajectory_day_returns_one_fixed_sample_without_database_initialization(self):
+        status, payload = self.request("GET", "/api/trajectory/2026-09-02")
+        self.assertEqual(status, 200)
+        self.assertEqual(set(payload), {"places", "days"})
+        self.assertEqual(len(payload["days"]), 1)
+        day = payload["days"][0]
+        self.assertEqual(day["date"], "2026-09-02")
+        self.assertEqual(day["events"][0], {
+            "id": "2026-09-02-1", "time": "08:45", "placeId": "shibuyaStarbucks",
+            "transactionId": "sample-20260902-a",
+        })
+        self.assertEqual(day["legs"][1], {
+            "fromEventId": "2026-09-02-2", "toEventId": "2026-09-02-3",
+            "modeHint": "train", "transportTransactionId": "sample-20260902-train",
+        })
+        used_places = {event["placeId"] for event in day["events"]}
+        used_places.update(place_id for leg in day["legs"] for place_id in leg.get("viaPlaceIds", []))
+        self.assertEqual(set(payload["places"]), used_places)
+        self.assertEqual(payload["places"]["jrShibuya"]["coordinates"], [139.701636, 35.658034])
+        self.assertEqual(self.request("GET", "/api/status"), (200, {"initialized": False}))
+
+    def test_trajectory_day_rejects_invalid_and_missing_dates(self):
+        for date in ("2026-9-02", "2026-09-31"):
+            with self.subTest(date=date):
+                status, payload = self.request("GET", f"/api/trajectory/{date}")
+                self.assertEqual((status, payload["error"]["code"]), (400, "invalid_date"))
+        status, payload = self.request("GET", "/api/trajectory/2026-10-01")
+        self.assertEqual((status, payload["error"]["code"]), (404, "not_found"))
+        status, payload = self.request("POST", "/api/trajectory/2026-09-02")
+        self.assertEqual((status, payload["error"]["code"]), (405, "method_not_allowed"))
+
     def test_ordered_items_api_round_trip(self):
         items = [{"name": "パン", "amount": 100}, {"name": "パン", "amount": 100}]
         record = {"id": "old-expense", "title": "買い物", "date": "2026-09-01",

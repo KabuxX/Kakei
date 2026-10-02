@@ -2,7 +2,9 @@
 
 import json
 import os
+import re
 import sqlite3
+from datetime import date as calendar_date
 from pathlib import Path
 from typing import Optional
 
@@ -16,6 +18,8 @@ from fastapi.staticfiles import StaticFiles
 
 from store import AlreadyInitialized, NotInitialized, Store
 from validation import ValidationError
+
+_timeline_path = Path(__file__).resolve().parent.parent / "front" / "src" / "data" / "september-timeline.json"
 
 
 class HTTPFailure(Exception):
@@ -64,6 +68,7 @@ async def _read_json(request: Request, limit: int) -> object:
 def create_app(db_path: Path, front_dir: Path, *, port: int = 8765) -> FastAPI:
     """Build an app with an isolated store for tests or local execution."""
     store = Store(db_path)
+    timeline = json.loads(_timeline_path.read_text(encoding="utf-8"))
     app = FastAPI()
     app.state.store = store
 
@@ -77,7 +82,8 @@ def create_app(db_path: Path, front_dir: Path, *, port: int = 8765) -> FastAPI:
             if request.headers.get("origin") != f"http://{host}":
                 return _error(403, "forbidden_origin", "同じアドレスの画面から操作してください。")
         path = request.url.path
-        if path.startswith("/api/") and path not in ("/api/status", "/api/initialize"):
+        if (path.startswith("/api/") and path not in ("/api/status", "/api/initialize")
+                and not path.startswith("/api/trajectory/")):
             try:
                 if not store.is_initialized():
                     return _error(409, "not_initialized", "取引の初期化が必要です。")
@@ -120,6 +126,22 @@ def create_app(db_path: Path, front_dir: Path, *, port: int = 8765) -> FastAPI:
     def transactions():
         return _json(200, {"transactions": store.list_transactions()})
 
+    @app.get("/api/trajectory/{requested_date}")
+    def trajectory_day(requested_date: str):
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", requested_date):
+            raise HTTPFailure(400, "invalid_date", "日付は YYYY-MM-DD で指定してください。")
+        try:
+            calendar_date.fromisoformat(requested_date)
+        except ValueError as error:
+            raise HTTPFailure(400, "invalid_date", "存在する日付を指定してください。") from error
+        day = next((item for item in timeline["days"] if item["date"] == requested_date), None)
+        if day is None:
+            raise HTTPFailure(404, "not_found", "指定日の軌跡サンプルが見つかりません。")
+        place_ids = {event["placeId"] for event in day["events"]}
+        place_ids.update(place_id for leg in day["legs"] for place_id in leg.get("viaPlaceIds", []))
+        places = {place_id: place for place_id, place in timeline["places"].items() if place_id in place_ids}
+        return _json(200, {"places": places, "days": [day]})
+
     @app.post("/api/transactions")
     async def create_transaction(request: Request):
         draft = await _read_json(request, 64 * 1024)
@@ -145,7 +167,8 @@ def create_app(db_path: Path, front_dir: Path, *, port: int = 8765) -> FastAPI:
     @app.api_route("/api/{remaining:path}", methods=["GET", "POST", "DELETE", "PUT", "PATCH", "OPTIONS", "HEAD"])
     def unknown_api(request: Request, remaining: str):
         path = request.url.path
-        if path in ("/api/status", "/api/initialize", "/api/transactions", "/api/samples") or path.startswith("/api/transactions/"):
+        if (path in ("/api/status", "/api/initialize", "/api/transactions", "/api/samples")
+                or path.startswith(("/api/transactions/", "/api/trajectory/"))):
             raise HTTPFailure(405, "method_not_allowed", "この操作は利用できません。")
         raise HTTPFailure(404, "not_found", "APIが見つかりません。")
 
