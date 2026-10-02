@@ -50,13 +50,23 @@ test('sidebar can be hidden and restored without hiding phone navigation', async
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
-test('trajectory is an empty destination on desktop and phone', async ({ page }) => {
+test('trajectory shows a dated Tokyo sample on desktop and phone', async ({ page }) => {
   await page.goto('/#trajectory');
   await expect(page.getByRole('link', { name: '軌跡' })).toHaveAttribute('aria-current', 'page');
   await expect(page.locator('#dashboard-view')).toBeHidden();
   await expect(page.locator('#trajectory-view')).toHaveCSS('display', 'block');
-  await expect(page.locator('#trajectory-view')).toHaveText('軌跡');
+  await expect(page.getByRole('heading', { name: '生活軌跡' })).toBeVisible();
+  await expect(page.getByRole('combobox', { name: '表示する日付' })).toHaveValue('2026-09-01');
+  await expect(page.getByText('3地点')).toBeVisible();
+  await expect(page.getByRole('heading', { name: '時系列' })).toBeVisible();
+  await expect(page.getByText(/Mapbox の公開トークン/)).toBeVisible();
+  await page.getByRole('button', { name: '次の日' }).click();
+  await expect(page.getByRole('combobox', { name: '表示する日付' })).toHaveValue('2026-09-02');
+  await expect(page.getByText('JR恵比寿駅')).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.setViewportSize({ width: 375, height: 812 });
+  await expect(page.getByRole('combobox', { name: '表示する日付' })).toBeInViewport();
+  await expect(page.getByText('5地点')).toBeInViewport();
   await expect(page.getByRole('link', { name: '軌跡' })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.getByRole('link', { name: '概要' }).click();

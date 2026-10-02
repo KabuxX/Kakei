@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import AppShell from './AppShell.jsx';
 import Dashboard from './Dashboard.jsx';
+import Trajectory from './Trajectory.jsx';
 import TransactionDetail from './TransactionDetail.jsx';
 import TransactionDelete from './TransactionDelete.jsx';
 import TransactionDialog from './TransactionDialog.jsx';
@@ -127,7 +128,7 @@ export default function App() {
     <AppShell route={route} onAdd={openDialog} addDisabled={data.status !== 'ready' || data.writePending || data.refreshing}>
       <div id="sync-status" className="sync-status" role="alert" hidden={isTrajectory || data.status !== 'stale'}><span id="sync-status-message">{data.staleAfterWrite ? 'サーバーへの保存は完了しましたが、表示を更新できませんでした。再読み込みしてください。' : '最新の取引を読み込めませんでした。再読み込みしてください。'}</span><button id="retry-sync" className="secondary-button" type="button" onClick={() => data.refresh()}>表示を再読み込み</button></div>
       <Dashboard month={month} model={model} transactions={data.transactions} status={data.status} error={data.error} onMonthChange={changeMonth} onAdd={openDialog} onRetry={data.load} onClearSamples={deleteSamples} onExport={exportCsv} onOpenDetail={(id) => { listReturn.current = { id, scrollY: window.scrollY }; }} writePending={data.writePending || data.refreshing} hidden={isDetail || isTrajectory} />
-      <div id="trajectory-view" hidden={!isTrajectory}><h1 id="trajectory-heading" className="sr-only" tabIndex="-1">軌跡</h1></div>
+      <div id="trajectory-view" hidden={!isTrajectory}>{isTrajectory && <Trajectory />}</div>
       {isDetail && (isDelete
         ? <TransactionDelete record={detailRecord} onConfirm={deleteTransaction} error={deleteError} busy={deletePending || data.writePending || data.refreshing || data.status !== 'ready'} />
         : <TransactionDetail record={detailRecord} busy={data.writePending || data.refreshing || data.status !== 'ready'} />)}

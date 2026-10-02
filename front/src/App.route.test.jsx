@@ -30,13 +30,15 @@ it('opens a direct deletion URL for an ID containing reserved characters', () =>
   expect(screen.getByRole('link', { name: '概要' }).getAttribute('aria-current')).toBe('page');
 });
 
-it('opens a blank trajectory screen from its direct URL', () => {
+it('opens the September trajectory sample from its direct URL', () => {
   window.location.hash = '#trajectory';
   render(<App />);
   expect(document.title).toBe('軌跡 | Kakei');
   expect(screen.getByRole('link', { name: '軌跡' }).getAttribute('aria-current')).toBe('page');
   expect(document.getElementById('dashboard-view').hidden).toBe(true);
-  expect(screen.getByRole('heading', { level: 1, name: '軌跡' })).toBeTruthy();
+  expect(screen.getByRole('heading', { level: 1, name: '生活軌跡' })).toBeTruthy();
+  expect(screen.getByRole('combobox', { name: '表示する日付' }).value).toBe('2026-09-01');
+  expect(screen.getByRole('heading', { name: '時系列' })).toBeTruthy();
 });
 
 it('shows a missing state without a delete action for an unknown deletion URL', () => {

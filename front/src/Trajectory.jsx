@@ -1,0 +1,91 @@
+import React, { Suspense, lazy, useMemo, useState } from 'react';
+import transactions from './data/september-transactions.json';
+import timeline from './data/september-timeline.json';
+import { buildTrajectoryDays } from './lib/trajectory-model.js';
+import '../trajectory.css';
+
+const TrajectoryMap = lazy(() => import('./TrajectoryMap.jsx'));
+const yen = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY', maximumFractionDigits: 0 });
+const dateLabel = (date) => `${Number(date.slice(5, 7))}月${Number(date.slice(8))}日`;
+const modeLabel = { train: '電車', bus: 'バス', walk_estimated: '徒歩（推定）', inferred: '移動（推定）' };
+
+export default function Trajectory() {
+  const days = useMemo(() => buildTrajectoryDays(transactions, timeline), []);
+  const dates = useMemo(() => [...days.keys()], [days]);
+  const [selectedDate, setSelectedDate] = useState(dates[0]);
+  const [selectedEventId, setSelectedEventId] = useState(null);
+  const day = days.get(selectedDate);
+  const dateIndex = dates.indexOf(selectedDate);
+  const changeDate = (date) => {
+    if (!days.has(date)) return;
+    setSelectedDate(date);
+    setSelectedEventId(null);
+  };
+
+  return <div className="trajectory-page">
+    <header className="trajectory-intro">
+      <div>
+        <p className="trajectory-eyebrow">TOKYO · SEPTEMBER 2026</p>
+        <h1 id="trajectory-heading" tabIndex="-1">生活軌跡</h1>
+        <p className="trajectory-caption">2026年9月のサンプル取引から、東京での一日の移動をたどります。</p>
+      </div>
+      <span className="trajectory-demo-badge">固定サンプル</span>
+    </header>
+
+    <section className="trajectory-summary" aria-label="選択した日の概要">
+      <div className="trajectory-date-row">
+        <div>
+          <p className="trajectory-section-label">選択した日</p>
+          <strong className="trajectory-date-title">2026年{dateLabel(selectedDate)}</strong>
+        </div>
+        <div className="trajectory-date-controls">
+          <button type="button" aria-label="前の日" onClick={() => changeDate(dates[dateIndex - 1])} disabled={dateIndex === 0}>‹</button>
+          <label htmlFor="trajectory-date">表示する日付</label>
+          <select id="trajectory-date" value={selectedDate} onChange={(event) => changeDate(event.target.value)}>
+            {dates.map((date) => <option key={date} value={date}>{dateLabel(date)}</option>)}
+          </select>
+          <button type="button" aria-label="次の日" onClick={() => changeDate(dates[dateIndex + 1])} disabled={dateIndex === dates.length - 1}>›</button>
+        </div>
+      </div>
+      <div className="trajectory-stats">
+        <div><span>訪問地点</span><strong>{day.stopCount}地点</strong></div>
+        <div><span>記録された支出</span><strong>{yen.format(day.expenseTotal)}</strong></div>
+        <div><span>地点間の直線距離</span><strong>約{day.distanceKm.toFixed(1)} km</strong></div>
+      </div>
+      <p className="trajectory-summary-note">実在する店舗・駅を使った架空の取引です。訪問時刻・移動順・経路はサンプルで、線と距離は道路や線路に沿った実測値ではありません。</p>
+    </section>
+
+    <div className="trajectory-content-grid">
+      <section className="trajectory-map-panel" aria-labelledby="trajectory-map-heading">
+        <div className="trajectory-panel-heading"><div><p className="trajectory-section-label">MAP</p><h2 id="trajectory-map-heading">一日の移動</h2></div><span>{dateLabel(selectedDate)}</span></div>
+        <Suspense fallback={<div className="trajectory-map-loading" role="status">地図を準備しています…</div>}>
+          <TrajectoryMap day={day} selectedEventId={selectedEventId} onSelectEvent={setSelectedEventId} />
+        </Suspense>
+        <div className="trajectory-legend" aria-label="経路の凡例">
+          <span><i className="trajectory-legend-line walk" aria-hidden="true" />徒歩・推定経路</span>
+          <span><i className="trajectory-legend-line rail" aria-hidden="true" />電車</span>
+          <span><i className="trajectory-legend-stop" aria-hidden="true" />訪問地点</span>
+        </div>
+      </section>
+
+      <section className="trajectory-timeline-panel" aria-labelledby="trajectory-timeline-heading">
+        <div className="trajectory-panel-heading"><div><p className="trajectory-section-label">TIMELINE</p><h2 id="trajectory-timeline-heading">時系列</h2></div><span>{day.events.length}件</span></div>
+        <ol className="trajectory-timeline">
+          {day.events.map((event, index) => {
+            const before = day.segments[index - 1];
+            return <li key={event.id}>
+              {before && <p className="trajectory-leg-label">{modeLabel[before.mode]} · 約{before.distanceKm.toFixed(1)} km</p>}
+              <button className="trajectory-event" type="button" aria-pressed={selectedEventId === event.id} onClick={() => setSelectedEventId(event.id)}>
+                <span className="trajectory-event-index">{index + 1}</span>
+                <span className="trajectory-event-main"><span className="trajectory-event-time">{event.time}</span><strong>{event.place.name}</strong><small>{event.place.address}</small>
+                  {event.transaction && <span className="trajectory-purchase">{event.transaction.title} · {yen.format(event.transaction.amount)}<span>{event.transaction.items?.map((item) => item.name).join('・')}</span></span>}
+                </span>
+              </button>
+              <a className="trajectory-source" href={event.place.sourceUrl} target="_blank" rel="noreferrer">店舗・駅の情報を見る<span className="sr-only">（新しいタブ）</span></a>
+            </li>;
+          })}
+        </ol>
+      </section>
+    </div>
+  </div>;
+}
