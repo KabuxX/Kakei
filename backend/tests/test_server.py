@@ -244,6 +244,65 @@ class ServerTests(unittest.TestCase):
         status, payload = self.request("POST", "/api/trajectory/2026-09-02")
         self.assertEqual((status, payload["error"]["code"]), (405, "method_not_allowed"))
 
+    def test_trajectory_mutation_api_round_trip_uninitialized(self):
+        self.assertEqual(self.request("GET", "/api/status"), (200, {"initialized": False}))
+        date = "2026-10-03"
+        status, created_day = self.request("POST", "/api/trajectory", {
+            "kind": "day", "date": date, "data": {"events": [], "legs": []},
+        })
+        self.assertEqual(status, 201)
+        self.assertEqual(created_day, {"kind": "day", "date": date, "data": {"events": [], "legs": []}})
+        status, created_event = self.request("POST", "/api/trajectory", {
+            "kind": "event", "date": date, "id": "visit", "data": {"time": "09:00", "placeId": "shibuyaStarbucks"},
+        })
+        self.assertEqual(status, 201)
+        self.assertEqual(created_event["data"], {"time": "09:00", "placeId": "shibuyaStarbucks"})
+        status, updated_event = self.request("PUT", "/api/trajectory", {
+            "kind": "event", "date": date, "id": "visit", "data": {"time": "10:00", "placeId": "shibuyaStarbucks"},
+        })
+        self.assertEqual(status, 200)
+        self.assertEqual(updated_event["kind"], "event")
+        self.assertEqual(self.request("GET", f"/api/trajectory/{date}")[1]["days"][0]["events"],
+                         [{"id": "visit", "time": "10:00", "placeId": "shibuyaStarbucks"}])
+        response = self.client.request("DELETE", "/api/trajectory", json={"kind": "event", "date": date, "id": "visit"},
+                                       headers={"Host": "localhost:8765", "Origin": "http://localhost:8765"})
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.content, b"")
+        self.assertEqual(response.headers.get("Cache-Control"), "no-store")
+        self.assertEqual(self.request("GET", f"/api/trajectory/{date}")[1]["days"][0]["events"], [])
+        self.assertEqual(self.request("GET", "/api/status"), (200, {"initialized": False}))
+
+    def test_trajectory_mutation_api_errors(self):
+        before = Store(self.db).get_trajectory_day("2026-09-19")
+        cases = (
+            ("PUT", {"kind": "day", "date": "2026-10-03", "data": {"events": [], "legs": []}}, 404, "not_found"),
+            ("POST", {"kind": "day", "date": "2026-09-19", "data": {"events": [], "legs": []}}, 409, "conflict"),
+            ("DELETE", {"kind": "place", "id": "shibuyaStarbucks"}, 409, "conflict"),
+            ("POST", {"kind": "event", "date": "2026-09-19", "id": "bad", "data": {"time": "09:11", "placeId": "missing"}}, 400, "validation_error"),
+            ("POST", {"kind": "day", "date": "2026-02-30", "data": {"events": [], "legs": []}}, 400, "validation_error"),
+        )
+        for method, payload, expected_status, expected_code in cases:
+            with self.subTest(payload=payload):
+                status, result = self.request(method, "/api/trajectory", payload)
+                self.assertEqual((status, result["error"]["code"]), (expected_status, expected_code))
+                self.assertEqual(Store(self.db).get_trajectory_day("2026-09-19"), before)
+        status, result = self.request("DELETE", "/api/trajectory", {"kind": "day", "date": "2026-09-19"},
+                                      origin="http://malicious.example")
+        self.assertEqual((status, result["error"]["code"]), (403, "forbidden_origin"))
+        self.assertEqual(Store(self.db).get_trajectory_day("2026-09-19"), before)
+        status, result = self.request("GET", "/api/trajectory")
+        self.assertEqual((status, result["error"]["code"]), (405, "method_not_allowed"))
+
+    def test_trajectory_mutation_body_guards(self):
+        before = Store(self.db).get_trajectory_day("2026-09-19")
+        status, result = self.request("POST", "/api/trajectory", b"{")
+        self.assertEqual((status, result["error"]["code"]), (400, "invalid_json"))
+        status, result = self.request("POST", "/api/trajectory", b"{}", content_type="text/plain")
+        self.assertEqual((status, result["error"]["code"]), (400, "invalid_content_type"))
+        status, result = self.request("POST", "/api/trajectory", b"x" * (1024 * 1024 + 1))
+        self.assertEqual((status, result["error"]["code"]), (413, "body_too_large"))
+        self.assertEqual(Store(self.db).get_trajectory_day("2026-09-19"), before)
+
     def test_ordered_items_api_round_trip(self):
         items = [{"name": "パン", "amount": 100}, {"name": "パン", "amount": 100}]
         record = {"id": "old-expense", "title": "買い物", "date": "2026-09-01",

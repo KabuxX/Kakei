@@ -1,15 +1,15 @@
 # Kakei backend API リファレンス
 
-この文書は、FastAPI で提供するローカル API の現行仕様です。Vite の mock API とは別のものです。起動入口は [`server.py`](server.py)、API 実装は [`api/app.py`](api/app.py)、取引の入力条件は [`services/validation.py`](services/validation.py) を参照してください。軌跡データはサーバー生成時に JSON から SQLite へ同期します。
+この文書は、FastAPI で提供するローカル API の現行仕様です。Vite の mock API とは別のものです。起動入口は [`server.py`](server.py)、API 実装は [`api/app.py`](api/app.py)、取引の入力条件は [`services/validation.py`](services/validation.py) を参照してください。軌跡データは初回だけ JSON から SQLite に投入し、その後は SQLite に保存します。
 
 ## 接続と共通ルール
 
 - 基本 URL は `http://localhost:8765` です。`127.0.0.1:8765` も利用できます。ポートはサーバー起動時の設定に合わせてください。
 - `Host` は `localhost:<ポート>` または `127.0.0.1:<ポート>` に限ります。`POST`・`DELETE` などの変更リクエストには、同じアドレスの `Origin: http://<Host>` が必要です。条件を満たさない場合は `403 forbidden_origin` を返します。
 - JSON の本文を送るときは `Content-Type: application/json` と正しい `Content-Length` が必要です。一般的な HTTP クライアントは後者を自動設定します。
-- `GET /api/status`、`POST /api/initialize`、`GET /api/trajectory/{date}` は取引 DB の初期化前にも利用できます。それ以外の `/api/*` は初期化前に `409 not_initialized` を返します。
+- `GET /api/status`、`POST /api/initialize`、`GET /api/trajectory/{date}`、`POST`・`PUT`・`DELETE /api/trajectory` は取引 DB の初期化前にも利用できます。それ以外の `/api/*` は初期化前に `409 not_initialized` を返します。
 - 金額は円単位の整数です。取引の `date` は実在する日付と時刻を `YYYY-MM-DDTHH:mm` で指定します。これはタイムゾーンのないローカル日時で、秒や UTC オフセットは含みません。
-- JSON レスポンスには `Cache-Control: no-store` が付きます。`DELETE /api/transactions/{id}` の成功時は本文なしの `204` です。
+- JSON レスポンスには `Cache-Control: no-store` が付きます。`DELETE /api/trajectory` の `204` にも付きます。削除成功時の `204` は本文なしです。
 
 ## エンドポイント一覧
 
@@ -22,7 +22,10 @@
 | `POST` | `/api/transactions` | `201` | 取引を追加し、サーバーで ID を発行 |
 | `DELETE` | `/api/transactions/{id}` | `204` | ID に一致する取引を削除 |
 | `DELETE` | `/api/samples` | `200` | ID が `sample-` で始まる取引を DB から削除 |
-| `GET` | `/api/trajectory/{date}` | `200` | 指定日の固定軌跡サンプルを取得 |
+| `GET` | `/api/trajectory/{date}` | `200` | 指定日の保存済み軌跡を取得 |
+| `POST` | `/api/trajectory` | `201` | 日、イベント、区間、地点のいずれかを作成 |
+| `PUT` | `/api/trajectory` | `200` | 指定した要素の内容を全体置換 |
+| `DELETE` | `/api/trajectory` | `204` | 指定した要素を削除 |
 
 `{id}` は取引 ID です。URL のパスに使う際は必要に応じて URL エンコードしてください。`{date}` は `YYYY-MM-DD` 形式です。
 
@@ -109,7 +112,7 @@
 - `GET /api/transactions/{id}` は `{"transaction": 取引}` を返します。見つからない場合は `404 not_found` です。
 - `POST /api/transactions` は `id` 以外の取引項目を JSON 本文で受け取り、`{"transaction": 作成した取引}` を返します。本文の上限は 64 KiB です。`id` を送ると `400 validation_error` です。
 - `DELETE /api/transactions/{id}` は成功時に `204` を返します。見つからない場合は `404 not_found` です。
-- `DELETE /api/samples` は DB 内の ID が `sample-` で始まる取引を削除し、`{"deletedCount": 削除件数}` を返します。軌跡テーブルとその同期元 JSON は変更しません。
+- `DELETE /api/samples` は DB 内の ID が `sample-` で始まる取引を削除し、`{"deletedCount": 削除件数}` を返します。軌跡テーブルと初回投入元の JSON は変更しません。
 
 例えば、新しい DB を空で初期化し、支出を追加するには次のようにします。
 
@@ -125,11 +128,11 @@ curl -X POST http://localhost:8765/api/transactions \
   --data '{"title":"昼食","date":"2026-09-01T12:30","type":"expense","category":"食費","amount":1200,"merchant":"店舗名","paymentMethod":"e_money","items":[{"name":"定食","amount":1200}]}'
 ```
 
-## 日付別の軌跡サンプル
+## 軌跡データ
 
 ### `GET /api/trajectory/{date}`
 
-取引サンプルは重複整理済み37件、軌跡は9月19〜30日の12日分です。サーバー生成時に `front/src/data/september-timeline.json` の固定サンプルを検証して SQLite に完全同期します。この GET は軌跡テーブルから指定日 1 日分を返します。JSON の変更は次のサーバー生成時に反映され、同期に失敗するとサーバー生成も失敗します。取引 DB の初期化や取引の更新には依存しません。形式が不正または実在しない日付は `400 invalid_date`、サンプルにない日付は `404 not_found` です。
+初回の DB 作成では `front/src/data/september-timeline.json` の固定軌跡12日分を検証して投入します。既存 DB に軌跡行があれば維持し、それ以降のサーバー生成時に JSON で上書きしません。初回投入に使う JSON が不正なら、そのサーバー生成は失敗します。この GET は SQLite から指定日 1 日分を返し、取引 DB の初期化や取引の更新には依存しません。形式が不正または実在しない日付は `400 invalid_date`、保存されていない日付は `404 not_found` です。
 
 ```sh
 curl http://localhost:8765/api/trajectory/2026-09-19
@@ -179,7 +182,7 @@ curl http://localhost:8765/api/trajectory/2026-09-19
 | 項目 | 内容 |
 | --- | --- |
 | `places` | その日の地点と経由地点だけを含む、地点 ID をキーとするオブジェクト。各地点には `name`、`address`、`coordinates`、`sourceUrl` があり、座標の順序は `[経度, 緯度]` |
-| `days` | 指定日 1 件を含む配列。要素は `date`、`events`、`legs` を持つ |
+| `days` | 指定日 1 件を含む配列。要素は `date`、`events`、`legs` を持つ。編集中の日では両配列が空、または区間が一部欠ける場合がある |
 | `events[]` | 時刻順の地点記録。`id`、`time`（`HH:mm`）、`placeId` を持ち、取引に対応する場合は `transactionId` も持つ。`placeId` は `places` のキーを参照する |
 | `legs[]` | 2 件の記録間の区間。`fromEventId` と `toEventId` は `events` の ID を参照する。`modeHint` は移動手段のヒントで、現行サンプルでは `walk` または `train`。交通取引に対応する場合は `transportTransactionId`、経由地点がある場合は `viaPlaceIds` も持つ |
 
@@ -189,7 +192,40 @@ curl http://localhost:8765/api/trajectory/2026-09-19
 {"fromEventId": "2026-09-29-2", "toEventId": "2026-09-29-3", "modeHint": "train", "transportTransactionId": "sample-20260929-train"}
 ```
 
-`transactionId` と `transportTransactionId` はサンプル取引の ID を示しますが、この API は取引本体を返しません。実際の SQLite の取引を削除・変更しても、軌跡テーブルの参照 ID は更新されません。軌跡テーブルを直接編集した場合は、次のサーバー生成時に JSON の値で上書きされます。軌跡の座標と区間はサンプルデータであり、道路や鉄道に沿った経路形状は返しません。
+`transactionId` と `transportTransactionId` は取引 ID を示しますが、この API は取引本体を返しません。実際の SQLite の取引を削除・変更しても、軌跡テーブルの参照 ID は更新されません。軌跡の座標と区間は参考データであり、道路や鉄道に沿った経路形状は返しません。
+
+### `POST`・`PUT`・`DELETE /api/trajectory`
+
+変更用 API はこの3本です。どれも `Content-Type: application/json` の本文を要求し、上限は 1 MiB です。`kind` で `day`、`event`、`leg`、`place` を選びます。`POST` と `PUT` は `data` が必須、`DELETE` では指定できません。`PUT` は対象全体を置換するため、任意項目を省くと保存済みの値も外れます。識別子は変更できず、変更が必要な場合は削除と作成を行います。未知の項目は `400 validation_error` です。
+
+| `kind` | 本文の識別子 | `data` |
+| --- | --- | --- |
+| `day` | `date` | `events` と `legs` の配列。各配列は空にできる。イベントには `id`、`time`、`placeId` と任意の `transactionId`、区間には `fromEventId`、`toEventId` と任意の区間属性を指定する |
+| `event` | `date`、`id` | `time`、`placeId`、任意の `transactionId` |
+| `leg` | `date`、`fromEventId`、`toEventId` | 任意の `modeHint`、`transportTransactionId`、`viaPlaceIds`。空の `{}` も可 |
+| `place` | `id` | `name`、`address`、`coordinates`、`sourceUrl` |
+
+次の4つは `POST` の本文例です。`PUT` でも同じ形を使います。`DELETE` では `data` を除きます。
+
+```json
+{"kind":"place","id":"example-place","data":{"name":"渋谷の店","address":"東京都渋谷区渋谷1-1-1","coordinates":[139.7,35.65],"sourceUrl":"https://example.com/place"}}
+```
+
+```json
+{"kind":"day","date":"2026-10-03","data":{"events":[],"legs":[]}}
+```
+
+```json
+{"kind":"event","date":"2026-10-03","id":"visit-1","data":{"time":"09:00","placeId":"example-place"}}
+```
+
+```json
+{"kind":"leg","date":"2026-10-03","fromEventId":"visit-1","toEventId":"visit-2","data":{"modeHint":"walk"}}
+```
+
+例の区間を作る前に、同じ日の `visit-2` を登録してください。区間は隣接するイベント間に1件だけ登録できます。区間が参照中のイベント、イベントや経由地点が参照中の地点は個別に削除できません。日全体の削除ではその日のイベントと区間をまとめて削除し、共有地点は残します。時刻の変更で既存区間が隣接イベントを結ばなくなるときは `409 conflict` です。日全体の `PUT` を使えば、イベントと区間を原子的に組み替えられます。
+
+`POST` は `201`、`PUT` は `200` と、識別子・正規化された `data` を含む操作本文と同じ形の JSON を返します。`day` のイベントは時刻順、区間は始点イベント順です。`DELETE` は本文なしの `204` です。作成・編集・削除は再起動後も残ります。全日を削除しても初期 JSON は再投入されません。現在の React 軌跡画面と Vite の mock API は固定 JSON を直接読み、この API の編集結果を表示しません。
 
 ## エラー
 
@@ -201,13 +237,14 @@ curl http://localhost:8765/api/trajectory/2026-09-19
 
 | HTTP | `code` | 主な条件 |
 | --- | --- | --- |
-| `400` | `validation_error` | 取引・初期化データの入力条件違反 |
+| `400` | `validation_error` | 取引・軌跡・初期化データの入力条件違反 |
 | `400` | `invalid_date` | 軌跡の日付の形式が不正、または実在しない |
 | `400` | `invalid_content_type`、`invalid_body`、`invalid_json` | JSON 本文のヘッダーまたは内容が不正 |
 | `403` | `forbidden_origin` | `Host` または変更リクエストの `Origin` が許可外 |
-| `404` | `not_found` | 取引、軌跡サンプル、API が見つからない |
+| `404` | `not_found` | 取引、指定日の軌跡、編集・削除対象、API が見つからない |
 | `405` | `method_not_allowed` | 対象 API に使用できないメソッド |
 | `409` | `not_initialized` | 取引 DB の初期化が必要 |
 | `409` | `already_initialized` | 初期化済み DB に再度初期化を要求 |
+| `409` | `conflict` | 軌跡の ID 重複、参照中の削除、イベントと区間の順序衝突 |
 | `413` | `body_too_large` | JSON 本文が上限を超過 |
 | `500` | `database_error` | SQLite にアクセスできない |

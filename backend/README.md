@@ -26,15 +26,15 @@ npm run build
 
 取引は既定で `backend/data/kakei.sqlite3` に保存します。別の保存先を使う場合は `KAKEI_DB_PATH=/path/to/kakei.sqlite3 backend/.venv/bin/fastapi run backend/server.py --host 127.0.0.1 --port 8765` を実行してください。DBはGitに含めません。
 
-画面から取引の追加・削除、サンプル削除、月別の表示、検索、CSV保存ができます。APIは `GET /api/status`、`POST /api/initialize`、`GET /api/transactions`、`GET /api/transactions/{id}`、`POST /api/transactions`、`DELETE /api/transactions/{id}`、`DELETE /api/samples`、`GET /api/trajectory/{date}` を提供します。追加する取引のIDはサーバーが発行します。
+画面から取引の追加・削除、サンプル削除、月別の表示、検索、CSV保存ができます。APIは `GET /api/status`、`POST /api/initialize`、`GET /api/transactions`、`GET /api/transactions/{id}`、`POST /api/transactions`、`DELETE /api/transactions/{id}`、`DELETE /api/samples`、`GET /api/trajectory/{date}`、`POST`・`PUT`・`DELETE /api/trajectory` を提供します。追加する取引のIDはサーバーが発行します。
 
 取引サンプルは重複整理済み37件、軌跡サンプルは9月19〜30日の12日分です。
 
 各エンドポイントの入出力、入力条件、エラーは [API ドキュメント](API.md) を参照してください。
 
-サーバー生成時に `front/src/data/september-timeline.json` を検証し、地点・日・イベント・区間・経由地点を SQLite の軌跡テーブルへ完全同期します。JSON を変更した場合はサーバーを再起動すると反映されます。同期に失敗した場合は起動を止め、軌跡テーブルの更新をロールバックします。取引テーブルには影響しません。
+最初のサーバー生成時に、軌跡テーブルが空なら `front/src/data/september-timeline.json` を検証し、地点・日・イベント・区間・経由地点を SQLite に投入します。既存軌跡があれば維持します。以後は SQLite が正本で、JSON を変更して再起動しても保存済み軌跡を上書きしません。初回投入に失敗した場合は起動を止め、軌跡テーブルの更新をロールバックします。取引テーブルには影響しません。
 
-`GET /api/trajectory/2026-09-29` は SQLite から指定日の時系列を返します。返却形式は `{ "places": { ... }, "days": [{ "date": "2026-09-29", "events": [ ... ], "legs": [ ... ] }] }` で、`places` にはその日の訪問地点と経由地点だけを含めます。取引 DB の初期化は不要です。日付は `YYYY-MM-DD` 形式で指定し、不正な日付は 400、サンプルにない日付は 404 を返します。軌跡ページと mock API はフロントの JSON を直接使用します。
+`GET /api/trajectory/2026-09-29` は SQLite から指定日の時系列を返します。返却形式は `{ "places": { ... }, "days": [{ "date": "2026-09-29", "events": [ ... ], "legs": [ ... ] }] }` で、`places` にはその日の訪問地点と経由地点だけを含めます。`POST`・`PUT`・`DELETE /api/trajectory` は日、訪問イベント、移動区間、地点を操作し、再起動後も保存します。未完成の日も保存できます。いずれも取引 DB の初期化は不要です。API の操作結果は、固定 JSON を読む現在の軌跡画面と mock API には反映されません。
 
 新しいDBでは、画面が同じ `http://localhost:8765/` のブラウザ保存キー `kakei-transactions-v1` を一度だけ取り込みます。キーがなければサンプル取引を入れます。空配列が保存されていれば空の家計として始めます。取り込み元の `localStorage` は削除しませんが、その後の追加・削除はSQLiteだけに反映されます。
 
@@ -52,7 +52,7 @@ backend/.venv/bin/python backend/replace_samples.py \
 
 スクリプトはリポジトリ内の `front/src/data/old-samples.json`、`september-transactions.json`、`september-timeline.json` を読み、取引・品目・重複・軌跡の同日参照を検証します。`--db` は既存ファイル、`--backup` はまだ存在しないファイル名を指定してください。入力検証後、SQLite のバックアップ API で更新前のDB全体を保存してから、1つのトランザクションで置換します。利用者が登録した `sample-` 以外の取引と初期化状態は維持します。旧JSONは変更しません。DBとバックアップはGitに含めません。
 
-正常終了時は `{"deleted": 16, "inserted": 37, "days": 12}` を出力します。既に整理済みの37件と全項目が一致するDBでは取引を維持して軌跡だけを同期し、`{"deleted": 0, "inserted": 0, "days": 12}` を出力します。再実行にも別のバックアップ名が必要です。サンプルの編集・削除・追加によって旧JSONにも新JSONにも一致しない場合や、同期・書き込みが失敗した場合は処理を止め、DB更新をロールバックします。更新前のバックアップは残ります。JSON検証や既存バックアップの確認で止まった場合はDBを更新しません。置換後はサーバーを起動してください。
+正常終了時は `{"deleted": 16, "inserted": 37, "days": 12}` を出力します。既に整理済みの37件と全項目が一致するDBでは取引を維持して軌跡だけを同期し、`{"deleted": 0, "inserted": 0, "days": 12}` を出力します。再実行にも別のバックアップ名が必要です。軌跡を API で編集済みの場合は上書きを防ぐため、このコマンドは停止します。サンプルの編集・削除・追加によって旧JSONにも新JSONにも一致しない場合や、同期・書き込みが失敗した場合も処理を止め、DB更新をロールバックします。更新前のバックアップは残ります。JSON検証や既存バックアップの確認で止まった場合はDBを更新しません。置換後はサーバーを起動してください。
 
 通信やDBの読み込みに失敗したときは、画面の再試行ボタンから再取得できます。追加・削除後の再取得だけが失敗した場合、その操作はサーバーに保存済みです。画面の「表示を再読み込み」を押し、同じ操作を繰り返さないでください。
 

@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from api.http import HTTPFailure, error_response
 from api.transactions import register_transactions
 from config.paths import TIMELINE_PATH
-from db.store import AlreadyInitialized, NotInitialized, Store
+from db.store import AlreadyInitialized, NotInitialized, Store, TrajectoryConflict, TrajectoryNotFound
 from services.trajectory_validation import load_timeline
 from services.validation import ValidationError
 
@@ -32,7 +32,7 @@ def create_app(db_path: Path, front_dir: Path, *, port: int = 8765,
             if request.headers.get("origin") != f"http://{host}":
                 return error_response(403, "forbidden_origin", "同じアドレスの画面から操作してください。")
         path = request.url.path
-        if (path.startswith("/api/") and path not in ("/api/status", "/api/initialize")
+        if (path.startswith("/api/") and path not in ("/api/status", "/api/initialize", "/api/trajectory")
                 and not path.startswith("/api/trajectory/")):
             try:
                 if not store.is_initialized():
@@ -57,6 +57,14 @@ def create_app(db_path: Path, front_dir: Path, *, port: int = 8765,
     async def handle_not_initialized(_request: Request, _error_value: NotInitialized):
         return error_response(409, "not_initialized", "取引の初期化が必要です。")
 
+    @app.exception_handler(TrajectoryNotFound)
+    async def handle_trajectory_not_found(_request: Request, error: TrajectoryNotFound):
+        return error_response(404, "not_found", str(error))
+
+    @app.exception_handler(TrajectoryConflict)
+    async def handle_trajectory_conflict(_request: Request, error: TrajectoryConflict):
+        return error_response(409, "conflict", str(error))
+
     @app.exception_handler(sqlite3.Error)
     async def handle_database_error(_request: Request, _error_value: sqlite3.Error):
         return error_response(500, "database_error", "データベースにアクセスできませんでした。")
@@ -66,7 +74,7 @@ def create_app(db_path: Path, front_dir: Path, *, port: int = 8765,
     @app.api_route("/api/{remaining:path}", methods=["GET", "POST", "DELETE", "PUT", "PATCH", "OPTIONS", "HEAD"])
     def unknown_api(request: Request, remaining: str):
         path = request.url.path
-        if (path in ("/api/status", "/api/initialize", "/api/transactions", "/api/samples")
+        if (path in ("/api/status", "/api/initialize", "/api/transactions", "/api/samples", "/api/trajectory")
                 or path.startswith(("/api/transactions/", "/api/trajectory/"))):
             raise HTTPFailure(405, "method_not_allowed", "この操作は利用できません。")
         raise HTTPFailure(404, "not_found", "APIが見つかりません。")
