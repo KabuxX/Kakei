@@ -1,3 +1,5 @@
+import { transactionCalendarDate, transactionMonthKey } from './transaction-datetime.js';
+
 export const categories = [
   { name: '食費', color: '#415eee', budget: 60000 },
   { name: '住まい', color: '#92addf', budget: 90000 },
@@ -12,7 +14,7 @@ export const yen = (value) => `¥${Math.abs(value).toLocaleString('ja-JP')}`;
 export const monthKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 
 export function dashboardForMonth(records, month) {
-  const items = records.filter((item) => item.date.startsWith(monthKey(month)))
+  const items = records.filter((item) => transactionMonthKey(item.date) === monthKey(month))
     .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
   const { income, expense } = items.reduce((sum, item) => {
     sum[item.type] += item.amount;
@@ -25,7 +27,8 @@ export function dashboardForMonth(records, month) {
   }));
   const weekly = [0, 0, 0, 0, 0];
   items.filter((item) => item.type === 'expense').forEach((item) => {
-    const week = Math.min(4, Math.floor((Number(item.date.slice(-2)) - 1) / 7));
+    const day = Number(transactionCalendarDate(item.date).slice(8, 10));
+    const week = Math.min(4, Math.floor((day - 1) / 7));
     weekly[week] += item.amount;
   });
   return { items, income, expense, balance: income - expense, remaining: totalBudget - expense, categoryTotals, weekly };

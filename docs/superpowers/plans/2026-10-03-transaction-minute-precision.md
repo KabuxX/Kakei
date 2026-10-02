@@ -112,7 +112,6 @@
 - Modify: `front/src/lib/dashboard.js`
 - Modify: `front/src/lib/trajectory-model.js`
 - Modify: `front/src/lib/trajectory-model.test.js`
-- Modify: `backend/services/sample_replacement.py`
 - Modify: `backend/tests/test_replace_samples.py`
 
 **Interfaces:**
@@ -122,7 +121,7 @@
 - [ ] **手順1: カレンダー日付ベースの失敗テストを書く。** `dashboard.test.js` に `groups minute transactions by calendar day` を追加し、同日の複数時刻の月合計、週分類、降順を検証する。`trajectory-model.test.js` に `joins timestamped transactions to same-date events` を追加し、`date: "2026-09-02T09:17"` を `2026-09-02` のイベント・交通費に結び、別日を拒否する。`test_replace_samples.py` に分単位日時の取引と日単位の軌跡日の照合を追加する。
 - [ ] **手順2: 新しいフロントテストを実行し失敗を確認する。** `cd front && npm test -- src/lib/dashboard.test.js src/lib/trajectory-model.test.js` を実行する。
 - [ ] **手順3: 月・週集計とフロント軌跡の取引照合を更新する。** 月は先頭7文字、日付表示と週分類・軌跡参照は先頭10文字を使用する。取引の並び順は分単位日時文字列の降順を保つ。
-- [ ] **手順4: バックエンドのサンプル軌跡検証を日付部分へ更新する。** `services/sample_replacement.py` は日付付き取引の先頭10文字を `timeline.days[].date` と比較する。
+- [ ] **手順4: バックエンドのサンプル軌跡検証を回帰テストで確認する。** 同日比較の実装は Task 2 で先行適用済み。`test_replace_samples.py` で分単位日時を日単位の軌跡日に照合する。
 - [ ] **手順5: フロントとサンプル置換テストを実行する。** `cd front && npm test -- src/lib/dashboard.test.js src/lib/trajectory-model.test.js` と `backend/.venv/bin/python -m unittest discover -s backend/tests -p 'test_replace_samples.py' -v` が成功することを確認する。
 - [ ] **手順6: タスク4の変更をコミットする。** 集計・軌跡実装とテストを `fix: compare transaction datetimes by calendar day` でコミットする。
 

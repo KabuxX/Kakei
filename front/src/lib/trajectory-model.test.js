@@ -32,6 +32,26 @@ it('joins dated transactions and traffic evidence into a measured day', async ()
   expect(day.distanceKm).toBeGreaterThan(1);
 });
 
+it('joins timestamped transactions to same-date events', async () => {
+  const { buildTrajectoryDays } = await import('./trajectory-model.js');
+  const timestamped = transactions.map((transaction, index) => ({
+    ...transaction,
+    date: `${date}T${['09:17', '10:30', '12:00'][index]}`,
+  }));
+
+  const day = buildTrajectoryDays(timestamped, timeline).get(date);
+
+  expect(day.expenseTotal).toBe(1570);
+  expect(day.events.map((event) => event.transaction?.id)).toEqual(['coffee', 'grocery']);
+  expect(day.segments[0].transportTransaction.id).toBe('train');
+  const wrongDay = structuredClone(timeline);
+  wrongDay.days[0].events[0].transactionId = 'yesterday';
+  expect(() => buildTrajectoryDays([
+    ...timestamped,
+    { ...timestamped[0], id: 'yesterday', date: '2026-09-01T18:40' },
+  ], wrongDay)).toThrow(/date|日付/i);
+});
+
 it('builds 12 chronological Tokyo days with sourced places and matching purchases', async () => {
   const { buildTrajectoryDays } = await import('./trajectory-model.js');
   const days = buildTrajectoryDays(transactionsFixture, timelineFixture);

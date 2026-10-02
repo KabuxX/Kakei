@@ -11,7 +11,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from cli.replace_samples import main
-from services.sample_replacement import replace_samples
+from services.sample_replacement import _check_transaction_references, replace_samples
 from db.store import Store
 
 
@@ -54,6 +54,22 @@ class ReplaceSamplesTests(unittest.TestCase):
         path = self.directory / name
         path.write_text(json.dumps(value, ensure_ascii=False), encoding="utf-8")
         return path
+
+    def test_minute_transaction_date_matches_day_only_timeline_reference(self):
+        timeline = {"days": [{
+            "date": "2026-09-02",
+            "events": [{"transactionId": "meal"}],
+            "legs": [{"transportTransactionId": "train"}],
+        }]}
+        records = [
+            {"id": "meal", "date": "2026-09-02T09:17"},
+            {"id": "train", "date": "2026-09-02T10:30"},
+        ]
+
+        _check_transaction_references(timeline, records)
+
+        with self.assertRaises(ValueError):
+            _check_transaction_references(timeline, [{"id": "meal", "date": "2026-09-03T09:17"}])
 
     def run_replacement(self, **overrides):
         arguments = {"db_path": self.db, "old_path": OLD, "new_path": NEW,

@@ -1,6 +1,7 @@
 import bbox from '@turf/bbox';
 import length from '@turf/length';
 import { featureCollection, lineString } from '@turf/helpers';
+import { transactionCalendarDate } from './transaction-datetime.js';
 
 function checkPlace(placeId, place) {
   if (!place || !place.name || !place.address || !/^https:\/\//.test(place.sourceUrl || '')) {
@@ -16,7 +17,7 @@ function checkPlace(placeId, place) {
 function matchTransaction(transactionId, transactionsById, date) {
   const transaction = transactionsById.get(transactionId);
   if (!transaction) throw new Error(`Unknown transaction ${transactionId}`);
-  if (transaction.date !== date) throw new Error(`Transaction ${transactionId} has a different date`);
+  if (transactionCalendarDate(transaction.date) !== date) throw new Error(`Transaction ${transactionId} has a different date`);
   return transaction;
 }
 
@@ -26,9 +27,10 @@ function buildTrajectoryDays(transactions, timeline) {
   for (const transaction of transactions) {
     if (transactionsById.has(transaction.id)) throw new Error(`Duplicate transaction ${transaction.id}`);
     transactionsById.set(transaction.id, transaction);
-    const dated = transactionsByDate.get(transaction.date) || [];
+    const date = transactionCalendarDate(transaction.date);
+    const dated = transactionsByDate.get(date) || [];
     dated.push(transaction);
-    transactionsByDate.set(transaction.date, dated);
+    transactionsByDate.set(date, dated);
   }
 
   for (const [placeId, place] of Object.entries(timeline.places)) checkPlace(placeId, place);
