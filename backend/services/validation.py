@@ -1,8 +1,8 @@
 """Validation shared by imports and new transaction writes."""
 
-import re
-from datetime import date
 from typing import Optional
+
+from transaction_datetime import parse_transaction_datetime
 
 
 MAX_AMOUNT = 999_999_999
@@ -66,13 +66,12 @@ def normalize_transaction(payload: object, *, import_mode: bool = False) -> dict
         raise ValidationError("id", "IDはサーバーが生成します。")
 
     title = _text(payload.get("title"), "title", limit=None if import_mode else 60)
-    date_value = payload.get("date")
-    if not isinstance(date_value, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date_value):
-        raise ValidationError("date", "正しい日付を入力してください。")
     try:
-        date.fromisoformat(date_value)
+        date_value, time_estimated = parse_transaction_datetime(
+            payload.get("date"), allow_date_only=import_mode
+        )
     except ValueError as error:
-        raise ValidationError("date", "正しい日付を入力してください。") from error
+        raise ValidationError("date", "正しい日時を入力してください。") from error
 
     kind = payload.get("type")
     if kind not in ("income", "expense"):
@@ -85,7 +84,8 @@ def normalize_transaction(payload: object, *, import_mode: bool = False) -> dict
     amount = _amount(payload.get("amount"), "amount")
 
     result = {"title": title, "date": date_value, "type": kind,
-              "category": category, "amount": amount}
+              "category": category, "amount": amount,
+              "timeEstimated": time_estimated}
     if import_mode:
         result["id"] = transaction_id
     if kind == "expense":
