@@ -57,3 +57,15 @@ backend/.venv/bin/python backend/replace_samples.py \
 通信やDBの読み込みに失敗したときは、画面の再試行ボタンから再取得できます。追加・削除後の再取得だけが失敗した場合、その操作はサーバーに保存済みです。画面の「表示を再読み込み」を押し、同じ操作を繰り返さないでください。
 
 バックエンドのテストには `backend/.venv/bin/python -m pip install -r backend/requirements-dev.txt` を追加実行し、`backend/.venv/bin/python -m unittest discover -s backend/tests -v` を使います。
+
+## 実装の配置
+
+`server.py` と `replace_samples.py` は互換性を保つ入口です。実装は次の5つのパッケージに分けています。
+
+- `api/`: HTTPルート、応答、アクセス制限、静的配信。
+- `services/`: 取引・軌跡・サンプルJSONの検証とサンプル置換の調停。
+- `db/`: SQLiteスキーマ、保存・読取、バックアップと原子的なサンプル置換。
+- `cli/`: サンプル置換の引数処理、終了コード、JSON結果出力。
+- `config/`: Python実行環境の検査と、作業ディレクトリに依存しない既定パス。
+
+上記のサーバー起動・サンプル置換コマンドは引き続き利用できます。テストでは実DBを避けるため、`KAKEI_DB_PATH=/private/tmp/kakei-backend-layout-tests.sqlite3 backend/.venv/bin/python -m unittest discover -s backend/tests -v` を使ってください。

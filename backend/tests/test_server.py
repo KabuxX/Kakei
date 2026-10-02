@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import server
 from api.app import create_app
-from store import Store
+from db.store import Store
 
 
 TIMELINE_PATH = Path(__file__).resolve().parents[2] / "front" / "src" / "data" / "september-timeline.json"

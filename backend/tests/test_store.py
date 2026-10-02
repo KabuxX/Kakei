@@ -10,7 +10,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from db.store import AlreadyInitialized, NotInitialized, Store
-from validation import ValidationError
+from services.validation import ValidationError
 
 
 def income(transaction_id, *, day="2026-09-01", amount=100):

@@ -10,8 +10,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from replace_samples import replace_samples
-from store import Store
+from cli.replace_samples import main
+from services.sample_replacement import replace_samples
+from db.store import Store
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -209,7 +210,19 @@ class ReplaceSamplesTests(unittest.TestCase):
             connection.commit()
         self.assert_rejected_unchanged()
 
-    def test_cli_uses_repository_json_defaults(self):
+    def test_package_cli_uses_repository_json_defaults(self):
+        from contextlib import redirect_stdout
+        from io import StringIO
+        from unittest.mock import patch
+
+        output = StringIO()
+        with patch.object(sys, "argv", ["replace_samples", "--db", str(self.db),
+                                      "--backup", str(self.backup)]), redirect_stdout(output):
+            main()
+        self.assertEqual(json.loads(output.getvalue()), {"deleted": 16, "inserted": 37, "days": 12})
+        self.assert_new_data()
+
+    def test_cli_uses_repository_json_defaults_from_another_directory(self):
         result = subprocess.run([
             sys.executable, str(ROOT / "backend" / "replace_samples.py"),
             "--db", str(self.db), "--backup", str(self.backup),
