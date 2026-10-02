@@ -199,6 +199,15 @@ class ReplaceSamplesTests(unittest.TestCase):
         self.assertEqual(self.store.list_transactions(), transactions_before)
         self.assert_new_data()
 
+    def test_replace_samples_rejects_api_modified_trajectory(self):
+        with closing(sqlite3.connect(self.db)) as connection:
+            connection.execute("INSERT INTO meta (key, value) VALUES ('trajectory_modified', '1')")
+            connection.commit()
+        before = self.snapshot()
+        with self.assertRaisesRegex(ValueError, "edited"):
+            replace_samples(self.db, OLD, NEW, TIMELINE, self.backup)
+        self.assertEqual(self.snapshot(), before)
+
     def test_edited_missing_and_extra_sample_rows_are_rejected(self):
         for index, sql in enumerate((
             "UPDATE transactions SET title = 'edited' WHERE id = 'sample-1'",

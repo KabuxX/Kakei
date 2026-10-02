@@ -71,6 +71,8 @@ def replace_sample_rows(db_path: Path, backup_path: Path, old_records: list[dict
             # ensure_schema begins IMMEDIATE: schema changes, guard, transaction
             # replacement and trajectory replacement all share this transaction.
             ensure_schema(connection)
+            if connection.execute("SELECT 1 FROM meta WHERE key = 'trajectory_modified'").fetchone():
+                raise ValueError("trajectory has been edited through the API")
             current = _current_samples(connection)
             if current == _expected_samples(new_records):
                 deleted = inserted = 0
@@ -84,6 +86,7 @@ def replace_sample_rows(db_path: Path, backup_path: Path, old_records: list[dict
             else:
                 raise ValueError("database sample rows do not match the saved old or new samples")
             replace_trajectory(connection, timeline)
+            connection.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('trajectory_seeded', '1')")
             connection.commit()
         except Exception:
             connection.rollback()

@@ -4,7 +4,7 @@ import sqlite3
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 from db.schema import ensure_schema
 from db.trajectory_store import read_trajectory_day, replace_trajectory
@@ -93,6 +93,19 @@ class Store:
         with self._connection() as connection:
             connection.execute("BEGIN IMMEDIATE")
             replace_trajectory(connection, timeline)
+
+    def seed_trajectory_once(self, load_seed: Callable[[], dict]) -> None:
+        with self._connection() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            if connection.execute("SELECT 1 FROM meta WHERE key = 'trajectory_seeded'").fetchone():
+                return
+            has_days = connection.execute("SELECT 1 FROM trajectory_days LIMIT 1").fetchone()
+            has_places = connection.execute("SELECT 1 FROM trajectory_places LIMIT 1").fetchone()
+            if not has_days and not has_places:
+                timeline = load_seed()
+                validate_timeline(timeline)
+                replace_trajectory(connection, timeline)
+            connection.execute("INSERT INTO meta (key, value) VALUES ('trajectory_seeded', '1')")
 
     def get_trajectory_day(self, date: str) -> Optional[dict]:
         with self._connection() as connection:

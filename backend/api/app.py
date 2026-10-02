@@ -18,7 +18,7 @@ def create_app(db_path: Path, front_dir: Path, *, port: int = 8765,
                timeline_path: Path = TIMELINE_PATH) -> FastAPI:
     """Build an app with an isolated store for tests or local execution."""
     store = Store(db_path)
-    store.sync_trajectory(load_timeline(timeline_path))
+    store.seed_trajectory_once(lambda: load_timeline(timeline_path))
     app = FastAPI()
     app.state.store = store
 

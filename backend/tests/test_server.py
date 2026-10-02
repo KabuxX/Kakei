@@ -184,12 +184,13 @@ class ServerTests(unittest.TestCase):
         self.assertEqual((status, payload["error"]["code"]), (500, "database_error"))
         self.assertNotIn("private details", payload["error"]["message"])
 
-    def test_app_creation_resyncs_changed_fixture(self):
+    def test_app_creation_preserves_seeded_trajectory(self):
         timeline = json.loads(TIMELINE_PATH.read_text(encoding="utf-8"))
         fixture_path = Path(self.temp.name) / "timeline.json"
+        database = Path(self.temp.name) / "seed-once.sqlite3"
         first = {"places": timeline["places"], "days": [timeline["days"][0], timeline["days"][-2]]}
         fixture_path.write_text(json.dumps(first, ensure_ascii=False), encoding="utf-8")
-        app = server.create_app(self.db, self.front, timeline_path=fixture_path)
+        app = server.create_app(database, self.front, timeline_path=fixture_path)
         with TestClient(app) as client:
             self.assertEqual(client.get("/api/trajectory/2026-09-29", headers={"Host": "localhost:8765"}).status_code, 200)
 
@@ -197,23 +198,41 @@ class ServerTests(unittest.TestCase):
         second["days"] = second["days"][:1]
         second["places"]["shibuyaStarbucks"]["name"] = "再同期後の店舗"
         fixture_path.write_text(json.dumps(second, ensure_ascii=False), encoding="utf-8")
-        updated_app = server.create_app(self.db, self.front, timeline_path=fixture_path)
+        updated_app = server.create_app(database, self.front, timeline_path=fixture_path)
         with TestClient(updated_app) as client:
             response = client.get("/api/trajectory/2026-09-19", headers={"Host": "localhost:8765"})
-            self.assertEqual(response.json()["places"]["shibuyaStarbucks"]["name"], "再同期後の店舗")
-            self.assertEqual(client.get("/api/trajectory/2026-09-29", headers={"Host": "localhost:8765"}).status_code, 404)
+            self.assertEqual(response.json()["places"]["shibuyaStarbucks"]["name"], first["places"]["shibuyaStarbucks"]["name"])
+            self.assertEqual(client.get("/api/trajectory/2026-09-29", headers={"Host": "localhost:8765"}).status_code, 200)
 
-    def test_invalid_fixture_fails_startup_without_erasing_saved_rows(self):
+    def test_invalid_fixture_fails_fresh_seed_but_is_skipped_after_seed(self):
         timeline = json.loads(TIMELINE_PATH.read_text(encoding="utf-8"))
         fixture_path = Path(self.temp.name) / "timeline.json"
+        database = Path(self.temp.name) / "seed-then-invalid.sqlite3"
         fixture_path.write_text(json.dumps({"places": timeline["places"], "days": timeline["days"][:1]}, ensure_ascii=False), encoding="utf-8")
-        server.create_app(self.db, self.front, timeline_path=fixture_path)
-        previous = Store(self.db).get_trajectory_day("2026-09-19")
+        server.create_app(database, self.front, timeline_path=fixture_path)
+        previous = Store(database).get_trajectory_day("2026-09-19")
         fixture_path.write_text("{broken", encoding="utf-8")
 
+        server.create_app(database, self.front, timeline_path=fixture_path)
+        self.assertEqual(Store(database).get_trajectory_day("2026-09-19"), previous)
         with self.assertRaises(ValueError):
-            server.create_app(self.db, self.front, timeline_path=fixture_path)
-        self.assertEqual(Store(self.db).get_trajectory_day("2026-09-19"), previous)
+            server.create_app(Path(self.temp.name) / "fresh-invalid.sqlite3", self.front, timeline_path=fixture_path)
+
+    def test_existing_unmarked_trajectory_is_preserved(self):
+        database = Path(self.temp.name) / "unmarked.sqlite3"
+        timeline = json.loads(TIMELINE_PATH.read_text(encoding="utf-8"))
+        timeline["places"]["shibuyaStarbucks"]["name"] = "DB saved"
+        Store(database).sync_trajectory(timeline)
+        server.create_app(database, self.front)
+        self.assertEqual(Store(database).get_trajectory_day("2026-09-19")["places"]["shibuyaStarbucks"]["name"], "DB saved")
+
+    def test_seeded_empty_trajectory_stays_empty(self):
+        with closing(sqlite3.connect(self.db)) as connection:
+            connection.execute("DELETE FROM trajectory_days")
+            connection.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('trajectory_seeded', '1')")
+            connection.commit()
+        server.create_app(self.db, self.front)
+        self.assertIsNone(Store(self.db).get_trajectory_day("2026-09-19"))
 
     def test_trajectory_day_rejects_invalid_and_missing_dates(self):
         for date in ("2026-9-02", "2026-09-31"):
