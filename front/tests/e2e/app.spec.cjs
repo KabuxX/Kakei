@@ -50,6 +50,20 @@ test('sidebar can be hidden and restored without hiding phone navigation', async
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
+test('trajectory is an empty destination on desktop and phone', async ({ page }) => {
+  await page.goto('/#trajectory');
+  await expect(page.getByRole('link', { name: '軌跡' })).toHaveAttribute('aria-current', 'page');
+  await expect(page.locator('#dashboard-view')).toBeHidden();
+  await expect(page.locator('#trajectory-view')).toHaveCSS('display', 'block');
+  await expect(page.locator('#trajectory-view')).toHaveText('軌跡');
+  await page.setViewportSize({ width: 375, height: 812 });
+  await expect(page.getByRole('link', { name: '軌跡' })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.getByRole('link', { name: '概要' }).click();
+  await expect(page.locator('#dashboard-view')).toBeVisible();
+  await expect(page.locator('#month-label')).toBeVisible();
+});
+
 test('deletion confirmation keeps the selected transaction and actions visible at desktop and phone widths', async ({ page }) => {
   await page.goto('/#transaction/sample-0/delete');
   await expect(page.getByRole('heading', { name: 'この取引を削除しますか？' })).toBeVisible();
@@ -180,12 +194,12 @@ test('failed save and delete keep the record state and explain the failure', asy
   await expect(page.getByRole('heading', { name: '給与' })).toBeVisible();
 });
 
-test('detail sidebar links scroll to Budget and Insights after revealing the dashboard', async ({ page }) => {
+test('overview anchors still scroll to Budget and Insights after leaving detail', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
-  for (const [label, target] of [['予算', '#budget'], ['支出の分析', '#insights']]) {
+  for (const target of ['#budget', '#insights']) {
     await page.goto('/#transaction/sample-0');
     await expect(page.locator('#detail-view')).toBeVisible();
-    await page.getByRole('link', { name: label, exact: true }).click();
+    await page.evaluate((hash) => { window.location.hash = hash; }, target);
     await expect(page.locator(target)).toBeVisible();
     await expect.poll(async () => page.locator(target).evaluate((element) => Math.round(element.getBoundingClientRect().top))).toBeLessThan(200);
   }

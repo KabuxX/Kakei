@@ -5,6 +5,19 @@ import AppShell from './AppShell.jsx';
 
 afterEach(cleanup);
 
+it('offers overview and trajectory as the two main destinations', () => {
+  const { rerender } = render(<AppShell route="#overview" onAdd={vi.fn()} addDisabled={false}><p>内容</p></AppShell>);
+  const navigation = screen.getByRole('navigation', { name: 'メインナビゲーション' });
+  const links = [...navigation.querySelectorAll('a')];
+  expect(links.map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
+    ['概要', '#overview'],
+    ['軌跡', '#trajectory'],
+  ]);
+  rerender(<AppShell route="#trajectory" onAdd={vi.fn()} addDisabled={false}><p>内容</p></AppShell>);
+  expect(screen.getByRole('link', { name: '軌跡' }).getAttribute('aria-current')).toBe('page');
+  expect(screen.getByText('軌跡', { selector: '#current-page-label' })).toBeTruthy();
+});
+
 it('hides and restores the sidebar while keeping the choice across in-app navigation', () => {
   const onAdd = vi.fn();
   const view = (route) => <AppShell route={route} onAdd={onAdd} addDisabled={false}><p>内容</p></AppShell>;

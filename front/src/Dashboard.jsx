@@ -17,7 +17,7 @@ export default function Dashboard({ month, model, transactions, status, error, o
   const stops = visibleCategories.map((item) => { const start = point; point += item.amount / expense * 100; return `${item.color} ${start}% ${point}%`; });
   const chartMax = Math.max(...weekly, 1);
   return <div id="dashboard-view" className={ready ? 'data-ready' : ''} aria-busy={status === 'loading' ? 'true' : undefined} hidden={hidden}>
-    <h1 className="sr-only">家計ダッシュボード</h1>
+    <h1 id="dashboard-heading" className="sr-only" tabIndex="-1">家計ダッシュボード</h1>
     <div className="dashboard-grid">
       <section className="balance-card" aria-labelledby="balance-title">
         <div className="balance-top"><span className="card-kicker" id="balance-title">月の収支</span><div className="month-picker" aria-label="表示月"><button id="prev-month" className="icon-button" type="button" aria-label="前の月" onClick={() => onMonthChange(-1)}><Icon name="chevron" /></button><span id="month-label" aria-live="polite">{month.getFullYear()}年{month.getMonth() + 1}月</span><button id="next-month" className="icon-button next" type="button" aria-label="次の月" onClick={() => onMonthChange(1)}><Icon name="chevron" /></button></div></div>

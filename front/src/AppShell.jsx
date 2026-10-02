@@ -2,9 +2,7 @@ import React, { useState } from 'react';
 
 const nav = [
   ['overview', '概要', 'grid'],
-  ['transactions', '取引履歴', 'list'],
-  ['budget', '予算', 'wallet'],
-  ['insights', '支出の分析', 'chart'],
+  ['trajectory', '軌跡', 'trail'],
 ];
 
 export function Icon({ name }) {
@@ -13,7 +11,7 @@ export function Icon({ name }) {
 
 export default function AppShell({ children, route, onAdd, addDisabled }) {
   const [sidebarHidden, setSidebarHidden] = useState(false);
-  const active = route === '#transaction' || route.startsWith('#transaction/') ? 'transactions' : ['transactions', 'budget', 'insights'].includes(route.slice(1)) ? route.slice(1) : 'overview';
+  const active = route === '#trajectory' ? 'trajectory' : 'overview';
   const today = new Intl.DateTimeFormat('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' }).format(new Date());
   return <>
     <a className="skip-link" href="#main">メインコンテンツへ</a>
@@ -26,7 +24,7 @@ export default function AppShell({ children, route, onAdd, addDisabled }) {
         <div className="sidebar-bottom"><div className="profile"><span className="avatar">K</span><span><strong>わたしの家計</strong><small>この端末のサーバーに保存</small></span><span className="profile-dot" aria-hidden="true" /></div></div>
       </aside>
       <main id="main" className="main-content">
-        <header className="topbar" id="overview"><div className="mobile-brand"><span className="brand-mark"><img src="/assets/kakei-logo.png" alt="" width="44" height="44" /></span><strong>Kakei</strong></div><div className="topbar-leading"><button className="sidebar-toggle" type="button" aria-label={sidebarHidden ? 'サイドバーを表示' : 'サイドバーを隠す'} title={sidebarHidden ? 'サイドバーを表示' : 'サイドバーを隠す'} aria-controls="app-sidebar" aria-expanded={!sidebarHidden} onClick={() => setSidebarHidden((hidden) => !hidden)}><Icon name={sidebarHidden ? 'panel-open' : 'panel-close'} /></button><div className="breadcrumb"><strong id="current-page-label">{route.startsWith('#transaction/') ? route.endsWith('/delete') ? '削除確認' : '取引詳細' : '家計の概要'}</strong></div></div><div className="topbar-actions"><span className="today-label" id="today-label">{today}</span><button className="primary-button add-trigger" type="button" aria-label="取引を追加" onClick={onAdd} disabled={addDisabled}><Icon name="plus" /><span>取引を追加</span></button></div></header>
+        <header className="topbar" id="overview"><div className="mobile-brand"><span className="brand-mark"><img src="/assets/kakei-logo.png" alt="" width="44" height="44" /></span><strong>Kakei</strong></div><div className="topbar-leading"><button className="sidebar-toggle" type="button" aria-label={sidebarHidden ? 'サイドバーを表示' : 'サイドバーを隠す'} title={sidebarHidden ? 'サイドバーを表示' : 'サイドバーを隠す'} aria-controls="app-sidebar" aria-expanded={!sidebarHidden} onClick={() => setSidebarHidden((hidden) => !hidden)}><Icon name={sidebarHidden ? 'panel-open' : 'panel-close'} /></button><div className="breadcrumb"><strong id="current-page-label">{route === '#trajectory' ? '軌跡' : route.startsWith('#transaction/') ? route.endsWith('/delete') ? '削除確認' : '取引詳細' : '家計の概要'}</strong></div></div><div className="topbar-actions"><span className="today-label" id="today-label">{today}</span><button className="primary-button add-trigger" type="button" aria-label="取引を追加" onClick={onAdd} disabled={addDisabled}><Icon name="plus" /><span>取引を追加</span></button></div></header>
         <div className="content-wrap">{children}</div>
       </main>
     </div>

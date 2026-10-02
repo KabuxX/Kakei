@@ -14,11 +14,11 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup(); window.location.hash = ''; });
 
-it('opens an encoded direct detail URL and marks transactions active', () => {
+it('opens an encoded direct detail URL within the overview destination', () => {
   window.location.hash = detailHref(record.id);
   render(<App />);
   expect(screen.getByRole('heading', { name: '食材' })).toBeTruthy();
-  expect(screen.getByRole('link', { name: '取引履歴' }).getAttribute('aria-current')).toBe('page');
+  expect(screen.getByRole('link', { name: '概要' }).getAttribute('aria-current')).toBe('page');
 });
 
 it('opens a direct deletion URL for an ID containing reserved characters', () => {
@@ -27,7 +27,16 @@ it('opens a direct deletion URL for an ID containing reserved characters', () =>
   expect(screen.getByRole('heading', { name: 'この取引を削除しますか？' })).toBeTruthy();
   expect(screen.getByRole('heading', { name: '食材' })).toBeTruthy();
   expect(screen.getByRole('link', { name: '取引詳細へ戻る' }).getAttribute('href')).toBe(detailHref(record.id));
-  expect(screen.getByRole('link', { name: '取引履歴' }).getAttribute('aria-current')).toBe('page');
+  expect(screen.getByRole('link', { name: '概要' }).getAttribute('aria-current')).toBe('page');
+});
+
+it('opens a blank trajectory screen from its direct URL', () => {
+  window.location.hash = '#trajectory';
+  render(<App />);
+  expect(document.title).toBe('軌跡 | Kakei');
+  expect(screen.getByRole('link', { name: '軌跡' }).getAttribute('aria-current')).toBe('page');
+  expect(document.getElementById('dashboard-view').hidden).toBe(true);
+  expect(screen.getByRole('heading', { level: 1, name: '軌跡' })).toBeTruthy();
 });
 
 it('shows a missing state without a delete action for an unknown deletion URL', () => {
