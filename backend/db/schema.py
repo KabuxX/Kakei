@@ -3,6 +3,8 @@
 import json
 import sqlite3
 
+from transaction_datetime import assign_estimated_datetimes
+
 
 def _create_transactions(connection: sqlite3.Connection, table_name: str) -> None:
     connection.execute(f"""
@@ -14,9 +16,25 @@ def _create_transactions(connection: sqlite3.Connection, table_name: str) -> Non
             category TEXT NOT NULL,
             amount INTEGER NOT NULL,
             merchant TEXT,
-            payment_method TEXT
+            payment_method TEXT,
+            time_estimated INTEGER NOT NULL DEFAULT 0 CHECK (time_estimated IN (0, 1))
         )
     """)
+
+
+def _backfill_transaction_dates(connection: sqlite3.Connection) -> None:
+    rows = connection.execute(
+        "SELECT id, date, time_estimated FROM transactions ORDER BY id"
+    ).fetchall()
+    records = assign_estimated_datetimes([
+        {"id": row[0], "date": row[1], "timeEstimated": bool(row[2])}
+        for row in rows
+    ])
+    connection.executemany(
+        "UPDATE transactions SET date = ?, time_estimated = ? WHERE id = ?",
+        ((record["date"], int(record["timeEstimated"]), record["id"])
+         for record in records),
+    )
 
 
 def _create_items(connection: sqlite3.Connection) -> None:
@@ -125,23 +143,43 @@ def ensure_schema(connection: sqlite3.Connection) -> None:
         _create_items(connection)
         return
     if "items_json" not in columns:
+        if "time_estimated" not in columns:
+            connection.execute("""
+                ALTER TABLE transactions ADD COLUMN time_estimated INTEGER NOT NULL DEFAULT 0
+                CHECK (time_estimated IN (0, 1))
+            """)
+        _backfill_transaction_dates(connection)
         _create_items(connection)
         return
 
-    legacy_rows = connection.execute(
-        "SELECT id, type, amount, items_json FROM transactions"
-    ).fetchall()
-    item_rows = [item for row in legacy_rows for item in _legacy_items(tuple(row))]
+    legacy_columns = "id, title, date, type, category, amount, merchant, payment_method, items_json"
+    if "time_estimated" in columns:
+        legacy_columns += ", time_estimated"
+    legacy_rows = connection.execute(f"SELECT {legacy_columns} FROM transactions ORDER BY id").fetchall()
+    records = assign_estimated_datetimes([
+        {
+            "id": row[0], "date": row[2],
+            "timeEstimated": bool(row[9]) if len(row) > 9 else False,
+        }
+        for row in legacy_rows
+    ])
     _create_transactions(connection, "transactions_new")
-    connection.execute("""
+    connection.executemany("""
         INSERT INTO transactions_new
-            (id, title, date, type, category, amount, merchant, payment_method)
-        SELECT id, title, date, type, category, amount, merchant, payment_method
-        FROM transactions
-    """)
+            (id, title, date, type, category, amount, merchant, payment_method, time_estimated)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        (row[0], row[1], record["date"], row[3], row[4], row[5], row[6], row[7],
+         int(record["timeEstimated"]))
+        for row, record in zip(legacy_rows, records)
+    ))
     connection.execute("DROP TABLE transactions")
     connection.execute("ALTER TABLE transactions_new RENAME TO transactions")
     _create_items(connection)
+    item_rows = [
+        item for row in legacy_rows
+        for item in _legacy_items((row[0], row[3], row[5], row[8]))
+    ]
     connection.executemany(
         "INSERT INTO transaction_items (transaction_id, position, name, amount) VALUES (?, ?, ?, ?)",
         item_rows,

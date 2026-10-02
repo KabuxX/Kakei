@@ -6,6 +6,7 @@ from pathlib import Path
 from db.sample_replacement import replace_sample_rows
 from services.trajectory_validation import load_timeline
 from services.validation import normalize_transaction
+from transaction_datetime import assign_estimated_datetimes
 
 
 def _unique_object(pairs):
@@ -51,7 +52,7 @@ def _load_records(path: Path, *, unique_content: bool) -> list[dict]:
         normalized = normalize_transaction(record, import_mode=True)
         # Import normalization is intentionally tolerant elsewhere; this command
         # must reject any input whose fields or items would be changed or dropped.
-        if normalized != record:
+        if {key: value for key, value in normalized.items() if key != "timeEstimated"} != record:
             raise ValueError(f"{label}: normalization would change transaction data")
         transaction_id = normalized["id"]
         if not transaction_id.startswith("sample-") or transaction_id in seen_ids:
@@ -63,7 +64,7 @@ def _load_records(path: Path, *, unique_content: bool) -> list[dict]:
             raise ValueError(f"{label}: duplicate transaction content")
         seen_content.add(content)
         normalized_records.append(normalized)
-    return normalized_records
+    return assign_estimated_datetimes(normalized_records)
 
 
 def _check_transaction_references(timeline: dict, records: list[dict]) -> None:
@@ -72,7 +73,7 @@ def _check_transaction_references(timeline: dict, records: list[dict]) -> None:
         for entries, field in ((day["events"], "transactionId"),
                                (day["legs"], "transportTransactionId")):
             for entry in entries:
-                if field in entry and dates.get(entry[field]) != day["date"]:
+                if field in entry and dates.get(entry[field], "")[:10] != day["date"]:
                     raise ValueError(f"{day['date']}: {field} must reference a same-date transaction")
 
 

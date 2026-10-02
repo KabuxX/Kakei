@@ -93,16 +93,19 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(self.request("POST", "/api/initialize", {"transactions": records}),
                          (201, {"count": 1}))
         self.assertEqual(self.request("GET", "/api/status"), (200, {"initialized": True}))
-        self.assertEqual(self.request("GET", "/api/transactions"), (200, {"transactions": records}))
+        estimated_record = {**records[0], "date": "2026-09-01T12:00", "timeEstimated": True}
+        self.assertEqual(self.request("GET", "/api/transactions"), (200, {"transactions": [estimated_record]}))
         self.assertEqual(self.request("GET", "/api/transactions/sample-0"),
-                         (200, {"transaction": records[0]}))
+                         (200, {"transaction": estimated_record}))
 
-        draft = {"title": "買い物", "date": "2026-09-02", "type": "expense",
+        draft = {"title": "買い物", "date": "2026-09-02T10:45", "type": "expense",
                  "category": "食費", "amount": 200, "merchant": "店",
                  "paymentMethod": "cash", "items": [{"name": "パン", "amount": 200}]}
         status, result = self.request("POST", "/api/transactions", draft)
         self.assertEqual(status, 201)
         self.assertEqual(result["transaction"]["title"], "買い物")
+        self.assertEqual(result["transaction"]["date"], "2026-09-02T10:45")
+        self.assertIs(result["transaction"]["timeEstimated"], False)
         self.assertTrue(result["transaction"]["id"])
         self.assertEqual(self.request("DELETE", f'/api/transactions/{result["transaction"]["id"]}'),
                          (204, b""))
@@ -111,6 +114,26 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(self.request("POST", "/api/initialize", {"transactions": records})[0], 409)
         self.assertEqual(self.request("PUT", "/api/transactions")[0], 405)
         self.assertEqual(self.request("GET", "/api/unknown")[1]["error"]["code"], "not_found")
+
+    def test_create_rejects_date_only_and_returns_time_estimated(self):
+        record = {"id": "legacy-income", "title": "給与", "date": "2026-09-01",
+                  "type": "income", "category": "収入", "amount": 100}
+        self.assertEqual(self.request("POST", "/api/initialize", {"transactions": [record]}),
+                         (201, {"count": 1}))
+
+        draft = {key: value for key, value in record.items() if key != "id"}
+        status, error = self.request("POST", "/api/transactions", draft)
+        self.assertEqual((status, error["error"]["code"], error["error"]["field"]),
+                         (400, "validation_error", "date"))
+
+        draft.update(date="2026-09-02T09:17", timeEstimated=True)
+        status, result = self.request("POST", "/api/transactions", draft)
+        self.assertEqual(status, 201)
+        transaction = result["transaction"]
+        self.assertEqual(transaction["date"], "2026-09-02T09:17")
+        self.assertIs(transaction["timeEstimated"], False)
+        self.assertEqual(self.request("GET", f'/api/transactions/{transaction["id"]}'),
+                         (200, {"transaction": transaction}))
 
     def test_trajectory_day_returns_one_fixed_sample_without_database_initialization(self):
         timeline = json.loads(TIMELINE_PATH.read_text(encoding="utf-8"))
@@ -209,15 +232,19 @@ class ServerTests(unittest.TestCase):
                   "merchant": "店", "paymentMethod": "cash", "items": items}
         self.assertEqual(self.request("POST", "/api/initialize", {"transactions": [record]}),
                          (201, {"count": 1}))
+        estimated_record = {**record, "date": "2026-09-01T12:00", "timeEstimated": True}
         list_record = self.request("GET", "/api/transactions")[1]["transactions"][0]
         detail_record = self.request("GET", "/api/transactions/old-expense")[1]["transaction"]
-        self.assertEqual(list_record, record)
-        self.assertEqual(detail_record, record)
+        self.assertEqual(list_record, estimated_record)
+        self.assertEqual(detail_record, estimated_record)
 
-        draft = {key: value for key, value in record.items() if key != "id"}
+        draft = {key: value for key, value in estimated_record.items()
+                 if key not in {"id", "timeEstimated"}}
+        draft["date"] = "2026-09-01T09:15"
         status, result = self.request("POST", "/api/transactions", draft)
         self.assertEqual(status, 201)
         created_record = result["transaction"]
+        self.assertIs(created_record["timeEstimated"], False)
         self.assertEqual(created_record["items"], items)
         reloaded_record = self.request("GET", f'/api/transactions/{created_record["id"]}')[1]["transaction"]
         self.assertEqual(reloaded_record, created_record)
@@ -254,9 +281,10 @@ class ServerTests(unittest.TestCase):
                   "type": "income", "category": "収入", "amount": 100}
         self.request("POST", "/api/initialize", {"transactions": [record]})
         path = "/api/transactions/" + quote(unusual_id, safe="")
-        self.assertEqual(self.request("GET", path), (200, {"transaction": record}))
+        estimated_record = {**record, "date": "2026-09-01T12:00", "timeEstimated": True}
+        self.assertEqual(self.request("GET", path), (200, {"transaction": estimated_record}))
         self.assertEqual(self.request("DELETE", "/api/transactions/missing")[0], 404)
-        self.assertEqual(self.request("GET", "/api/transactions")[1]["transactions"], [record])
+        self.assertEqual(self.request("GET", "/api/transactions")[1]["transactions"], [estimated_record])
         self.assertEqual(self.request("DELETE", path), (204, b""))
 
     def test_database_error_response(self):

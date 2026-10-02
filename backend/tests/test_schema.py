@@ -49,6 +49,30 @@ class SchemaTests(unittest.TestCase):
         connection.commit()
         return connection
 
+    def current_database(self):
+        connection = self.connect()
+        connection.execute("CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+        connection.execute("INSERT INTO meta VALUES ('initialized', '1')")
+        connection.execute("""
+            CREATE TABLE transactions (
+                id TEXT PRIMARY KEY, title TEXT NOT NULL, date TEXT NOT NULL,
+                type TEXT NOT NULL, category TEXT NOT NULL, amount INTEGER NOT NULL,
+                merchant TEXT, payment_method TEXT
+            )
+        """)
+        connection.executemany("""
+            INSERT INTO transactions
+                (id, title, date, type, category, amount, merchant, payment_method)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, [
+            ("c", "C", "2026-09-01", "income", "収入", 100, None, None),
+            ("a", "A", "2026-09-01", "income", "収入", 100, None, None),
+            ("b", "B", "2026-09-01", "income", "収入", 100, None, None),
+            ("timed", "時刻あり", "2026-09-02T10:20", "income", "収入", 100, None, None),
+        ])
+        connection.commit()
+        return connection
+
     def test_fresh_schema_has_child_table(self):
         connection = self.connect()
         ensure_schema(connection)
@@ -58,8 +82,40 @@ class SchemaTests(unittest.TestCase):
         foreign_key_delete_actions = {row[6] for row in connection.execute("PRAGMA foreign_key_list(transaction_items)")}
         item_columns = {row[1] for row in connection.execute("PRAGMA table_info(transaction_items)")}
         self.assertNotIn("items_json", transaction_columns)
+        self.assertIn("time_estimated", transaction_columns)
         self.assertEqual(item_columns, {"transaction_id", "position", "name", "amount"})
         self.assertIn("CASCADE", foreign_key_delete_actions)
+        with self.assertRaises(sqlite3.IntegrityError):
+            connection.execute("""
+                INSERT INTO transactions
+                    (id, title, date, type, category, amount, time_estimated)
+                VALUES ('invalid-estimate', 'x', '2026-09-01T12:00', 'income', '収入', 1, 2)
+            """)
+
+    def test_current_schema_backfills_date_only_rows(self):
+        connection = self.current_database()
+
+        ensure_schema(connection)
+        connection.commit()
+
+        rows = connection.execute(
+            "SELECT id, date, time_estimated FROM transactions ORDER BY id"
+        ).fetchall()
+        self.assertEqual(rows, [
+            ("a", "2026-09-01T11:30", 1),
+            ("b", "2026-09-01T15:00", 1),
+            ("c", "2026-09-01T18:30", 1),
+            ("timed", "2026-09-02T10:20", 0),
+        ])
+        self.assertEqual(connection.execute(
+            "SELECT value FROM meta WHERE key = 'initialized'"
+        ).fetchone()[0], "1")
+
+        ensure_schema(connection)
+        connection.commit()
+        self.assertEqual(connection.execute(
+            "SELECT id, date, time_estimated FROM transactions ORDER BY id"
+        ).fetchall(), rows)
 
     def test_fresh_schema_has_trajectory_tables(self):
         connection = self.connect()
@@ -155,6 +211,29 @@ class SchemaTests(unittest.TestCase):
         ).fetchall()
         self.assertEqual(items_after_second_open, items)
 
+    def test_legacy_migration_backfills_datetime_and_preserves_items(self):
+        connection = self.legacy_database(second_items="[]")
+
+        ensure_schema(connection)
+        connection.commit()
+
+        rows = connection.execute(
+            "SELECT id, date, time_estimated FROM transactions ORDER BY id"
+        ).fetchall()
+        self.assertEqual(rows, [
+            ("old-expense", "2026-09-01T12:00", 1),
+            ("old-income", "2026-09-02T12:00", 1),
+        ])
+        self.assertEqual(connection.execute(
+            "SELECT transaction_id, position, name, amount FROM transaction_items ORDER BY position"
+        ).fetchall(), [
+            ("old-expense", 0, "パン", 100),
+            ("old-expense", 1, "パン", 100),
+        ])
+        self.assertEqual(connection.execute(
+            "SELECT value FROM meta WHERE key = 'initialized'"
+        ).fetchone()[0], "1")
+
     def test_migration_failure_rolls_back(self):
         connection = self.legacy_database(second_items="{broken")
         original_rows = connection.execute("SELECT * FROM transactions ORDER BY id").fetchall()
@@ -166,7 +245,11 @@ class SchemaTests(unittest.TestCase):
         original_columns = {row[1] for row in connection.execute("PRAGMA table_info(transactions)")}
         rows_after_failure = connection.execute("SELECT * FROM transactions ORDER BY id").fetchall()
         self.assertIn("items_json", original_columns)
+        self.assertNotIn("time_estimated", original_columns)
         self.assertEqual(original_rows, rows_after_failure)
+        self.assertEqual(connection.execute(
+            "SELECT date FROM transactions WHERE id = 'old-expense'"
+        ).fetchone()[0], "2026-09-01")
         self.assertIsNone(connection.execute(
             "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'transaction_items'"
         ).fetchone())

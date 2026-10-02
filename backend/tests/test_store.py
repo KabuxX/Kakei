@@ -50,6 +50,33 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(self.store.initialize([income("good")]), 1)
         self.assertEqual([item["id"] for item in self.store.list_transactions()], ["good"])
 
+    def test_initialize_assigns_estimated_times_and_create_round_trips_minute_datetime(self):
+        self.store.initialize([
+            income("c", day="2026-09-01"),
+            income("a", day="2026-09-01"),
+            income("b", day="2026-09-01"),
+        ])
+
+        expected = {
+            "a": "2026-09-01T11:30",
+            "b": "2026-09-01T15:00",
+            "c": "2026-09-01T18:30",
+        }
+        for transaction_id, date in expected.items():
+            stored = self.store.get_transaction(transaction_id)
+            self.assertEqual(stored["date"], date)
+            self.assertIs(stored["timeEstimated"], True)
+
+        created = self.store.create_transaction({
+            "title": "買い物", "date": "2026-09-02T09:17", "type": "expense",
+            "category": "食費", "amount": 300, "merchant": "店",
+            "paymentMethod": "cash", "items": [], "timeEstimated": True,
+        })
+        self.assertEqual(created["date"], "2026-09-02T09:17")
+        self.assertIs(created["timeEstimated"], False)
+        self.assertEqual(self.store.get_transaction(created["id"]), created)
+        self.assertIn(created, self.store.list_transactions())
+
     def test_competing_initialize_only_one_wins(self):
         first = [income("first-a"), income("first-b")]
         second = [income("second-a", amount=200)]
@@ -73,11 +100,12 @@ class StoreTests(unittest.TestCase):
              "type": "expense", "category": "食費", "amount": 500},
         ])
         created = self.store.create_transaction({
-            "title": "買い物", "date": "2026-09-02", "type": "expense",
+            "title": "買い物", "date": "2026-09-02T10:45", "type": "expense",
             "category": "食費", "amount": 300, "merchant": "店",
             "paymentMethod": "cash", "items": [{"name": "パン", "amount": 300}],
         })
         self.assertTrue(created["id"])
+        self.assertIs(created["timeEstimated"], False)
         self.assertEqual(self.store.get_transaction(created["id"]), created)
         self.assertEqual([item["id"] for item in self.store.list_transactions()],
                          ["sample-0", created["id"], "old-1"])
@@ -104,7 +132,7 @@ class StoreTests(unittest.TestCase):
             income("income", day="2026-09-01"),
         ])
         created = self.store.create_transaction({
-            "title": "買い物2", "date": "2026-09-04", "type": "expense",
+            "title": "買い物2", "date": "2026-09-04T12:03", "type": "expense",
             "category": "食費", "amount": 200, "merchant": "店",
             "paymentMethod": "cash", "items": items,
         })
@@ -127,7 +155,7 @@ class StoreTests(unittest.TestCase):
              "type": "expense", "category": "食費", "amount": 200, "items": item},
         ])
         created = self.store.create_transaction({
-            "title": "削除", "date": "2026-09-03", "type": "expense",
+            "title": "削除", "date": "2026-09-03T12:03", "type": "expense",
             "category": "食費", "amount": 200, "merchant": "店",
             "paymentMethod": "cash", "items": item,
         })
@@ -146,7 +174,7 @@ class StoreTests(unittest.TestCase):
                 CREATE TRIGGER reject_items BEFORE INSERT ON transaction_items
                 BEGIN SELECT RAISE(ABORT, 'item insert failed'); END
             """)
-        draft = {"title": "買い物", "date": "2026-09-01", "type": "expense",
+        draft = {"title": "買い物", "date": "2026-09-01T12:03", "type": "expense",
                  "category": "食費", "amount": 100, "merchant": "店",
                  "paymentMethod": "cash", "items": [{"name": "パン", "amount": 100}]}
         with self.assertRaises(sqlite3.IntegrityError):

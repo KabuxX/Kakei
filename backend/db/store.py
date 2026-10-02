@@ -10,6 +10,7 @@ from db.schema import ensure_schema
 from db.trajectory_store import read_trajectory_day, replace_trajectory
 from services.trajectory_validation import validate_timeline
 from services.validation import ValidationError, normalize_transaction
+from transaction_datetime import assign_estimated_datetimes
 
 
 class AlreadyInitialized(Exception):
@@ -54,12 +55,12 @@ class Store:
     def _insert(connection, record):
         connection.execute("""
             INSERT INTO transactions
-                (id, title, date, type, category, amount, merchant, payment_method)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                (id, title, date, type, category, amount, merchant, payment_method, time_estimated)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             record["id"], record["title"], record["date"], record["type"],
             record["category"], record["amount"], record.get("merchant"),
-            record.get("paymentMethod"),
+            record.get("paymentMethod"), int(record["timeEstimated"]),
         ))
         connection.executemany("""
             INSERT INTO transaction_items (transaction_id, position, name, amount)
@@ -74,6 +75,7 @@ class Store:
         result = {
             "id": row["id"], "title": row["title"], "date": row["date"],
             "type": row["type"], "category": row["category"], "amount": row["amount"],
+            "timeEstimated": bool(row["time_estimated"]),
         }
         if row["type"] == "expense":
             result.update({
@@ -105,16 +107,23 @@ class Store:
             if self._initialized(connection):
                 raise AlreadyInitialized()
             seen = set()
+            normalized_records = []
             for index, record in enumerate(records):
                 try:
                     normalized = normalize_transaction(record, import_mode=True)
                     if normalized["id"] in seen:
                         raise ValidationError("id", "IDが重複しています。")
                     seen.add(normalized["id"])
-                    self._insert(connection, normalized)
+                    normalized_records.append(normalized)
                 except ValidationError as error:
                     record_id = record.get("id") if isinstance(record, dict) else None
                     raise ValidationError(error.field, f"取引{index + 1}（ID: {record_id}）: {error.message}") from error
+            try:
+                normalized_records = assign_estimated_datetimes(normalized_records)
+            except ValueError as error:
+                raise ValidationError("date", "同じ日付の取引には一意な時刻を割り当てられません。") from error
+            for record in normalized_records:
+                self._insert(connection, record)
             connection.execute("INSERT INTO meta (key, value) VALUES ('initialized', '1')")
             return len(records)
 

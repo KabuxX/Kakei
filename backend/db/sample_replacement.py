@@ -14,6 +14,7 @@ def _expected_samples(records: list[dict]) -> dict:
         record["id"]: (
             record["title"], record["date"], record["type"], record["category"],
             record["amount"], record.get("merchant"), record.get("paymentMethod"),
+            int(record["timeEstimated"]),
             tuple((position, item["name"], item["amount"])
                   for position, item in enumerate(record.get("items", []))),
         ) for record in records
@@ -30,7 +31,7 @@ def _current_samples(connection: sqlite3.Connection) -> dict:
     return {
         row[0]: (*row[1:], tuple(items.get(row[0], [])))
         for row in connection.execute("""
-            SELECT id, title, date, type, category, amount, merchant, payment_method
+            SELECT id, title, date, type, category, amount, merchant, payment_method, time_estimated
             FROM transactions WHERE substr(id, 1, 7) = 'sample-'
         """)
     }

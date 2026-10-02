@@ -36,7 +36,7 @@ class ReplaceSamplesTests(unittest.TestCase):
         self.store = Store(self.db)
         self.store.initialize(self.old)
         self.user = self.store.create_transaction({
-            "title": "利用者の買い物", "date": "2026-09-30", "type": "expense",
+            "title": "利用者の買い物", "date": "2026-09-30T12:30", "type": "expense",
             "category": "日用品", "amount": 700, "merchant": "利用者の店",
             "paymentMethod": "cash", "items": [{"name": "品目", "amount": 700}],
         })
@@ -69,8 +69,19 @@ class ReplaceSamplesTests(unittest.TestCase):
         self.assertEqual(OLD.read_bytes(), self.old_bytes)
 
     def assert_new_data(self):
-        self.assertEqual({record["id"]: record for record in self.store.list_transactions()},
-                         {record["id"]: record for record in [*self.new, self.user]})
+        actual_by_id = {record["id"]: record for record in self.store.list_transactions()}
+        for expected in [*self.new, self.user]:
+            with self.subTest(transaction_id=expected["id"]):
+                actual = actual_by_id.pop(expected["id"])
+                self.assertEqual(actual["date"][:10], expected["date"][:10])
+                expected_estimated = expected.get("timeEstimated", len(expected["date"]) == 10)
+                self.assertIs(actual["timeEstimated"], expected_estimated)
+                actual.pop("timeEstimated")
+                actual["date"] = expected["date"]
+                expected_fields = {key: value for key, value in expected.items()
+                                   if key != "timeEstimated"}
+                self.assertEqual(actual, expected_fields)
+        self.assertEqual(actual_by_id, {})
         for day in self.timeline["days"]:
             place_ids = {event["placeId"] for event in day["events"]}
             place_ids.update(place_id for leg in day["legs"] for place_id in leg.get("viaPlaceIds", []))
@@ -112,7 +123,8 @@ class ReplaceSamplesTests(unittest.TestCase):
             "UPDATE transaction_items SET name = 'edited' WHERE transaction_id = 'sample-1' AND position = 0",
             "UPDATE transactions SET merchant = 'unexpected' WHERE id = 'sample-0'",
             "DELETE FROM transactions WHERE id = 'sample-1'",
-            "INSERT INTO transactions VALUES ('sample-extra', '余分', '2026-09-30', 'income', '収入', 100, NULL, NULL)",
+            "INSERT INTO transactions (id, title, date, type, category, amount, merchant, payment_method) "
+            "VALUES ('sample-extra', '余分', '2026-09-30', 'income', '収入', 100, NULL, NULL)",
         )):
             with self.subTest(sql=sql):
                 self.db = self.directory / f"guard-{index}.sqlite3"

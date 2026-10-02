@@ -8,7 +8,7 @@
 - `Host` は `localhost:<ポート>` または `127.0.0.1:<ポート>` に限ります。`POST`・`DELETE` などの変更リクエストには、同じアドレスの `Origin: http://<Host>` が必要です。条件を満たさない場合は `403 forbidden_origin` を返します。
 - JSON の本文を送るときは `Content-Type: application/json` と正しい `Content-Length` が必要です。一般的な HTTP クライアントは後者を自動設定します。
 - `GET /api/status`、`POST /api/initialize`、`GET /api/trajectory/{date}` は取引 DB の初期化前にも利用できます。それ以外の `/api/*` は初期化前に `409 not_initialized` を返します。
-- 金額は円単位の整数です。日付は実在する日付を `YYYY-MM-DD` で指定します。
+- 金額は円単位の整数です。取引の `date` は実在する日付と時刻を `YYYY-MM-DDTHH:mm` で指定します。これはタイムゾーンのないローカル日時で、秒や UTC オフセットは含みません。
 - JSON レスポンスには `Cache-Control: no-store` が付きます。`DELETE /api/transactions/{id}` の成功時は本文なしの `204` です。
 
 ## エンドポイント一覧
@@ -55,7 +55,7 @@
 }
 ```
 
-成功時は `{"count": 1}` を返します。各取引には重複しない文字列の `id` が必要です。`title`、`date`、`type`、`category`、`amount` も必要です。支出の `merchant`・`paymentMethod` が欠けるか不正な場合は `null`、不正な `items` は空配列に正規化して取り込みます。初期化時は既存データの移行を考慮し、カテゴリと文字列長には新規追加時の制限を適用しません。ただし、日付・取引種別・金額の条件は新規追加時と共通です。
+成功時は `{"count": 1}` を返します。各取引には重複しない文字列の `id` が必要です。`title`、`date`、`type`、`category`、`amount` も必要です。初期化では従来データとの互換性のため `YYYY-MM-DD` も受け付け、同じ日付のレコードごとに安定した仮時刻を割り当て、`timeEstimated: true` として保存します。日時付きレコードの `timeEstimated` は `false` です。支出の `merchant`・`paymentMethod` が欠けるか不正な場合は `null`、不正な `items` は空配列に正規化して取り込みます。初期化時は既存データの移行を考慮し、カテゴリと文字列長には新規追加時の制限を適用しません。ただし、日付の実在性・取引種別・金額の条件は新規追加時と共通です。
 
 ### 取引の形式
 
@@ -65,7 +65,7 @@
 {
   "id": "example-income-20260901",
   "title": "給与",
-  "date": "2026-09-01",
+  "date": "2026-09-01T09:17",
   "type": "income",
   "category": "収入",
   "amount": 300000
@@ -78,7 +78,7 @@
 {
   "id": "example-expense-20260901",
   "title": "昼食",
-  "date": "2026-09-01",
+  "date": "2026-09-01T12:30",
   "type": "expense",
   "category": "食費",
   "amount": 1200,
@@ -93,7 +93,7 @@
 | 項目 | 条件 |
 | --- | --- |
 | `title` | 空白を除き 1〜60 文字 |
-| `date` | 実在する `YYYY-MM-DD` 形式の日付 |
+| `date` | 実在する `YYYY-MM-DDTHH:mm` 形式のローカル日時 |
 | `type` | `income` または `expense` |
 | `category` | 収入は `収入`。支出は `食費`、`住まい`、`日用品`、`交通`、`娯楽`、`その他` のいずれか |
 | `amount` | 1〜999,999,999 の整数。真偽値は不可 |
@@ -101,11 +101,11 @@
 | `paymentMethod` | 支出では必須。`cash`、`credit_card`、`e_money`、`bank_account` のいずれか |
 | `items` | 支出の品目配列。省略時は空配列。各品目は 1〜60 文字の `name` と正の整数 `amount` を持つ。空でない場合は品目金額の合計が取引金額と一致すること |
 
-収入のレスポンスには `merchant`、`paymentMethod`、`items` は含まれません。初期化で取り込んだ支出のレスポンスでは、`merchant` と `paymentMethod` が `null` の場合があります。
+取引レスポンスにはサーバー管理の boolean `timeEstimated` が含まれます。日付だけの初期取込値や移行で補完した値では `true`、分単位で入力した値では `false` です。新規作成リクエストにはこのプロパティを含めません。収入のレスポンスには `merchant`、`paymentMethod`、`items` は含まれません。初期化で取り込んだ支出のレスポンスでは、`merchant` と `paymentMethod` が `null` の場合があります。
 
 ### 取引の取得・追加・削除
 
-- `GET /api/transactions` は `{"transactions": [取引, ...]}` を返します。日付の降順、同じ日付では ID の降順です。
+- `GET /api/transactions` は `{"transactions": [取引, ...]}` を返します。分単位日時の降順、同じ日時では ID の降順です。
 - `GET /api/transactions/{id}` は `{"transaction": 取引}` を返します。見つからない場合は `404 not_found` です。
 - `POST /api/transactions` は `id` 以外の取引項目を JSON 本文で受け取り、`{"transaction": 作成した取引}` を返します。本文の上限は 64 KiB です。`id` を送ると `400 validation_error` です。
 - `DELETE /api/transactions/{id}` は成功時に `204` を返します。見つからない場合は `404 not_found` です。
@@ -122,7 +122,7 @@ curl -X POST http://localhost:8765/api/initialize \
 curl -X POST http://localhost:8765/api/transactions \
   -H 'Origin: http://localhost:8765' \
   -H 'Content-Type: application/json' \
-  --data '{"title":"昼食","date":"2026-09-01","type":"expense","category":"食費","amount":1200,"merchant":"店舗名","paymentMethod":"e_money","items":[{"name":"定食","amount":1200}]}'
+  --data '{"title":"昼食","date":"2026-09-01T12:30","type":"expense","category":"食費","amount":1200,"merchant":"店舗名","paymentMethod":"e_money","items":[{"name":"定食","amount":1200}]}'
 ```
 
 ## 日付別の軌跡サンプル
@@ -196,7 +196,7 @@ curl http://localhost:8765/api/trajectory/2026-09-19
 エラーの JSON 形式は共通です。入力検証エラーでは `field` が付く場合があります。
 
 ```json
-{"error": {"code": "validation_error", "message": "正しい日付を入力してください。", "field": "date"}}
+{"error": {"code": "validation_error", "message": "正しい日時を入力してください。", "field": "date"}}
 ```
 
 | HTTP | `code` | 主な条件 |
