@@ -8,7 +8,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from schema import ensure_schema
+from db.schema import ensure_schema
 
 
 class SchemaTests(unittest.TestCase):
