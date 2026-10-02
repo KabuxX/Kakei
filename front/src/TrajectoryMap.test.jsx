@@ -3,7 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import { buildTrajectoryDays } from './lib/trajectory-model.js';
 
-const mocks = vi.hoisted(() => ({ maps: [], overlays: [], layers: [] }));
+const mocks = vi.hoisted(() => ({ maps: [], overlays: [] }));
 vi.mock('mapbox-gl', () => ({
   default: {
     supported: vi.fn(() => true),
@@ -18,11 +18,6 @@ vi.mock('@deck.gl/mapbox', () => ({
   MapboxOverlay: class {
     constructor(options) { this.options = options; this.setProps = vi.fn(); mocks.overlays.push(this); }
   },
-}));
-vi.mock('@deck.gl/layers', () => ({
-  PathLayer: class { constructor(props) { Object.assign(this, props); mocks.layers.push(this); } },
-  ScatterplotLayer: class { constructor(props) { Object.assign(this, props); mocks.layers.push(this); } },
-  TextLayer: class { constructor(props) { Object.assign(this, props); mocks.layers.push(this); } },
 }));
 
 const places = {
@@ -41,7 +36,7 @@ const days = buildTrajectoryDays(transactions, { places, days: [1, 2].map((numbe
   ], legs: [{ fromEventId: `${date}-a`, toEventId: `${date}-b`, modeHint: 'walk' }] };
 }) });
 
-beforeEach(() => { vi.stubEnv('VITE_MAPBOX_ACCESS_TOKEN', 'pk.test-token'); mocks.maps.length = 0; mocks.overlays.length = 0; mocks.layers.length = 0; });
+beforeEach(() => { vi.stubEnv('VITE_MAPBOX_ACCESS_TOKEN', 'pk.test-token'); mocks.maps.length = 0; mocks.overlays.length = 0; });
 afterEach(() => { cleanup(); vi.unstubAllEnvs(); });
 
 it('creates one map and overlay, fits each date, and releases the map', async () => {
@@ -56,11 +51,25 @@ it('creates one map and overlay, fits each date, and releases the map', async ()
   expect(mocks.maps).toHaveLength(1);
   expect(mocks.overlays[0].setProps).toHaveBeenCalled();
   const lastLayers = mocks.overlays[0].setProps.mock.lastCall[0].layers;
-  expect(lastLayers[0].data).toBe(days.get('2026-09-02').segments);
-  lastLayers[1].onClick({ object: days.get('2026-09-02').events[1] });
+  expect(lastLayers[0].props.data).toBe(days.get('2026-09-02').segments);
+  lastLayers[1].props.onClick({ object: days.get('2026-09-02').events[1] });
   expect(onSelectEvent).toHaveBeenCalledWith('2026-09-02-b');
   view.unmount();
   expect(mocks.maps[0].remove).toHaveBeenCalledOnce();
+});
+
+it('invalidates actual deck.gl marker attributes when selection changes', async () => {
+  const { default: TrajectoryMap } = await import('./TrajectoryMap.jsx');
+  const day = days.get('2026-09-01');
+  const view = render(<TrajectoryMap day={day} selectedEventId={null} onSelectEvent={vi.fn()} />);
+  const previous = mocks.overlays[0].setProps.mock.lastCall[0].layers[1];
+  view.rerender(<TrajectoryMap day={day} selectedEventId={day.events[1].id} onSelectEvent={vi.fn()} />);
+  const next = mocks.overlays[0].setProps.mock.lastCall[0].layers[1];
+  expect(next.props.data).toBe(previous.props.data);
+  expect(next.props.updateTriggers.getFillColor).not.toEqual(previous.props.updateTriggers.getFillColor);
+  expect(next.props.updateTriggers.getRadius).not.toEqual(previous.props.updateTriggers.getRadius);
+  expect(next.props.getFillColor(day.events[1])).not.toEqual(previous.props.getFillColor(day.events[1]));
+  expect(mocks.maps[0].fitBounds).toHaveBeenCalledOnce();
 });
 
 it('shows setup, WebGL, and map error messages', async () => {

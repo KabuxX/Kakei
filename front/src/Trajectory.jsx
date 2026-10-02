@@ -9,6 +9,17 @@ const yen = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY',
 const dateLabel = (date) => `${Number(date.slice(5, 7))}月${Number(date.slice(8))}日`;
 const modeLabel = { train: '電車', bus: 'バス', walk_estimated: '徒歩（推定）', inferred: '移動（推定）' };
 
+class MapErrorBoundary extends React.Component {
+  state = { failed: false };
+
+  static getDerivedStateFromError() { return { failed: true }; }
+
+  render() {
+    if (this.state.failed) return <div className="trajectory-map-loading" role="status">地図を読み込めませんでした。時系列はそのまま確認できます。</div>;
+    return this.props.children;
+  }
+}
+
 export default function Trajectory() {
   const days = useMemo(() => buildTrajectoryDays(transactions, timeline), []);
   const dates = useMemo(() => [...days.keys()], [days]);
@@ -58,9 +69,11 @@ export default function Trajectory() {
     <div className="trajectory-content-grid">
       <section className="trajectory-map-panel" aria-labelledby="trajectory-map-heading">
         <div className="trajectory-panel-heading"><div><p className="trajectory-section-label">MAP</p><h2 id="trajectory-map-heading">一日の移動</h2></div><span>{dateLabel(selectedDate)}</span></div>
-        <Suspense fallback={<div className="trajectory-map-loading" role="status">地図を準備しています…</div>}>
-          <TrajectoryMap day={day} selectedEventId={selectedEventId} onSelectEvent={setSelectedEventId} />
-        </Suspense>
+        <MapErrorBoundary>
+          <Suspense fallback={<div className="trajectory-map-loading" role="status">地図を準備しています…</div>}>
+            <TrajectoryMap day={day} selectedEventId={selectedEventId} onSelectEvent={setSelectedEventId} />
+          </Suspense>
+        </MapErrorBoundary>
         <div className="trajectory-legend" aria-label="経路の凡例">
           <span><i className="trajectory-legend-line walk" aria-hidden="true" />徒歩・推定経路</span>
           <span><i className="trajectory-legend-line rail" aria-hidden="true" />電車</span>

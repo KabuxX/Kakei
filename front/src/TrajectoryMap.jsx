@@ -25,6 +25,7 @@ function layersFor(day, selectedEventId, onSelectEvent) {
       getLineWidth: 2,
       lineWidthUnits: 'pixels',
       getRadius: (event) => event.id === selectedEventId ? 11 : 9,
+      updateTriggers: { getFillColor: selectedEventId, getRadius: selectedEventId },
       radiusUnits: 'pixels',
       pickable: true,
       onClick: ({ object }) => { if (object) onSelectEvent(object.id); },
