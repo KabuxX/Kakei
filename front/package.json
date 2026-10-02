@@ -3,6 +3,8 @@
   "private": true,
   "version": "1.0.0",
   "scripts": {
+    "dev:mock": "vite --mode mock --host 127.0.0.1",
+    "dev:api": "vite --mode api --host 127.0.0.1",
     "build": "vite build",
     "test": "vitest run",
     "test:e2e": "playwright test"

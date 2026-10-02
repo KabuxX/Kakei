@@ -86,6 +86,7 @@ function buildTrajectoryDays(transactions, timeline) {
       const coordinates = [from.coordinates, ...via, to.coordinates];
       return {
         id: `${from.id}-${to.id}`,
+        stageNumber: index + 1,
         fromEventId: from.id,
         toEventId: to.id,
         coordinates,

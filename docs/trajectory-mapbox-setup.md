@@ -12,23 +12,25 @@
 
 ## Mapbox の公開トークン
 
-[Mapbox GL JS の公式手順](https://docs.mapbox.com/mapbox-gl-js/guides/get-started/use-with-npm/)に従い、Mapbox アカウントのアクセストークンを用意します。Vite のビルド時に次の環境変数を指定してください。
+[Mapbox GL JS の公式手順](https://docs.mapbox.com/mapbox-gl-js/guides/get-started/use-with-npm/)に従い、Mapbox アカウントの公開アクセストークンを用意します。リポジトリ直下の `.env` に `VITE_MAPBOX_ACCESS_TOKEN` を設定します。Vite は開発時とビルド時にこのファイルを読みます。
 
 ```sh
-cd front
-VITE_MAPBOX_ACCESS_TOKEN=pk.your-public-token npm run build
+VITE_MAPBOX_ACCESS_TOKEN=pk.your-public-token
 ```
 
-トークンはソースコードや Git に保存しないでください。`VITE_` で始まる値はブラウザ用のビルドに含まれるため、公開可能なトークンを使用してください。地図は Mapbox GL JS、地点と線は deck.gl、距離と表示範囲の計算は Turf.js を使用します。Mapbox の地図には出典表示が付きます。
+`.env` は Git の対象外です。この値はブラウザ用のビルドに含まれるため、`pk.` で始まる公開用トークンを使用してください。地図は Mapbox GL JS、地点と線は deck.gl、距離と表示範囲の計算は Turf.js を使用します。Mapbox の地図には出典表示が付きます。
+
+背景地図は Mapbox Standard を使用し、地名ラベルは日本語、地図フォントは Noto Sans CJK JP を指定します。日本語文字にも地図スタイルのフォントを適用するため、端末の代替フォントによるグリフ生成は無効にしています。各日の区間は順番ごとに色を変え、地図下の凡例と時系列の区間番号を対応させています。訪問地点の記録時刻は時系列に表示します。日本語訳がない地図ラベルは元の言語で表示される場合があります。
 
 トークンがない場合、WebGL に対応していない場合、または地図の読み込みに失敗した場合も、日付の切替と時系列一覧は使えます。
 
 ## バックエンドなしで画面を確認する
 
-取引 API を使わず軌跡だけ確認する場合は、ビルド済みの `front/dist` を静的に配信します。
+概要と軌跡を新しいサンプルで確認する場合は、mock 環境を起動します。
 
 ```sh
-python3 -m http.server 8765 --directory front/dist
+cd front
+npm run dev:mock
 ```
 
-`http://localhost:8765/#trajectory` を開いてください。概要の新規初期化は取引 API を使うため、この静的プレビューでは保存されません。
+`http://127.0.0.1:5173/` の概要には `september-transactions.json`、軌跡には `september-timeline.json` が表示されます。mock 環境は保存済みの SQLite DB を読みません。

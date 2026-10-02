@@ -45,3 +45,17 @@ it('selects a timeline stop while retaining controls when the map is unavailable
   expect(screen.getByRole('combobox', { name: '表示する日付' })).toBeTruthy();
   expect(screen.getByRole('heading', { name: '時系列' })).toBeTruthy();
 });
+
+it('pairs each timeline leg with its map stage color without a time range', async () => {
+  const { default: Trajectory } = await import('./Trajectory.jsx');
+  const { container } = render(<Trajectory />);
+  expect([...container.querySelectorAll('.trajectory-leg-label')].map((element) => element.textContent)).toEqual([
+    '区間1 · 徒歩（推定） · 約0.5 km',
+    '区間2 · 徒歩（推定） · 約1.1 km',
+  ]);
+  expect([...container.querySelectorAll('.trajectory-stage-key')].map((element) => element.textContent)).toEqual([
+    '区間1',
+    '区間2',
+  ]);
+  expect(screen.getByRole('button', { name: /09:10.*スターバックス コーヒー 渋谷フクラス店/ })).toBeTruthy();
+});

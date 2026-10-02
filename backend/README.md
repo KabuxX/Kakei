@@ -14,6 +14,8 @@ backend/.venv/bin/fastapi run backend/server.py --host 127.0.0.1 --port 8765
 
 画面はReact製で、ビルド済みの `front/dist/` をFastAPIが配信します。通常の起動にNode.jsは不要です。`front/dist/` はGitに含めています。画面のソースを変更したときだけ、リポジトリのルートから次を実行して、更新された `front/dist/` もコミットしてください。
 
+フロントを開発するときは、[mock 環境と API 環境](../front/README.md) を選んで起動できます。
+
 ```sh
 cd front
 npm ci

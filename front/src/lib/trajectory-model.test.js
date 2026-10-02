@@ -27,6 +27,7 @@ it('joins dated transactions and traffic evidence into a measured day', async ()
   expect(day.stopCount).toBe(2);
   expect(day.events.map((event) => event.transaction?.id)).toEqual(['coffee', 'grocery']);
   expect(day.segments[0]).toMatchObject({ mode: 'train', coordinates: [[139.7, 35.657], [139.711, 35.647]] });
+  expect(day.segments[0].stageNumber).toBe(1);
   expect(day.bounds).toEqual([139.7, 35.647, 139.711, 35.657]);
   expect(day.distanceKm).toBeGreaterThan(1);
 });
@@ -40,6 +41,9 @@ it('builds 30 chronological Tokyo days with sourced places and matching purchase
     expect(day.events.length).toBeGreaterThanOrEqual(2);
     expect(day.events.map((event) => event.time)).toEqual([...day.events.map((event) => event.time)].sort());
     expect(day.segments).toHaveLength(day.events.length - 1);
+    day.segments.forEach((segment, index) => {
+      expect(segment.stageNumber).toBe(index + 1);
+    });
     expect(day.bounds).toHaveLength(4);
     for (const event of day.events) {
       expect(event.place.sourceUrl).toMatch(/^https:\/\//);

@@ -2,8 +2,10 @@ import React from 'react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import { buildTrajectoryDays } from './lib/trajectory-model.js';
+import transactionsFixture from './data/september-transactions.json';
+import timelineFixture from './data/september-timeline.json';
 
-const mocks = vi.hoisted(() => ({ maps: [], overlays: [] }));
+const mocks = vi.hoisted(() => ({ maps: [], overlays: [], markers: [] }));
 vi.mock('mapbox-gl', () => ({
   default: {
     supported: vi.fn(() => true),
@@ -11,6 +13,13 @@ vi.mock('mapbox-gl', () => ({
       constructor(options) { this.options = options; this.controls = []; this.handlers = {}; this.fitBounds = vi.fn(); this.remove = vi.fn(); mocks.maps.push(this); }
       addControl(control) { this.controls.push(control); }
       on(name, callback) { this.handlers[name] = callback; }
+      off(name) { delete this.handlers[name]; }
+      getBearing() { return 0; }
+    },
+    Marker: class {
+      constructor(options) { this.options = options; this.remove = vi.fn(); mocks.markers.push(this); }
+      setLngLat(coordinates) { this.coordinates = coordinates; return this; }
+      addTo(map) { this.map = map; return this; }
     },
   },
 }));
@@ -36,7 +45,7 @@ const days = buildTrajectoryDays(transactions, { places, days: [1, 2].map((numbe
   ], legs: [{ fromEventId: `${date}-a`, toEventId: `${date}-b`, modeHint: 'walk' }] };
 }) });
 
-beforeEach(() => { vi.stubEnv('VITE_MAPBOX_ACCESS_TOKEN', 'pk.test-token'); mocks.maps.length = 0; mocks.overlays.length = 0; });
+beforeEach(() => { vi.stubEnv('VITE_MAPBOX_ACCESS_TOKEN', 'pk.test-token'); mocks.maps.length = 0; mocks.overlays.length = 0; mocks.markers.length = 0; });
 afterEach(() => { cleanup(); vi.unstubAllEnvs(); });
 
 it('creates one map and overlay, fits each date, and releases the map', async () => {
@@ -47,15 +56,39 @@ it('creates one map and overlay, fits each date, and releases the map', async ()
   expect(mocks.overlays).toHaveLength(1);
   expect(mocks.maps[0].controls).toContain(mocks.overlays[0]);
   expect(mocks.maps[0].fitBounds).toHaveBeenCalled();
+  mocks.maps[0].handlers.resize();
+  expect(mocks.maps[0].fitBounds).toHaveBeenCalledTimes(2);
   view.rerender(<TrajectoryMap day={days.get('2026-09-02')} selectedEventId="2026-09-02-b" onSelectEvent={onSelectEvent} />);
   expect(mocks.maps).toHaveLength(1);
   expect(mocks.overlays[0].setProps).toHaveBeenCalled();
+  expect(mocks.markers.slice(0, 2).every((marker) => marker.remove.mock.calls.length === 1)).toBe(true);
   const lastLayers = mocks.overlays[0].setProps.mock.lastCall[0].layers;
   expect(lastLayers[0].props.data).toBe(days.get('2026-09-02').segments);
   lastLayers[1].props.onClick({ object: days.get('2026-09-02').events[1] });
   expect(onSelectEvent).toHaveBeenCalledWith('2026-09-02-b');
   view.unmount();
   expect(mocks.maps[0].remove).toHaveBeenCalledOnce();
+  expect(mocks.markers.at(-1).remove).toHaveBeenCalledOnce();
+});
+
+it('configures Mapbox Standard with Japanese Noto Sans CJK JP labels', async () => {
+  const { default: TrajectoryMap } = await import('./TrajectoryMap.jsx');
+  render(<TrajectoryMap day={days.get('2026-09-01')} selectedEventId={null} onSelectEvent={vi.fn()} />);
+  expect(mocks.maps[0].options.style).toBe('mapbox://styles/mapbox/standard');
+  expect(mocks.maps[0].options.config).toEqual({ basemap: { font: 'Noto Sans CJK JP' } });
+  expect(mocks.maps[0].options.localIdeographFontFamily).toBe(false);
+  expect(mocks.maps[0].options.language).toBe('ja');
+});
+
+it('shows distinct stage colors without direction or time annotations', async () => {
+  const { default: TrajectoryMap } = await import('./TrajectoryMap.jsx');
+  const day = buildTrajectoryDays(transactionsFixture, timelineFixture).get('2026-09-02');
+  render(<TrajectoryMap day={day} selectedEventId={null} onSelectEvent={vi.fn()} />);
+  const layers = mocks.overlays[0].setProps.mock.lastCall[0].layers;
+  const paths = layers.find((layer) => layer.id === 'trajectory-paths');
+  expect(new Set(day.segments.map((segment) => paths.props.getColor(segment).join(','))).size).toBe(day.segments.length);
+  expect(mocks.markers.filter((marker) => marker.options.element.className === 'trajectory-map-stage')).toHaveLength(0);
+  expect(mocks.markers.filter((marker) => marker.options.element.className === 'trajectory-map-stop-number')).toHaveLength(day.events.length);
 });
 
 it('invalidates actual deck.gl marker attributes when selection changes', async () => {

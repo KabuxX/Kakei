@@ -2,6 +2,7 @@ import React, { Suspense, lazy, useMemo, useState } from 'react';
 import transactions from './data/september-transactions.json';
 import timeline from './data/september-timeline.json';
 import { buildTrajectoryDays } from './lib/trajectory-model.js';
+import { stageColor } from './lib/trajectory-display.js';
 import '../trajectory.css';
 
 const TrajectoryMap = lazy(() => import('./TrajectoryMap.jsx'));
@@ -74,9 +75,8 @@ export default function Trajectory() {
             <TrajectoryMap day={day} selectedEventId={selectedEventId} onSelectEvent={setSelectedEventId} />
           </Suspense>
         </MapErrorBoundary>
-        <div className="trajectory-legend" aria-label="経路の凡例">
-          <span><i className="trajectory-legend-line walk" aria-hidden="true" />徒歩・推定経路</span>
-          <span><i className="trajectory-legend-line rail" aria-hidden="true" />電車</span>
+        <div className="trajectory-legend" aria-label="区間の色">
+          {day.segments.map((segment) => <span className="trajectory-stage-key" key={segment.id} style={{ '--stage-color': stageColor(segment.stageNumber).hex }}><i className="trajectory-legend-line" aria-hidden="true" />区間{segment.stageNumber}</span>)}
           <span><i className="trajectory-legend-stop" aria-hidden="true" />訪問地点</span>
         </div>
       </section>
@@ -87,7 +87,7 @@ export default function Trajectory() {
           {day.events.map((event, index) => {
             const before = day.segments[index - 1];
             return <li key={event.id}>
-              {before && <p className="trajectory-leg-label">{modeLabel[before.mode]} · 約{before.distanceKm.toFixed(1)} km</p>}
+              {before && <p className="trajectory-leg-label" style={{ '--stage-color': stageColor(before.stageNumber).hex }}><i className="trajectory-legend-line" aria-hidden="true" />区間{before.stageNumber} · {modeLabel[before.mode]} · 約{before.distanceKm.toFixed(1)} km</p>}
               <button className="trajectory-event" type="button" aria-pressed={selectedEventId === event.id} onClick={() => setSelectedEventId(event.id)}>
                 <span className="trajectory-event-index">{index + 1}</span>
                 <span className="trajectory-event-main"><span className="trajectory-event-time">{event.time}</span><strong>{event.place.name}</strong><small>{event.place.address}</small>

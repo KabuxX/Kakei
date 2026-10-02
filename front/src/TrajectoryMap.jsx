@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { MapboxOverlay } from '@deck.gl/mapbox';
-import { PathLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers';
+import { PathLayer, ScatterplotLayer } from '@deck.gl/layers';
+import { stageColor } from './lib/trajectory-display.js';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 function layersFor(day, selectedEventId, onSelectEvent) {
@@ -10,10 +11,11 @@ function layersFor(day, selectedEventId, onSelectEvent) {
       id: 'trajectory-paths',
       data: day.segments,
       getPath: (segment) => segment.coordinates,
-      getColor: (segment) => segment.mode === 'train' || segment.mode === 'bus' ? [65, 94, 238] : [31, 32, 37],
-      getWidth: 5,
+      getColor: (segment) => stageColor(segment.stageNumber).rgb,
+      getWidth: 6,
       widthUnits: 'pixels',
-      rounded: true,
+      jointRounded: true,
+      capRounded: true,
     }),
     new ScatterplotLayer({
       id: 'trajectory-stops',
@@ -29,17 +31,6 @@ function layersFor(day, selectedEventId, onSelectEvent) {
       radiusUnits: 'pixels',
       pickable: true,
       onClick: ({ object }) => { if (object) onSelectEvent(object.id); },
-    }),
-    new TextLayer({
-      id: 'trajectory-stop-numbers',
-      data: day.events.map((event, index) => ({ ...event, number: String(index + 1) })),
-      getPosition: (event) => event.coordinates,
-      getText: (event) => event.number,
-      getColor: [31, 32, 37],
-      getSize: 13,
-      sizeUnits: 'pixels',
-      fontWeight: 600,
-      pickable: false,
     }),
   ];
 }
@@ -61,7 +52,10 @@ export default function TrajectoryMap({ day, selectedEventId, onSelectEvent }) {
       const map = new mapboxgl.Map({
         container: containerRef.current,
         accessToken: token,
-        style: 'mapbox://styles/mapbox/light-v11',
+        style: 'mapbox://styles/mapbox/standard',
+        config: { basemap: { font: 'Noto Sans CJK JP' } },
+        language: 'ja',
+        localIdeographFontFamily: false,
         center: [139.703, 35.658],
         zoom: 12,
         attributionControl: true,
@@ -88,14 +82,36 @@ export default function TrajectoryMap({ day, selectedEventId, onSelectEvent }) {
   }, [day, selectedEventId, onSelectEvent, issue]);
 
   useEffect(() => {
-    if (!mapRef.current || issue) return;
-    const [west, south, east, north] = day.bounds;
-    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    mapRef.current.fitBounds([[west, south], [east, north]], {
-      padding: 56,
-      maxZoom: 15,
-      duration: reduceMotion ? 0 : 400,
+    const map = mapRef.current;
+    if (!map || issue) return undefined;
+    const markers = [];
+    day.events.forEach((event, index) => {
+      const element = document.createElement('span');
+      element.className = 'trajectory-map-stop-number';
+      element.textContent = String(index + 1);
+      element.setAttribute('aria-hidden', 'true');
+      markers.push(new mapboxgl.Marker({ element }).setLngLat(event.coordinates).addTo(map));
     });
+    return () => {
+      markers.forEach((marker) => marker.remove());
+    };
+  }, [day, issue]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || issue) return undefined;
+    const [west, south, east, north] = day.bounds;
+    const fitDay = () => {
+      const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      map.fitBounds([[west, south], [east, north]], {
+        padding: 56,
+        maxZoom: 15,
+        duration: reduceMotion ? 0 : 400,
+      });
+    };
+    fitDay();
+    map.on('resize', fitDay);
+    return () => map.off('resize', fitDay);
   }, [day, issue]);
 
   const message = !token ? 'Mapbox の公開トークンを設定すると地図を表示できます。時系列はそのまま確認できます。' : issue;
