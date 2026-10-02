@@ -1,6 +1,6 @@
 # Kakei backend API リファレンス
 
-この文書は、FastAPI で提供するローカル API の現行仕様です。Vite の mock API とは別のものです。実装は [`server.py`](server.py)、取引の入力条件は [`validation.py`](validation.py) を参照してください。軌跡データはサーバー生成時に JSON から SQLite へ同期します。
+この文書は、FastAPI で提供するローカル API の現行仕様です。Vite の mock API とは別のものです。起動入口は [`server.py`](server.py)、API 実装は [`api/app.py`](api/app.py)、取引の入力条件は [`services/validation.py`](services/validation.py) を参照してください。軌跡データはサーバー生成時に JSON から SQLite へ同期します。
 
 ## 接続と共通ルール
 
