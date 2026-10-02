@@ -9,7 +9,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from db.store import Store
+from db.store import Store, TrajectoryConflict, TrajectoryNotFound
+from services.trajectory_mutation import parse_trajectory_command
+from services.validation import ValidationError
 
 
 FIXTURE = Path(__file__).resolve().parents[2] / "front" / "src" / "data" / "september-timeline.json"
@@ -32,6 +34,129 @@ class TrajectoryStoreTests(unittest.TestCase):
             "places": {place_id: place for place_id, place in timeline["places"].items() if place_id in place_ids},
             "days": [day],
         }
+
+    def mutate(self, method, payload):
+        action = {"POST": "create", "PUT": "update", "DELETE": "delete"}[method]
+        return self.store.mutate_trajectory(parse_trajectory_command(payload, method), action)
+
+    def place_data(self, name="新しい場所"):
+        return {"name": name, "address": "東京都渋谷区渋谷1-1-1",
+                "coordinates": [139.7, 35.65], "sourceUrl": "https://example.com/place"}
+
+    def test_mutate_each_kind_round_trip(self):
+        date = "2026-10-03"
+        place = self.place_data()
+        self.assertEqual(self.mutate("POST", {"kind": "place", "id": "new-place", "data": place}),
+                         {"kind": "place", "id": "new-place", "data": place})
+        self.mutate("POST", {"kind": "day", "date": date, "data": {"events": [], "legs": []}})
+        self.assertEqual(self.store.get_trajectory_day(date), {"places": {}, "days": [{"date": date, "events": [], "legs": []}]})
+        for event_id, time in (("visit-1", "09:00"), ("visit-2", "10:00")):
+            self.mutate("POST", {"kind": "event", "date": date, "id": event_id,
+                                 "data": {"time": time, "placeId": "new-place"}})
+        self.mutate("POST", {"kind": "leg", "date": date, "fromEventId": "visit-1", "toEventId": "visit-2", "data": {}})
+        self.assertEqual(self.store.get_trajectory_day(date)["days"][0]["legs"],
+                         [{"fromEventId": "visit-1", "toEventId": "visit-2"}])
+        self.mutate("PUT", {"kind": "place", "id": "new-place", "data": self.place_data("更新した場所")})
+        self.mutate("PUT", {"kind": "event", "date": date, "id": "visit-2", "data": {"time": "11:00", "placeId": "new-place"}})
+        self.mutate("PUT", {"kind": "leg", "date": date, "fromEventId": "visit-1", "toEventId": "visit-2", "data": {"modeHint": "walk"}})
+        saved = self.store.get_trajectory_day(date)
+        self.assertEqual(saved["places"]["new-place"]["name"], "更新した場所")
+        self.assertEqual(saved["days"][0]["events"][1]["time"], "11:00")
+        self.assertEqual(saved["days"][0]["legs"][0]["modeHint"], "walk")
+        self.mutate("DELETE", {"kind": "leg", "date": date, "fromEventId": "visit-1", "toEventId": "visit-2"})
+        self.mutate("DELETE", {"kind": "event", "date": date, "id": "visit-1"})
+        self.mutate("DELETE", {"kind": "event", "date": date, "id": "visit-2"})
+        self.mutate("DELETE", {"kind": "day", "date": date})
+        self.mutate("DELETE", {"kind": "place", "id": "new-place"})
+        self.assertIsNone(self.store.get_trajectory_day(date))
+        with closing(sqlite3.connect(self.db)) as connection:
+            self.assertEqual(connection.execute("SELECT value FROM meta WHERE key = 'trajectory_modified'").fetchone()[0], "1")
+            self.assertEqual(connection.execute("SELECT value FROM meta WHERE key = 'trajectory_seeded'").fetchone()[0], "1")
+
+    def test_day_replacement_and_empty_day(self):
+        date = "2026-10-03"
+        self.mutate("POST", {"kind": "place", "id": "p", "data": self.place_data()})
+        created_day = self.mutate("POST", {"kind": "day", "date": date, "data": {
+            "events": [{"id": "later", "time": "11:00", "placeId": "p"},
+                       {"id": "earlier", "time": "09:00", "placeId": "p"}],
+            "legs": [{"fromEventId": "earlier", "toEventId": "later"}],
+        }})
+        self.assertEqual([event["id"] for event in created_day["data"]["events"]], ["earlier", "later"])
+        updated = self.mutate("PUT", {"kind": "day", "date": date, "data": {"events": [], "legs": []}})
+        self.assertEqual(updated["data"], {"events": [], "legs": []})
+        self.assertEqual(self.store.get_trajectory_day(date), {"places": {}, "days": [{"date": date, "events": [], "legs": []}]})
+
+    def test_optional_via_list_round_trip(self):
+        date = "2026-10-03"
+        self.mutate("POST", {"kind": "place", "id": "p", "data": self.place_data()})
+        self.mutate("POST", {"kind": "day", "date": date, "data": {
+            "events": [{"id": "a", "time": "09:00", "placeId": "p"},
+                       {"id": "b", "time": "10:00", "placeId": "p"},
+                       {"id": "c", "time": "11:00", "placeId": "p"}],
+            "legs": [{"fromEventId": "b", "toEventId": "c", "viaPlaceIds": []}],
+        }})
+        saved_day = self.store.get_trajectory_day(date)
+        self.assertEqual(saved_day["days"][0]["legs"][0]["viaPlaceIds"], [])
+        with closing(sqlite3.connect(self.db)) as connection:
+            self.assertEqual(connection.execute("SELECT position FROM trajectory_legs WHERE day_date = ?", (date,)).fetchone()[0], 1)
+
+    def test_put_omission_removes_optional_field(self):
+        self.store.sync_trajectory(self.timeline())
+        self.mutate("PUT", {"kind": "event", "date": "2026-09-19", "id": "2026-09-19-1",
+                            "data": {"time": "09:10", "placeId": "shibuyaStarbucks"}})
+        event = self.store.get_trajectory_day("2026-09-19")["days"][0]["events"][0]
+        self.assertNotIn("transactionId", event)
+
+    def test_referenced_place_or_event_cannot_be_deleted(self):
+        timeline = self.timeline()
+        timeline["places"]["via-only"] = self.place_data()
+        timeline["days"][0]["legs"][0]["viaPlaceIds"] = ["via-only"]
+        self.store.sync_trajectory(timeline)
+        before = self.store.get_trajectory_day("2026-09-19")
+        for command in ({"kind": "place", "id": "via-only"},
+                        {"kind": "event", "date": "2026-09-19", "id": "2026-09-19-1"}):
+            with self.subTest(command=command), self.assertRaises(TrajectoryConflict):
+                self.mutate("DELETE", command)
+            self.assertEqual(self.store.get_trajectory_day("2026-09-19"), before)
+
+    def test_event_insert_or_reorder_conflict_rolls_back(self):
+        self.store.sync_trajectory(self.timeline())
+        before = self.store.get_trajectory_day("2026-09-19")
+        commands = (
+            ("POST", {"kind": "event", "date": "2026-09-19", "id": "between",
+                      "data": {"time": "11:00", "placeId": "shibuyaStarbucks"}}),
+            ("PUT", {"kind": "event", "date": "2026-09-19", "id": "2026-09-19-2",
+                     "data": {"time": "19:00", "placeId": "shibuyaMuji"}}),
+        )
+        for method, command in commands:
+            with self.subTest(method=method), self.assertRaises(TrajectoryConflict):
+                self.mutate(method, command)
+            self.assertEqual(self.store.get_trajectory_day("2026-09-19"), before)
+
+    def test_invalid_event_value_is_validation_error_before_edge_conflict(self):
+        self.store.sync_trajectory(self.timeline())
+        before = self.store.get_trajectory_day("2026-09-19")
+        with self.assertRaises(ValidationError):
+            self.mutate("POST", {"kind": "event", "date": "2026-09-19", "id": "invalid",
+                                 "data": {"time": "11:00", "placeId": []}})
+        self.assertEqual(self.store.get_trajectory_day("2026-09-19"), before)
+
+    def test_duplicate_event_id_across_days(self):
+        self.store.sync_trajectory(self.timeline())
+        self.mutate("POST", {"kind": "day", "date": "2026-10-03", "data": {"events": [], "legs": []}})
+        with self.assertRaises(TrajectoryConflict):
+            self.mutate("POST", {"kind": "event", "date": "2026-10-03", "id": "2026-09-19-1",
+                                 "data": {"time": "09:00", "placeId": "shibuyaStarbucks"}})
+        self.assertEqual(self.store.get_trajectory_day("2026-10-03")["days"][0]["events"], [])
+
+    def test_mutation_missing_and_invalid_references(self):
+        with self.assertRaises(TrajectoryNotFound):
+            self.mutate("PUT", {"kind": "day", "date": "2026-10-03", "data": {"events": [], "legs": []}})
+        self.mutate("POST", {"kind": "day", "date": "2026-10-03", "data": {"events": [], "legs": []}})
+        with self.assertRaises(ValidationError):
+            self.mutate("POST", {"kind": "event", "date": "2026-10-03", "id": "e",
+                                 "data": {"time": "09:00", "placeId": "missing"}})
+        self.assertEqual(self.store.get_trajectory_day("2026-10-03")["days"][0]["events"], [])
 
     def test_sync_round_trips_all_days(self):
         timeline = self.timeline()

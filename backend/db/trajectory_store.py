@@ -31,7 +31,9 @@ def replace_trajectory(connection: sqlite3.Connection, timeline: dict) -> None:
              event.get("transactionId"))
             for position, event in enumerate(day["events"])
         ))
-        for position, leg in enumerate(day["legs"]):
+        event_positions = {event["id"]: position for position, event in enumerate(day["events"])}
+        for leg in day["legs"]:
+            position = event_positions[leg["fromEventId"]]
             connection.execute("""
                 INSERT INTO trajectory_legs
                     (day_date, position, from_event_id, to_event_id, mode_hint,
@@ -103,3 +105,22 @@ def read_trajectory_day(connection: sqlite3.Connection, date: str) -> dict | Non
                 "sourceUrl": row["source_url"],
             }
     return {"places": places, "days": [{"date": date, "events": events, "legs": legs}]}
+
+
+def read_trajectory_timeline(connection: sqlite3.Connection) -> dict:
+    """Read every saved place and day, including places not yet used by a day."""
+    places = {}
+    for row in connection.execute("""
+        SELECT id, name, address, longitude, latitude, source_url
+        FROM trajectory_places ORDER BY rowid
+    """):
+        places[row["id"]] = {
+            "name": row["name"], "address": row["address"],
+            "coordinates": [row["longitude"], row["latitude"]],
+            "sourceUrl": row["source_url"],
+        }
+    days = [
+        read_trajectory_day(connection, row["date"])["days"][0]
+        for row in connection.execute("SELECT date FROM trajectory_days ORDER BY date")
+    ]
+    return {"places": places, "days": days}

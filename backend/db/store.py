@@ -1,5 +1,6 @@
 """SQLite storage for the local Kakei API."""
 
+import copy
 import sqlite3
 import uuid
 from contextlib import contextmanager
@@ -7,7 +8,8 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from db.schema import ensure_schema
-from db.trajectory_store import read_trajectory_day, replace_trajectory
+from db.trajectory_store import read_trajectory_day, read_trajectory_timeline, replace_trajectory
+from services.trajectory_mutation import TrajectoryCommand
 from services.trajectory_validation import validate_timeline
 from services.validation import ValidationError, normalize_transaction
 from transaction_datetime import assign_estimated_datetimes
@@ -19,6 +21,149 @@ class AlreadyInitialized(Exception):
 
 class NotInitialized(Exception):
     pass
+
+
+class TrajectoryNotFound(Exception):
+    pass
+
+
+class TrajectoryConflict(Exception):
+    pass
+
+
+def _trajectory_day(timeline: dict, date: str) -> dict | None:
+    return next((day for day in timeline["days"] if day["date"] == date), None)
+
+
+def _trajectory_event(day: dict, event_id: str) -> dict | None:
+    return next((event for event in day["events"] if event["id"] == event_id), None)
+
+
+def _sort_trajectory_day(day: dict) -> None:
+    day["events"].sort(key=lambda event: event.get("time", "") if isinstance(event, dict) and isinstance(event.get("time", ""), str) else "")
+    positions = {event["id"]: index for index, event in enumerate(day["events"])
+                 if isinstance(event, dict) and isinstance(event.get("id"), str)}
+    day["legs"].sort(key=lambda leg: positions.get(leg.get("fromEventId"), -1)
+                     if isinstance(leg, dict) and isinstance(leg.get("fromEventId"), str) else -1)
+
+
+def _trajectory_edges_valid(day: dict) -> bool:
+    positions = {event["id"]: index for index, event in enumerate(day["events"])}
+    return all(positions.get(leg["fromEventId"], -2) + 1 == positions.get(leg["toEventId"], -1)
+               for leg in day["legs"])
+
+
+def _apply_trajectory_command(timeline: dict, command: TrajectoryCommand, action: str) -> dict | None:
+    kind = command.kind
+    day = _trajectory_day(timeline, command.date) if command.date else None
+    if kind == "day":
+        if action == "create":
+            if day is not None:
+                raise TrajectoryConflict("日付が重複しています。")
+            day = {"date": command.date, **copy.deepcopy(command.data)}
+            timeline["days"].append(day)
+        elif day is None:
+            raise TrajectoryNotFound("指定日が見つかりません。")
+        elif action == "update":
+            day.update(copy.deepcopy(command.data))
+        else:
+            timeline["days"].remove(day)
+        if action != "delete":
+            ids = [event.get("id") for event in day["events"] if isinstance(event, dict)]
+            if len(ids) != len(set(item for item in ids if isinstance(item, str))):
+                if all(isinstance(item, str) for item in ids):
+                    raise TrajectoryConflict("イベントIDが重複しています。")
+            other_ids = {event["id"] for other in timeline["days"] if other is not day
+                         for event in other["events"]}
+            if any(isinstance(item, str) and item in other_ids for item in ids):
+                raise TrajectoryConflict("イベントIDが重複しています。")
+            _sort_trajectory_day(day)
+    elif kind == "place":
+        places = timeline["places"]
+        exists = command.id in places
+        if action == "create" and exists:
+            raise TrajectoryConflict("地点IDが重複しています。")
+        if action != "create" and not exists:
+            raise TrajectoryNotFound("地点が見つかりません。")
+        if action == "delete":
+            for current in timeline["days"]:
+                if any(event["placeId"] == command.id for event in current["events"]):
+                    raise TrajectoryConflict("参照中の地点は削除できません。")
+                if any(command.id in leg.get("viaPlaceIds", []) for leg in current["legs"]):
+                    raise TrajectoryConflict("参照中の地点は削除できません。")
+            del places[command.id]
+        else:
+            places[command.id] = copy.deepcopy(command.data)
+    else:
+        if day is None:
+            raise TrajectoryNotFound("指定日が見つかりません。")
+        if kind == "event":
+            if action != "delete":
+                candidate = {"places": timeline["places"], "days": [{
+                    "date": command.date,
+                    "events": [{"id": command.id, **copy.deepcopy(command.data)}],
+                    "legs": [],
+                }]}
+                try:
+                    validate_timeline(candidate, require_complete=False)
+                except ValueError as error:
+                    raise ValidationError("trajectory", str(error)) from error
+            event = _trajectory_event(day, command.id)
+            if action == "create":
+                if any(_trajectory_event(current, command.id) for current in timeline["days"]):
+                    raise TrajectoryConflict("イベントIDが重複しています。")
+                day["events"].append({"id": command.id, **copy.deepcopy(command.data)})
+            elif event is None:
+                raise TrajectoryNotFound("イベントが見つかりません。")
+            elif action == "update":
+                event.clear()
+                event.update({"id": command.id, **copy.deepcopy(command.data)})
+            else:
+                if any(command.id in (leg["fromEventId"], leg["toEventId"]) for leg in day["legs"]):
+                    raise TrajectoryConflict("区間が参照するイベントは削除できません。")
+                day["events"].remove(event)
+            _sort_trajectory_day(day)
+            if not _trajectory_edges_valid(day):
+                raise TrajectoryConflict("イベントの順序が既存区間と衝突します。")
+        else:
+            leg = next((item for item in day["legs"] if item["fromEventId"] == command.from_event_id
+                        and item["toEventId"] == command.to_event_id), None)
+            if action == "create":
+                if leg is not None:
+                    raise TrajectoryConflict("区間が重複しています。")
+                leg = {"fromEventId": command.from_event_id,
+                       "toEventId": command.to_event_id, **copy.deepcopy(command.data)}
+                day["legs"].append(leg)
+            elif leg is None:
+                raise TrajectoryNotFound("区間が見つかりません。")
+            elif action == "update":
+                leg.clear()
+                leg.update({"fromEventId": command.from_event_id,
+                            "toEventId": command.to_event_id, **copy.deepcopy(command.data)})
+            else:
+                day["legs"].remove(leg)
+            _sort_trajectory_day(day)
+
+    if action == "delete":
+        return None
+    result = {"kind": kind}
+    if command.date is not None:
+        result["date"] = command.date
+    if command.id is not None:
+        result["id"] = command.id
+    if command.from_event_id is not None:
+        result["fromEventId"] = command.from_event_id
+        result["toEventId"] = command.to_event_id
+    if kind == "day":
+        data = {"events": day["events"], "legs": day["legs"]}
+    elif kind == "place":
+        data = timeline["places"][command.id]
+    elif kind == "event":
+        data = {key: value for key, value in _trajectory_event(day, command.id).items() if key != "id"}
+    else:
+        data = {key: value for key, value in leg.items() if key not in ("fromEventId", "toEventId")}
+    result["data"] = copy.deepcopy(data)
+    return result
 
 
 class Store:
@@ -111,6 +256,22 @@ class Store:
         with self._connection() as connection:
             connection.execute("BEGIN")
             return read_trajectory_day(connection, date)
+
+    def mutate_trajectory(self, command: TrajectoryCommand, action: str) -> dict | None:
+        if action not in ("create", "update", "delete"):
+            raise ValueError("unknown trajectory action")
+        with self._connection() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            timeline = read_trajectory_timeline(connection)
+            result = _apply_trajectory_command(timeline, command, action)
+            try:
+                validate_timeline(timeline, require_complete=False)
+            except ValueError as error:
+                raise ValidationError("trajectory", str(error)) from error
+            replace_trajectory(connection, timeline)
+            connection.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('trajectory_seeded', '1')")
+            connection.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('trajectory_modified', '1')")
+            return result
 
     def initialize(self, records):
         if not isinstance(records, list):
