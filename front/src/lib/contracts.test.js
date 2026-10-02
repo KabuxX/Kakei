@@ -84,9 +84,9 @@ it('loads an initialized server without touching browser storage', async () => {
 });
 
 it('preserves write methods, payloads, and server field errors', async () => {
-  const draft = { title: '給与', date: '2026-09-01', type: 'income', category: '収入', amount: 100 };
+  const draft = { title: '給与', date: '2026-09-01T09:17', type: 'income', category: '収入', amount: 100 };
   const fetchImpl = vi.fn()
-    .mockResolvedValueOnce(json(201, { transaction: { id: 'new', ...draft } }))
+    .mockResolvedValueOnce(json(201, { transaction: { id: 'new', ...draft, timeEstimated: false } }))
     .mockResolvedValueOnce({ status: 204, ok: true })
     .mockResolvedValueOnce(json(200, { deletedCount: 2 }))
     .mockResolvedValueOnce(json(400, { error: { code: 'validation_error', field: 'title', message: '内容を確認してください。' } }));
@@ -98,7 +98,7 @@ it('preserves write methods, payloads, and server field errors', async () => {
   expect(fetchImpl.mock.calls.map(([path]) => path)).toEqual([
     '/api/transactions', '/api/transactions/a%2Fb%20%3F', '/api/samples', '/api/transactions',
   ]);
-  expect(draft).toEqual({ title: '給与', date: '2026-09-01', type: 'income', category: '収入', amount: 100 });
+  expect(draft).toEqual({ title: '給与', date: '2026-09-01T09:17', type: 'income', category: '収入', amount: 100 });
 });
 
 it('rejects malformed server responses', async () => {
@@ -139,6 +139,19 @@ it('exports quoted items and leaves legacy columns empty', () => {
   expect(csv).toContain("'=店名");
   expect(csv).toContain('パン,');
   expect(csv).toContain('"300","","",""');
+});
+
+it('exports minute date and precision', () => {
+  const csv = serializeTransactionsCsv([
+    { id: 'entered', date: '2026-10-03T09:17', timeEstimated: false, type: 'income', title: '給与', category: '収入', amount: 1000 },
+    { id: 'estimated', date: '2026-10-03T08:00', timeEstimated: true, type: 'income', title: '旧給与', category: '収入', amount: 900 },
+    { id: 'legacy', date: '2026-10-03', type: 'income', title: '旧日付', category: '収入', amount: 800 },
+  ]);
+  const rows = csv.slice(1).split('\r\n');
+  expect(rows[0]).toBe('"日付","時刻の精度","種類","内容","カテゴリ","金額","店名・取引先","支払方法","品目"');
+  expect(rows[1]).toBe('"2026-10-03T09:17","入力時刻","収入","給与","収入","1000","","",""');
+  expect(rows[2]).toBe('"2026-10-03T08:00","仮設定","収入","旧給与","収入","900","","",""');
+  expect(rows[3]).toBe('"2026-10-03","仮設定","収入","旧日付","収入","800","","",""');
 });
 
 it('ignores non-detail and malformed hash values', () => {

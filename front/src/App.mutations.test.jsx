@@ -5,7 +5,7 @@ import App from './App.jsx';
 import { useTransactions } from './useTransactions.js';
 
 vi.mock('./useTransactions.js', () => ({ useTransactions: vi.fn() }));
-const sample = { id: 'sample-0', title: '給与', type: 'income', category: '収入', date: '2026-09-28', amount: 320000 };
+const sample = { id: 'sample-0', title: '給与', type: 'income', category: '収入', date: '2026-09-28T09:17', amount: 320000, timeEstimated: true };
 let methods;
 
 beforeEach(() => {
@@ -21,11 +21,14 @@ it('opens the dialog and submits one new transaction', async () => {
   render(<App />);
   fireEvent.click(screen.getByRole('button', { name: '取引を追加' }));
   expect(screen.getByRole('dialog')).toBeTruthy();
+  fireEvent.change(screen.getByLabelText(/日付と時刻/), { target: { value: '2026-10-03T09:17' } });
   fireEvent.click(screen.getByRole('radio', { name: '収入' }));
   fireEvent.change(screen.getByRole('textbox', { name: /内容/ }), { target: { value: '臨時収入' } });
   fireEvent.change(screen.getByRole('spinbutton', { name: /金額/ }), { target: { value: '1000' } });
   fireEvent.click(screen.getByRole('button', { name: '追加する' }));
   await waitFor(() => expect(methods.addTransaction).toHaveBeenCalledTimes(1));
+  expect(methods.addTransaction).toHaveBeenCalledWith(expect.objectContaining({ date: '2026-10-03T09:17' }));
+  expect(screen.getByText('2026年10月')).toBeTruthy();
 });
 
 it('confirms sample deletion before one request', async () => {

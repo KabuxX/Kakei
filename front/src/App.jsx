@@ -8,6 +8,7 @@ import TransactionDialog from './TransactionDialog.jsx';
 import { useTransactions } from './useTransactions.js';
 import { dashboardForMonth, monthKey } from './lib/dashboard.js';
 import { serializeTransactionsCsv } from './lib/transaction-data.js';
+import { transactionMonthKey } from './lib/transaction-datetime.js';
 import { detailIdFromHash, deleteIdFromHash } from './lib/transaction-detail.js';
 
 export default function App() {
@@ -88,8 +89,8 @@ export default function App() {
   };
   const submitTransaction = async (draft) => {
     const refreshed = await data.addTransaction(draft);
-    const savedDate = new Date(`${draft.date}T12:00:00`);
-    setMonth(new Date(savedDate.getFullYear(), savedDate.getMonth(), 1));
+    const [year, monthNumber] = transactionMonthKey(draft.date).split('-').map(Number);
+    setMonth(new Date(year, monthNumber - 1, 1));
     setToast(refreshed ? '取引を追加しました。' : '取引を保存しました。表示を更新してください。');
     return refreshed;
   };

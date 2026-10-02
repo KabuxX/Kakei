@@ -83,23 +83,26 @@
 - Modify: `front/src/TransactionDialog.test.jsx`
 - Modify: `front/src/TransactionDetail.jsx`
 - Modify: `front/src/TransactionDetail.test.jsx`
+- Modify: `front/styles.css`
 - Modify: `front/src/App.jsx`
 - Modify: `front/src/App.mutations.test.jsx`
 - Modify: `front/src/dev-environments.test.js`
 - Modify: `front/src/lib/transaction-data.js`
 - Modify: `front/src/lib/contracts.test.js`
+- Modify: `front/dev/mock-api.mjs`
 
 **Interfaces:**
 - Produces: `dateTimeLocalValue(date: Date = new Date()) -> string` はローカル時刻の `YYYY-MM-DDTHH:mm` を返す。
 - Produces: `transactionCalendarDate(value: string) -> string`、`transactionMonthKey(value: string) -> string`、`formatTransactionDate(value: string) -> string` はそれぞれ先頭10文字、先頭7文字、日本語の年月日と分単位時刻を返す。日付だけの旧 UI fixture は従来の日付だけで表示する。
+- Produces: 開発用 mock API の `assignEstimatedTransactionDatetimes(records)` は旧日付サンプルにバックエンドと同じ安定した仮時刻を割り当てる。
 - Consumes: バックエンドの `date` と `timeEstimated`。作成フォームは `date` のみ送信し、推定状態はサーバーに決めさせる。
 
-- [ ] **手順1: フロント日時ヘルパーとコンポーネントの失敗テストを書く。** `transaction-datetime.test.js` に `test_round_trips_local_datetime_without_timezone_shift` を追加する。`TransactionDialog.test.jsx` に `sends minute-level datetime with a visible label` を追加し、`App.mutations.test.jsx` と `dev-environments.test.js` の新規作成 fixture を分単位へ更新する。`TransactionDetail.test.jsx` に `shows estimated and entered times distinctly` を追加する。`contracts.test.js` では API 作成 fixture を分単位にし、`exports minute date and precision` を追加する。
+- [ ] **手順1: フロント日時ヘルパーとコンポーネントの失敗テストを書く。** `transaction-datetime.test.js` にローカル日時の往復と仮時刻割当を追加する。`TransactionDialog.test.jsx` に `sends minute-level datetime with a visible label` を追加し、`App.mutations.test.jsx` と `dev-environments.test.js` の新規作成 fixture を分単位へ更新する。mock API の旧サンプル時刻・作成日時契約も検証する。`TransactionDetail.test.jsx` に `shows estimated and entered times distinctly` を追加する。`contracts.test.js` では API 作成 fixture を分単位にし、`exports minute date and precision` を追加する。
 - [ ] **手順2: 日時ヘルパーテストを実行して失敗を確認する。** `cd front && npm test -- src/lib/transaction-datetime.test.js` を実行する。
 - [ ] **手順3: `transaction-datetime.js` と追加フォームを実装する。** ローカル `Date` getter で初期値を作り、UTC変換を使わない。フォーム欄を可視ラベル「日付と時刻」、`type="datetime-local"`、分単位の `step` にし、厳密な日時検証後に `date` を送る。
 - [ ] **手順4: `TransactionDetail.jsx` と `App.jsx` を実装する。** 詳細は日本語年月日と24時間表記の時刻を表示し、`timeEstimated` のときだけ「時刻は仮設定」を表示する。追加後の表示月は datetime-local 値の先頭7文字から選ぶ。
 - [ ] **手順5: CSV出力を更新する。** `transaction-data.js` の `date` 列に分単位日時を出力し、「時刻の精度」列に「仮設定」または「入力時刻」を出力する。既存の CSV 引用・数式対策を保つ。
-- [ ] **手順6: フロントの関連単体テストを実行する。** `cd front && npm test -- src/lib/transaction-datetime.test.js src/TransactionDialog.test.jsx src/TransactionDetail.test.jsx src/lib/contracts.test.js` が成功することを確認する。
+- [ ] **手順6: フロントの関連単体テストを実行する。** `cd front && npm test -- src/lib/transaction-datetime.test.js src/TransactionDialog.test.jsx src/TransactionDetail.test.jsx src/lib/contracts.test.js src/App.mutations.test.jsx src/dev-environments.test.js` が成功することを確認する。
 - [ ] **手順7: タスク3の変更をコミットする。** フロント helper、入力、詳細、CSV、テストを `feat: show minute precision in transaction details` でコミットする。
 
 ### Task 4: 集計・軌跡の日付互換

@@ -1,16 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Icon } from './AppShell.jsx';
-import { categories, monthKey } from './lib/dashboard.js';
+import { categories } from './lib/dashboard.js';
 import { ApiError } from './lib/api.js';
 import { parseExpenseDraft, ValidationError } from './lib/transaction-data.js';
+import { dateTimeLocalValue, isValidTransactionDateTime } from './lib/transaction-datetime.js';
 
 const maxAmount = 999999999;
 const fieldIds = { title: 'title-input', amount: 'amount-input', date: 'date-input', merchant: 'merchant-input', paymentMethod: 'payment-method-input', itemRows: 'item-rows' };
-
-function initialDate(month) {
-  const today = new Date();
-  return monthKey(month) === monthKey(today) ? `${monthKey(today)}-${String(today.getDate()).padStart(2, '0')}` : `${monthKey(month)}-01`;
-}
 
 export default function TransactionDialog({ open, selectedMonth, busy, onClose, onSubmit }) {
   const dialog = useRef(null);
@@ -18,7 +14,7 @@ export default function TransactionDialog({ open, selectedMonth, busy, onClose, 
   const [type, setType] = useState('expense');
   const [title, setTitle] = useState('');
   const [manualAmount, setManualAmount] = useState('');
-  const [date, setDate] = useState(() => initialDate(selectedMonth));
+  const [date, setDate] = useState(dateTimeLocalValue);
   const [category, setCategory] = useState(categories[0].name);
   const [merchant, setMerchant] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('');
@@ -36,7 +32,7 @@ export default function TransactionDialog({ open, selectedMonth, busy, onClose, 
     const element = dialog.current;
     if (!element) return;
     if (open && !element.open) {
-      setType('expense'); setTitle(''); setManualAmount(''); setDate(initialDate(selectedMonth));
+      setType('expense'); setTitle(''); setManualAmount(''); setDate(dateTimeLocalValue());
       setCategory(categories[0].name); setMerchant(''); setPaymentMethod(''); setItemRows([]);
       setErrors({}); setFormError(''); sequence.current = 0;
       if (element.showModal) element.showModal();
@@ -78,9 +74,8 @@ export default function TransactionDialog({ open, selectedMonth, busy, onClose, 
     if (blocked) return;
     setErrors({}); setFormError('');
     const cleanTitle = title.trim();
-    const parsedDate = new Date(`${date}T12:00:00`);
     if (!cleanTitle) { showError('title', '内容を入力してください。'); return; }
-    if (Number.isNaN(parsedDate.getTime()) || date !== `${parsedDate.getFullYear()}-${String(parsedDate.getMonth() + 1).padStart(2, '0')}-${String(parsedDate.getDate()).padStart(2, '0')}`) { showError('date', '正しい日付を入力してください。'); return; }
+    if (!isValidTransactionDateTime(date)) { showError('date', '正しい日時を入力してください。'); return; }
     let parsedAmount;
     let details = {};
     if (type === 'expense') {
@@ -117,7 +112,7 @@ export default function TransactionDialog({ open, selectedMonth, busy, onClose, 
       <div className="form-grid">
         <label className="field full"><span>内容 <em>必須</em></span><input id="title-input" name="title" type="text" maxLength="60" placeholder="例：スーパーで買い物" aria-describedby="title-error" aria-invalid={!!errors.title || undefined} required value={title} onChange={(event) => setTitle(event.target.value)} /><small id="title-error" className="field-error" hidden={!errors.title}>{errors.title}</small></label>
         <label className="field"><span>金額 <em>必須</em></span><span className="yen-input"><b>¥</b><input id="amount-input" name="amount" type="number" inputMode="numeric" min="1" max="999999999" placeholder="0" aria-describedby="amount-error" aria-invalid={!!errors.amount || undefined} required={!itemized} readOnly={itemized} value={amount} onChange={(event) => setManualAmount(event.target.value)} /></span><small id="amount-error" className="field-error" hidden={!errors.amount}>{errors.amount}</small></label>
-        <label className="field"><span>日付 <em>必須</em></span><input id="date-input" name="date" type="date" aria-describedby="date-error" aria-invalid={!!errors.date || undefined} required value={date} onChange={(event) => setDate(event.target.value)} /><small id="date-error" className="field-error" hidden={!errors.date}>{errors.date}</small></label>
+        <label className="field"><span>日付と時刻 <em>必須</em></span><input id="date-input" name="date" type="datetime-local" step="60" aria-describedby="date-error" aria-invalid={!!errors.date || undefined} required value={date} onChange={(event) => setDate(event.target.value)} /><small id="date-error" className="field-error" hidden={!errors.date}>{errors.date}</small></label>
         <label className="field full"><span>カテゴリ</span><select id="category-input" name="category" value={category} onChange={(event) => setCategory(event.target.value)}>{(type === 'income' ? ['収入'] : categories.map((item) => item.name)).map((name) => <option key={name} value={name}>{name}</option>)}</select></label>
       </div>
       <div id="expense-fields" className="expense-fields" hidden={type !== 'expense'}>

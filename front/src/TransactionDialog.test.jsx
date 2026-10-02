@@ -36,3 +36,21 @@ it('submits income without expense fields', async () => {
   fireEvent.click(screen.getByRole('button', { name: '追加する' }));
   await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ title: '給与', type: 'income', amount: 1000, category: '収入' })));
 });
+
+it('sends minute-level datetime with a visible label', async () => {
+  const onSubmit = vi.fn().mockResolvedValue(true);
+  render(<TransactionDialog {...props} onSubmit={onSubmit} />);
+  const dateTime = screen.getByLabelText(/日付と時刻/);
+  expect(dateTime.type).toBe('datetime-local');
+  expect(dateTime.getAttribute('step')).toBe('60');
+  fireEvent.change(dateTime, { target: { value: '2026-10-03T09:17' } });
+  fireEvent.click(screen.getByRole('radio', { name: '収入' }));
+  fireEvent.change(screen.getByRole('textbox', { name: /内容/ }), { target: { value: '給与' } });
+  fireEvent.change(screen.getByRole('spinbutton', { name: /金額/ }), { target: { value: '1000' } });
+  fireEvent.click(screen.getByRole('button', { name: '追加する' }));
+
+  await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+    title: '給与', date: '2026-10-03T09:17', type: 'income', amount: 1000, category: '収入',
+  })));
+  expect(onSubmit.mock.calls[0][0]).not.toHaveProperty('timeEstimated');
+});

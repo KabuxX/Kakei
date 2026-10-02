@@ -18,3 +18,17 @@ it('shows a missing state for an unknown detail ID', () => {
   render(<TransactionDetail record={null} onDelete={vi.fn()} />);
   expect(screen.getByRole('heading', { name: '取引が見つかりません' })).toBeTruthy();
 });
+
+it('shows estimated and entered times distinctly', () => {
+  const record = {
+    id: 'legacy-income', title: '給与', type: 'income', date: '2026-10-03T09:17',
+    category: '収入', amount: 1000, timeEstimated: true,
+  };
+  const { rerender } = render(<TransactionDetail record={record} />);
+  expect(screen.getByText('2026年10月3日 09:17')).toBeTruthy();
+  expect(screen.getByText('時刻は仮設定')).toBeTruthy();
+
+  rerender(<TransactionDetail record={{ ...record, timeEstimated: false }} />);
+  expect(screen.getByText('2026年10月3日 09:17')).toBeTruthy();
+  expect(screen.queryByText('時刻は仮設定')).toBeNull();
+});

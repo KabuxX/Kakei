@@ -1,3 +1,5 @@
+import { isValidTransactionDateTime } from './transaction-datetime.js';
+
   const maxAmount = 999999999;
   const PAYMENT_METHOD_LABELS = Object.freeze({
     cash: '現金',
@@ -63,11 +65,12 @@
       const safe = /^[=+\-@]/.test(text) && typeof value !== 'number' ? `'${text}` : text;
       return `"${safe.replace(/"/g, '""')}"`;
     };
-    const rows = [['日付', '種類', '内容', 'カテゴリ', '金額', '店名・取引先', '支払方法', '品目']];
+    const rows = [['日付', '時刻の精度', '種類', '内容', 'カテゴリ', '金額', '店名・取引先', '支払方法', '品目']];
     for (const record of records) {
       const details = readExpenseDetails(record);
       rows.push([
         record.date,
+        record.timeEstimated === true || !isValidTransactionDateTime(record.date) ? '仮設定' : '入力時刻',
         record.type === 'income' ? '収入' : '支出',
         record.title,
         record.category,

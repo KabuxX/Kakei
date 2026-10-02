@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import { assignEstimatedTransactionDatetimes, isValidTransactionDateTime } from '../src/lib/transaction-datetime.js';
 
 const fixtureUrl = new URL('../src/data/september-transactions.json', import.meta.url);
 
@@ -14,7 +15,7 @@ export function mockApi() {
   return {
     name: 'kakei-json-api',
     configureServer(server) {
-      let transactions = JSON.parse(readFileSync(fixtureUrl, 'utf8'));
+      let transactions = assignEstimatedTransactionDatetimes(JSON.parse(readFileSync(fixtureUrl, 'utf8')));
       server.middlewares.use(async (request, response, next) => {
         const path = new URL(request.url, 'http://localhost').pathname;
         if (!path.startsWith('/api/')) return next();
@@ -31,7 +32,10 @@ export function mockApi() {
             for await (const chunk of request) body += chunk;
             const draft = JSON.parse(body);
             if (!draft || typeof draft !== 'object' || Array.isArray(draft)) throw new Error('invalid draft');
-            const transaction = { ...draft, id: `dev-${randomUUID()}` };
+            if (!isValidTransactionDateTime(draft.date)) {
+              return send(response, 400, { error: { code: 'validation_error', message: '正しい日時を入力してください。', field: 'date' } });
+            }
+            const transaction = { ...draft, timeEstimated: false, id: `dev-${randomUUID()}` };
             transactions = [...transactions, transaction];
             return send(response, 201, { transaction });
           } catch {

@@ -25,15 +25,33 @@ it('uses the 37-record September JSON in mock mode and preserves mock operations
   let base = await startVite('mock');
   expect(await (await fetch(`${base}/api/status`)).json()).toEqual({ initialized: true });
   const initial = (await (await fetch(`${base}/api/transactions`)).json()).transactions;
-  expect(initial).toEqual(septemberTransactions);
   expect(initial).toHaveLength(37);
+  expect(initial.map(({ id }) => id)).toEqual(septemberTransactions.map(({ id }) => id));
+  expect(initial.every((record) => /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(record.date)
+    && record.timeEstimated === true)).toBe(true);
+  expect(initial.find((record) => record.id === 'sample-0')).toMatchObject({
+    date: '2026-09-28T10:48', timeEstimated: true,
+  });
+  expect(initial.filter((record) => record.date.slice(0, 10) === '2026-09-30').map(({ id, date }) => [id, date])).toEqual([
+    ['sample-20260930-a', '2026-09-30T11:30'],
+    ['sample-20260930-b', '2026-09-30T15:00'],
+    ['sample-20260930-metro', '2026-09-30T18:30'],
+  ]);
+
+  const dateOnly = await fetch(`${base}/api/transactions`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ date: '2026-09-29', title: '日付のみ', type: 'income', category: '収入', amount: 100 }),
+  });
+  expect(dateOnly.status).toBe(400);
 
   const created = await fetch(`${base}/api/transactions`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ date: '2026-09-29', title: '追加', type: 'income', category: '収入', amount: 100 }),
+    body: JSON.stringify({ date: '2026-09-29T10:12', timeEstimated: true, title: '追加', type: 'income', category: '収入', amount: 100 }),
   });
   expect(created.status).toBe(201);
-  const id = (await created.json()).transaction.id;
+  const createdRecord = (await created.json()).transaction;
+  expect(createdRecord).toMatchObject({ date: '2026-09-29T10:12', timeEstimated: false });
+  const id = createdRecord.id;
   expect((await (await fetch(`${base}/api/transactions`)).json()).transactions).toHaveLength(initial.length + 1);
   expect((await fetch(`${base}/api/transactions/${id}`, { method: 'DELETE' })).status).toBe(204);
   expect((await (await fetch(`${base}/api/transactions`)).json()).transactions).toHaveLength(initial.length);
