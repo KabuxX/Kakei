@@ -4,6 +4,8 @@ import { detailHref, detailIdFromHash } from './transaction-detail.js';
 import { parseExpenseDraft, readExpenseDetails, serializeTransactionsCsv } from './transaction-data.js';
 import { createSampleTransactions } from './sample-data.js';
 import { dashboardForMonth } from './dashboard.js';
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 const json = (status, value) => ({ status, ok: status < 400, json: async () => value });
 
@@ -53,16 +55,24 @@ it('preserves old expense fields and safe CSV escaping', () => {
   expect(serializeTransactionsCsv([record])).toContain('"100","","",""');
 });
 
-it('keeps sample values and monthly dashboard totals', () => {
-  const samples = createSampleTransactions(new Date(2026, 8, 1));
-  expect(samples).toHaveLength(16);
-  expect(samples[0]).toMatchObject({ id: 'sample-0', title: '給与', amount: 320000 });
+it('uses September transaction JSON for fresh dashboard totals', () => {
+  const samples = createSampleTransactions();
+  expect(samples).toHaveLength(103);
+  expect(samples.find((record) => record.id === 'sample-0')).toMatchObject({ title: '給与', amount: 320000 });
   const model = dashboardForMonth(samples, new Date(2026, 8, 1));
-  expect(model.income).toBe(332000);
-  expect(model.expense).toBe(173900);
-  expect(model.balance).toBe(158100);
-  expect(model.items[0].date).toBe('2026-09-28');
+  expect(model.income).toBe(320000);
+  expect(model.expense).toBe(183800);
+  expect(model.balance).toBe(136200);
+  expect(model.items[0].date).toBe('2026-09-30');
   expect(model.weekly).toHaveLength(5);
+});
+
+it('preserves the old sixteen transaction fixture as a separate JSON file', () => {
+  const path = resolve(process.cwd(), 'src/data/old-samples.json');
+  expect(existsSync(path)).toBe(true);
+  const archived = JSON.parse(readFileSync(path, 'utf8'));
+  expect(archived).toHaveLength(16);
+  expect(archived[0]).toMatchObject({ id: 'sample-0', date: '2026-09-28', title: '給与', amount: 320000 });
 });
 
 it('loads an initialized server without touching browser storage', async () => {
@@ -98,7 +108,7 @@ it('rejects malformed server responses', async () => {
 });
 
 it('keeps sample expense details consistent and income fields absent', () => {
-  for (const record of createSampleTransactions(new Date(2026, 8, 1))) {
+  for (const record of createSampleTransactions()) {
     if (record.type === 'income') {
       expect(Object.hasOwn(record, 'merchant')).toBe(false);
       continue;

@@ -1,0 +1,310 @@
+[
+  {
+    "id": "sample-0",
+    "date": "2026-09-28",
+    "title": "給与",
+    "category": "収入",
+    "amount": 320000,
+    "type": "income"
+  },
+  {
+    "id": "sample-1",
+    "date": "2026-09-27",
+    "title": "週末の買い物",
+    "category": "食費",
+    "amount": 6840,
+    "type": "expense",
+    "merchant": "青空スーパー",
+    "paymentMethod": "credit_card",
+    "items": [
+      {
+        "name": "食材",
+        "amount": 3980
+      },
+      {
+        "name": "飲み物",
+        "amount": 1260
+      },
+      {
+        "name": "お菓子",
+        "amount": 1600
+      }
+    ]
+  },
+  {
+    "id": "sample-2",
+    "date": "2026-09-25",
+    "title": "カフェとランチ",
+    "category": "食費",
+    "amount": 2380,
+    "type": "expense",
+    "merchant": "街角カフェ",
+    "paymentMethod": "e_money",
+    "items": [
+      {
+        "name": "ランチ",
+        "amount": 1680
+      },
+      {
+        "name": "コーヒー",
+        "amount": 700
+      }
+    ]
+  },
+  {
+    "id": "sample-3",
+    "date": "2026-09-24",
+    "title": "電車・バス",
+    "category": "交通",
+    "amount": 4200,
+    "type": "expense",
+    "merchant": "東都交通",
+    "paymentMethod": "e_money",
+    "items": [
+      {
+        "name": "電車運賃",
+        "amount": 2400
+      },
+      {
+        "name": "バス運賃",
+        "amount": 1800
+      }
+    ]
+  },
+  {
+    "id": "sample-4",
+    "date": "2026-09-22",
+    "title": "日用品のまとめ買い",
+    "category": "日用品",
+    "amount": 5920,
+    "type": "expense",
+    "merchant": "くらし用品店",
+    "paymentMethod": "credit_card",
+    "items": [
+      {
+        "name": "洗濯洗剤",
+        "amount": 1980
+      },
+      {
+        "name": "トイレットペーパー",
+        "amount": 1480
+      },
+      {
+        "name": "台所用品",
+        "amount": 2460
+      }
+    ]
+  },
+  {
+    "id": "sample-5",
+    "date": "2026-09-20",
+    "title": "映画と外食",
+    "category": "娯楽",
+    "amount": 7900,
+    "type": "expense",
+    "merchant": "シネマ＆ダイニング",
+    "paymentMethod": "credit_card",
+    "items": [
+      {
+        "name": "映画チケット",
+        "amount": 3600
+      },
+      {
+        "name": "夕食",
+        "amount": 4300
+      }
+    ]
+  },
+  {
+    "id": "sample-6",
+    "date": "2026-09-18",
+    "title": "スーパーマーケット",
+    "category": "食費",
+    "amount": 9630,
+    "type": "expense",
+    "merchant": "みどりスーパー",
+    "paymentMethod": "e_money",
+    "items": [
+      {
+        "name": "青果",
+        "amount": 3480
+      },
+      {
+        "name": "肉・魚",
+        "amount": 4250
+      },
+      {
+        "name": "乳製品",
+        "amount": 1900
+      }
+    ]
+  },
+  {
+    "id": "sample-7",
+    "date": "2026-09-15",
+    "title": "家賃",
+    "category": "住まい",
+    "amount": 86000,
+    "type": "expense",
+    "merchant": "住まい管理会社",
+    "paymentMethod": "bank_account",
+    "items": [
+      {
+        "name": "家賃",
+        "amount": 86000
+      }
+    ]
+  },
+  {
+    "id": "sample-8",
+    "date": "2026-09-13",
+    "title": "書籍",
+    "category": "娯楽",
+    "amount": 3100,
+    "type": "expense",
+    "merchant": "駅前書店",
+    "paymentMethod": "cash",
+    "items": [
+      {
+        "name": "書籍",
+        "amount": 2200
+      },
+      {
+        "name": "雑誌",
+        "amount": 900
+      }
+    ]
+  },
+  {
+    "id": "sample-9",
+    "date": "2026-09-11",
+    "title": "食材の買い出し",
+    "category": "食費",
+    "amount": 7340,
+    "type": "expense",
+    "merchant": "中央市場",
+    "paymentMethod": "cash",
+    "items": [
+      {
+        "name": "野菜",
+        "amount": 2400
+      },
+      {
+        "name": "肉・魚",
+        "amount": 3590
+      },
+      {
+        "name": "調味料",
+        "amount": 1350
+      }
+    ]
+  },
+  {
+    "id": "sample-10",
+    "date": "2026-09-09",
+    "title": "電気・水道",
+    "category": "住まい",
+    "amount": 12800,
+    "type": "expense",
+    "merchant": "公共料金センター",
+    "paymentMethod": "bank_account",
+    "items": [
+      {
+        "name": "電気料金",
+        "amount": 7800
+      },
+      {
+        "name": "水道料金",
+        "amount": 5000
+      }
+    ]
+  },
+  {
+    "id": "sample-11",
+    "date": "2026-09-07",
+    "title": "洗剤とティッシュ",
+    "category": "日用品",
+    "amount": 3540,
+    "type": "expense",
+    "merchant": "生活用品マート",
+    "paymentMethod": "e_money",
+    "items": [
+      {
+        "name": "洗剤",
+        "amount": 1680
+      },
+      {
+        "name": "ティッシュ",
+        "amount": 1860
+      }
+    ]
+  },
+  {
+    "id": "sample-12",
+    "date": "2026-09-05",
+    "title": "定期券",
+    "category": "交通",
+    "amount": 10480,
+    "type": "expense",
+    "merchant": "東都交通",
+    "paymentMethod": "credit_card",
+    "items": [
+      {
+        "name": "定期券",
+        "amount": 10480
+      }
+    ]
+  },
+  {
+    "id": "sample-13",
+    "date": "2026-09-03",
+    "title": "外食",
+    "category": "食費",
+    "amount": 4860,
+    "type": "expense",
+    "merchant": "まちの食堂",
+    "paymentMethod": "cash",
+    "items": [
+      {
+        "name": "主菜",
+        "amount": 3200
+      },
+      {
+        "name": "飲み物",
+        "amount": 1660
+      }
+    ]
+  },
+  {
+    "id": "sample-14",
+    "date": "2026-09-02",
+    "title": "週末の買い物",
+    "category": "食費",
+    "amount": 8910,
+    "type": "expense",
+    "merchant": "青空スーパー",
+    "paymentMethod": "credit_card",
+    "items": [
+      {
+        "name": "食材",
+        "amount": 4120
+      },
+      {
+        "name": "日用品",
+        "amount": 2790
+      },
+      {
+        "name": "おやつ",
+        "amount": 2000
+      }
+    ]
+  },
+  {
+    "id": "sample-15",
+    "date": "2026-09-01",
+    "title": "フリマ売上",
+    "category": "収入",
+    "amount": 12000,
+    "type": "income"
+  }
+]

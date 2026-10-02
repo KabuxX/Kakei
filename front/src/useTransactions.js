@@ -16,12 +16,10 @@ export function useTransactions() {
     setStatus('loading');
     setError(null);
     try {
-      const now = new Date();
-      const sampleMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       const next = await api.loadInitialTransactions({
         fetchImpl: fetch,
         storage: { getItem: (key) => window.localStorage.getItem(key) },
-        sampleFactory: () => createSampleTransactions(sampleMonth),
+        sampleFactory: createSampleTransactions,
       });
       setTransactions(next);
       setStatus('ready');
