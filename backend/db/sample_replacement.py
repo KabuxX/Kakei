@@ -7,12 +7,20 @@ from pathlib import Path
 from db.schema import ensure_schema
 from db.store import Store
 from db.trajectory_store import replace_trajectory
+from transaction_datetime import parse_transaction_datetime
+
+
+def _sample_date_signature(date: str, time_estimated: bool) -> str:
+    """Compare estimates by calendar day, while preserving entered minutes."""
+    parsed_date, _ = parse_transaction_datetime(date)
+    return parsed_date[:10] if time_estimated else parsed_date
 
 
 def _expected_samples(records: list[dict]) -> dict:
     return {
         record["id"]: (
-            record["title"], record["date"], record["type"], record["category"],
+            record["title"], _sample_date_signature(record["date"], record["timeEstimated"]),
+            record["type"], record["category"],
             record["amount"], record.get("merchant"), record.get("paymentMethod"),
             int(record["timeEstimated"]),
             tuple((position, item["name"], item["amount"])
@@ -28,12 +36,16 @@ def _current_samples(connection: sqlite3.Connection) -> dict:
         WHERE substr(transaction_id, 1, 7) = 'sample-' ORDER BY transaction_id, position
     """):
         items.setdefault(row[0], []).append(tuple(row[1:]))
-    return {
-        row[0]: (*row[1:], tuple(items.get(row[0], [])))
-        for row in connection.execute("""
+    sample_rows = connection.execute("""
             SELECT id, title, date, type, category, amount, merchant, payment_method, time_estimated
             FROM transactions WHERE substr(id, 1, 7) = 'sample-'
-        """)
+        """).fetchall()
+    return {
+        row[0]: (
+            row[1], _sample_date_signature(row[2], bool(row[8])), *row[3:],
+            tuple(items.get(row[0], [])),
+        )
+        for row in sample_rows
     }
 
 

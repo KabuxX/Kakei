@@ -55,6 +55,72 @@ class ReplaceSamplesTests(unittest.TestCase):
         path.write_text(json.dumps(value, ensure_ascii=False), encoding="utf-8")
         return path
 
+    def write_legacy_database(self, path, records):
+        with closing(sqlite3.connect(path)) as connection:
+            connection.execute("CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+            connection.execute("INSERT INTO meta VALUES ('initialized', '1')")
+            connection.execute("""
+                CREATE TABLE transactions (
+                    id TEXT PRIMARY KEY, title TEXT NOT NULL, date TEXT NOT NULL,
+                    type TEXT NOT NULL, category TEXT NOT NULL, amount INTEGER NOT NULL,
+                    merchant TEXT, payment_method TEXT, items_json TEXT NOT NULL
+                )
+            """)
+            connection.executemany("""
+                INSERT INTO transactions
+                    (id, title, date, type, category, amount, merchant, payment_method, items_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, [
+                (record["id"], record["title"], record["date"], record["type"],
+                 record["category"], record["amount"], record.get("merchant"),
+                 record.get("paymentMethod"), json.dumps(record.get("items", []), ensure_ascii=False))
+                for record in records
+            ])
+            connection.commit()
+
+    def assert_mixed_legacy_samples_replace(self, store, db_path):
+        before_user = store.get_transaction("user-legacy-date")
+        self.assertEqual(store.get_transaction("sample-0")["date"], "2026-09-28T12:40")
+        self.assertIs(before_user["timeEstimated"], True)
+
+        first_backup = self.directory / f"{db_path.stem}-before.sqlite3"
+        self.assertEqual(replace_samples(
+            db_path, OLD, NEW, TIMELINE, first_backup
+        ), {"deleted": 16, "inserted": 37, "days": 12})
+        self.assertEqual(store.get_transaction("user-legacy-date"), before_user)
+
+        second_backup = self.directory / f"{db_path.stem}-rerun.sqlite3"
+        self.assertEqual(replace_samples(
+            db_path, OLD, NEW, TIMELINE, second_backup
+        ), {"deleted": 0, "inserted": 0, "days": 12})
+        self.assertEqual(store.get_transaction("user-legacy-date"), before_user)
+
+    def test_replaces_samples_after_mixed_date_only_import_and_rerun(self):
+        user = {
+            "id": "user-legacy-date", "title": "古い買い物", "date": "2026-09-28",
+            "type": "expense", "category": "日用品", "amount": 700,
+            "merchant": "利用者の店", "paymentMethod": "cash",
+            "items": [{"name": "品目", "amount": 700}],
+        }
+        db_path = self.directory / "mixed-import.sqlite3"
+        store = Store(db_path)
+        store.initialize([*self.old, user])
+
+        self.assert_mixed_legacy_samples_replace(store, db_path)
+
+    def test_replaces_samples_after_mixed_legacy_database_migration_and_rerun(self):
+        user = {
+            "id": "user-legacy-date", "title": "古い買い物", "date": "2026-09-28",
+            "type": "expense", "category": "日用品", "amount": 700,
+            "merchant": "利用者の店", "paymentMethod": "cash",
+            "items": [{"name": "品目", "amount": 700}],
+        }
+        db_path = self.directory / "mixed-migration.sqlite3"
+        self.write_legacy_database(db_path, [*self.old, user])
+        store = Store(db_path)
+
+        self.assert_mixed_legacy_samples_replace(store, db_path)
+
     def test_minute_transaction_date_matches_day_only_timeline_reference(self):
         timeline = {"days": [{
             "date": "2026-09-02",
@@ -138,6 +204,7 @@ class ReplaceSamplesTests(unittest.TestCase):
             "UPDATE transactions SET title = 'edited' WHERE id = 'sample-1'",
             "UPDATE transaction_items SET name = 'edited' WHERE transaction_id = 'sample-1' AND position = 0",
             "UPDATE transactions SET merchant = 'unexpected' WHERE id = 'sample-0'",
+            "UPDATE transactions SET date = '2026-09-29T12:00' WHERE id = 'sample-0'",
             "DELETE FROM transactions WHERE id = 'sample-1'",
             "INSERT INTO transactions (id, title, date, type, category, amount, merchant, payment_method) "
             "VALUES ('sample-extra', '余分', '2026-09-30', 'income', '収入', 100, NULL, NULL)",
@@ -200,6 +267,27 @@ class ReplaceSamplesTests(unittest.TestCase):
                     target[field] = transaction_id
                     self.assert_rejected_unchanged(timeline_path=self.write_json("invalid-timeline.json", timeline))
                     self.assertFalse(self.backup.exists())
+
+    def test_explicit_sample_datetime_must_match_exactly(self):
+        records = copy.deepcopy(self.old)
+        sample_zero = next(record for record in records if record["id"] == "sample-0")
+        sample_zero["date"] = "2026-09-28T12:00"
+        old_path = self.write_json("entered-old-samples.json", records)
+        db_path = self.directory / "entered-sample.sqlite3"
+        store = Store(db_path)
+        store.initialize(records)
+        with closing(sqlite3.connect(db_path)) as connection:
+            connection.execute("UPDATE transactions SET date = ? WHERE id = ?",
+                               ("2026-09-28T12:01", "sample-0"))
+            connection.commit()
+        before = self.snapshot(db_path)
+
+        with self.assertRaises(ValueError):
+            replace_samples(db_path, old_path, NEW, TIMELINE,
+                            self.directory / "entered-sample-backup.sqlite3")
+
+        self.assertEqual(self.snapshot(db_path), before)
+        self.assertEqual(store.get_transaction("sample-0")["date"], "2026-09-28T12:01")
 
     def test_existing_backup_is_never_overwritten(self):
         self.backup.write_bytes(b"keep this backup")
