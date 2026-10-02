@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Optional
 
 from schema import ensure_schema
+from trajectory_store import read_trajectory_day, replace_trajectory
+from trajectory_validation import validate_timeline
 from validation import ValidationError, normalize_transaction
 
 
@@ -83,6 +85,17 @@ class Store:
     def is_initialized(self):
         with self._connection() as connection:
             return self._initialized(connection)
+
+    def sync_trajectory(self, timeline: dict) -> None:
+        validate_timeline(timeline)
+        with self._connection() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            replace_trajectory(connection, timeline)
+
+    def get_trajectory_day(self, date: str) -> Optional[dict]:
+        with self._connection() as connection:
+            connection.execute("BEGIN")
+            return read_trajectory_day(connection, date)
 
     def initialize(self, records):
         if not isinstance(records, list):
