@@ -91,6 +91,31 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(self.request("PUT", "/api/transactions")[0], 405)
         self.assertEqual(self.request("GET", "/api/unknown")[1]["error"]["code"], "not_found")
 
+    def test_ordered_items_api_round_trip(self):
+        items = [{"name": "パン", "amount": 100}, {"name": "パン", "amount": 100}]
+        record = {"id": "old-expense", "title": "買い物", "date": "2026-09-01",
+                  "type": "expense", "category": "食費", "amount": 200,
+                  "merchant": "店", "paymentMethod": "cash", "items": items}
+        self.assertEqual(self.request("POST", "/api/initialize", {"transactions": [record]}),
+                         (201, {"count": 1}))
+        list_record = self.request("GET", "/api/transactions")[1]["transactions"][0]
+        detail_record = self.request("GET", "/api/transactions/old-expense")[1]["transaction"]
+        self.assertEqual(list_record, record)
+        self.assertEqual(detail_record, record)
+
+        draft = {key: value for key, value in record.items() if key != "id"}
+        status, result = self.request("POST", "/api/transactions", draft)
+        self.assertEqual(status, 201)
+        created_record = result["transaction"]
+        self.assertEqual(created_record["items"], items)
+        reloaded_record = self.request("GET", f'/api/transactions/{created_record["id"]}')[1]["transaction"]
+        self.assertEqual(reloaded_record, created_record)
+        with sqlite3.connect(self.db) as connection:
+            columns = {row[1] for row in connection.execute("PRAGMA table_info(transactions)")}
+            child_count = connection.execute("SELECT COUNT(*) FROM transaction_items").fetchone()[0]
+        self.assertNotIn("items_json", columns)
+        self.assertEqual(child_count, 4)
+
     def test_invalid_json_and_body_limits(self):
         self.assertEqual(self.request("POST", "/api/initialize", "{broken")[0], 400)
         self.assertEqual(self.request("POST", "/api/initialize", "{}", content_type="text/plain")[0], 400)

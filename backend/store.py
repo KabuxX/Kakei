@@ -1,12 +1,12 @@
 """SQLite storage for the local Kakei API."""
 
-import json
 import sqlite3
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Optional
 
+from schema import ensure_schema
 from validation import ValidationError, normalize_transaction
 
 
@@ -23,31 +23,14 @@ class Store:
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         with self._connection() as connection:
-            connection.execute("""
-                CREATE TABLE IF NOT EXISTS meta (
-                    key TEXT PRIMARY KEY,
-                    value TEXT NOT NULL
-                )
-            """)
-            connection.execute("""
-                CREATE TABLE IF NOT EXISTS transactions (
-                    id TEXT PRIMARY KEY,
-                    title TEXT NOT NULL,
-                    date TEXT NOT NULL,
-                    type TEXT NOT NULL,
-                    category TEXT NOT NULL,
-                    amount INTEGER NOT NULL,
-                    merchant TEXT,
-                    payment_method TEXT,
-                    items_json TEXT NOT NULL
-                )
-            """)
+            ensure_schema(connection)
 
     @contextmanager
     def _connection(self):
         connection = sqlite3.connect(str(self.db_path), timeout=10)
         connection.row_factory = sqlite3.Row
         try:
+            connection.execute("PRAGMA foreign_keys = ON")
             yield connection
             connection.commit()
         except Exception:
@@ -69,16 +52,23 @@ class Store:
     def _insert(connection, record):
         connection.execute("""
             INSERT INTO transactions
-                (id, title, date, type, category, amount, merchant, payment_method, items_json)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (id, title, date, type, category, amount, merchant, payment_method)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             record["id"], record["title"], record["date"], record["type"],
             record["category"], record["amount"], record.get("merchant"),
-            record.get("paymentMethod"), json.dumps(record.get("items", []), ensure_ascii=False),
+            record.get("paymentMethod"),
+        ))
+        connection.executemany("""
+            INSERT INTO transaction_items (transaction_id, position, name, amount)
+            VALUES (?, ?, ?, ?)
+        """, (
+            (record["id"], position, item["name"], item["amount"])
+            for position, item in enumerate(record.get("items", []))
         ))
 
     @staticmethod
-    def _record(row):
+    def _record(row, items: list[dict]) -> dict:
         result = {
             "id": row["id"], "title": row["title"], "date": row["date"],
             "type": row["type"], "category": row["category"], "amount": row["amount"],
@@ -86,7 +76,7 @@ class Store:
         if row["type"] == "expense":
             result.update({
                 "merchant": row["merchant"], "paymentMethod": row["payment_method"],
-                "items": json.loads(row["items_json"]),
+                "items": items,
             })
         return result
 
@@ -119,13 +109,30 @@ class Store:
         with self._connection() as connection:
             self._require_initialized(connection)
             rows = connection.execute("SELECT * FROM transactions ORDER BY date DESC, id DESC").fetchall()
-            return [self._record(row) for row in rows]
+            items_by_transaction = {}
+            for item in connection.execute("""
+                SELECT transaction_id, name, amount
+                FROM transaction_items ORDER BY transaction_id, position
+            """):
+                items_by_transaction.setdefault(item["transaction_id"], []).append({
+                    "name": item["name"], "amount": item["amount"],
+                })
+            return [self._record(row, items_by_transaction.get(row["id"], [])) for row in rows]
 
     def get_transaction(self, transaction_id: str) -> Optional[dict]:
         with self._connection() as connection:
             self._require_initialized(connection)
             row = connection.execute("SELECT * FROM transactions WHERE id = ?", (transaction_id,)).fetchone()
-            return self._record(row) if row else None
+            if row is None:
+                return None
+            items = [
+                {"name": item["name"], "amount": item["amount"]}
+                for item in connection.execute("""
+                    SELECT name, amount FROM transaction_items
+                    WHERE transaction_id = ? ORDER BY position
+                """, (transaction_id,))
+            ]
+            return self._record(row, items)
 
     def create_transaction(self, draft):
         normalized = normalize_transaction(draft)

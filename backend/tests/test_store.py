@@ -1,3 +1,4 @@
+import sqlite3
 import sys
 import tempfile
 import unittest
@@ -89,6 +90,70 @@ class StoreTests(unittest.TestCase):
         self.store.initialize([income("sample-remove"), income("Sample-keep")])
         self.assertEqual(self.store.delete_samples(), 1)
         self.assertEqual([item["id"] for item in self.store.list_transactions()], ["Sample-keep"])
+
+    def test_item_round_trip(self):
+        items = [{"name": "パン", "amount": 100}, {"name": "パン", "amount": 100}]
+        self.store.initialize([
+            {"id": "old-expense", "title": "買い物", "date": "2026-09-03",
+             "type": "expense", "category": "食費", "amount": 200,
+             "merchant": "店", "paymentMethod": "cash", "items": items},
+            {"id": "itemless", "title": "買い物", "date": "2026-09-02",
+             "type": "expense", "category": "食費", "amount": 300},
+            income("income", day="2026-09-01"),
+        ])
+        created = self.store.create_transaction({
+            "title": "買い物2", "date": "2026-09-04", "type": "expense",
+            "category": "食費", "amount": 200, "merchant": "店",
+            "paymentMethod": "cash", "items": items,
+        })
+        reopened = Store(self.path)
+        self.assertEqual(reopened.get_transaction("old-expense")["items"], items)
+        self.assertEqual(reopened.get_transaction(created["id"])["items"], items)
+        self.assertEqual(reopened.get_transaction("itemless")["items"], [])
+        self.assertNotIn("items", reopened.get_transaction("income"))
+        self.assertEqual([row["id"] for row in reopened.list_transactions()],
+                         [created["id"], "old-expense", "itemless", "income"])
+        with reopened._connection() as connection:
+            self.assertEqual(connection.execute("PRAGMA foreign_keys").fetchone()[0], 1)
+
+    def test_deletes_cascade_items(self):
+        item = [{"name": "食材", "amount": 200}]
+        self.store.initialize([
+            {"id": "sample-remove", "title": "サンプル", "date": "2026-09-01",
+             "type": "expense", "category": "食費", "amount": 200, "items": item},
+            {"id": "keep", "title": "保存", "date": "2026-09-02",
+             "type": "expense", "category": "食費", "amount": 200, "items": item},
+        ])
+        created = self.store.create_transaction({
+            "title": "削除", "date": "2026-09-03", "type": "expense",
+            "category": "食費", "amount": 200, "merchant": "店",
+            "paymentMethod": "cash", "items": item,
+        })
+        self.assertEqual(self.store.delete_samples(), 1)
+        self.assertTrue(self.store.delete_transaction(created["id"]))
+        with sqlite3.connect(self.path) as connection:
+            children = connection.execute(
+                "SELECT transaction_id, name, amount FROM transaction_items"
+            ).fetchall()
+        self.assertEqual(children, [("keep", "食材", 200)])
+
+    def test_item_insert_failure_rolls_back_parent(self):
+        self.store.initialize([])
+        with sqlite3.connect(self.path) as connection:
+            connection.execute("""
+                CREATE TRIGGER reject_items BEFORE INSERT ON transaction_items
+                BEGIN SELECT RAISE(ABORT, 'item insert failed'); END
+            """)
+        draft = {"title": "買い物", "date": "2026-09-01", "type": "expense",
+                 "category": "食費", "amount": 100, "merchant": "店",
+                 "paymentMethod": "cash", "items": [{"name": "パン", "amount": 100}]}
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.store.create_transaction(draft)
+        with sqlite3.connect(self.path) as connection:
+            parents = connection.execute("SELECT id FROM transactions").fetchall()
+            children = connection.execute("SELECT transaction_id FROM transaction_items").fetchall()
+        self.assertEqual(parents, [])
+        self.assertEqual(children, [])
 
 
 if __name__ == "__main__":
