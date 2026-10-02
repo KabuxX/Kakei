@@ -17,6 +17,7 @@ from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from store import AlreadyInitialized, NotInitialized, Store
+from trajectory_validation import load_timeline
 from validation import ValidationError
 
 _timeline_path = Path(__file__).resolve().parent.parent / "front" / "src" / "data" / "september-timeline.json"
@@ -65,10 +66,11 @@ async def _read_json(request: Request, limit: int) -> object:
         raise HTTPFailure(400, "invalid_json", "JSONの形式が正しくありません。") from error
 
 
-def create_app(db_path: Path, front_dir: Path, *, port: int = 8765) -> FastAPI:
+def create_app(db_path: Path, front_dir: Path, *, port: int = 8765,
+               timeline_path: Path = _timeline_path) -> FastAPI:
     """Build an app with an isolated store for tests or local execution."""
     store = Store(db_path)
-    timeline = json.loads(_timeline_path.read_text(encoding="utf-8"))
+    store.sync_trajectory(load_timeline(timeline_path))
     app = FastAPI()
     app.state.store = store
 
@@ -134,13 +136,10 @@ def create_app(db_path: Path, front_dir: Path, *, port: int = 8765) -> FastAPI:
             calendar_date.fromisoformat(requested_date)
         except ValueError as error:
             raise HTTPFailure(400, "invalid_date", "存在する日付を指定してください。") from error
-        day = next((item for item in timeline["days"] if item["date"] == requested_date), None)
-        if day is None:
+        payload = store.get_trajectory_day(requested_date)
+        if payload is None:
             raise HTTPFailure(404, "not_found", "指定日の軌跡サンプルが見つかりません。")
-        place_ids = {event["placeId"] for event in day["events"]}
-        place_ids.update(place_id for leg in day["legs"] for place_id in leg.get("viaPlaceIds", []))
-        places = {place_id: place for place_id, place in timeline["places"].items() if place_id in place_ids}
-        return _json(200, {"places": places, "days": [day]})
+        return _json(200, payload)
 
     @app.post("/api/transactions")
     async def create_transaction(request: Request):

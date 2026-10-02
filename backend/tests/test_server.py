@@ -1,4 +1,5 @@
 import json
+import copy
 import os
 import re
 import runpy
@@ -7,6 +8,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from contextlib import closing
 from unittest.mock import patch
 from urllib.parse import quote
 
@@ -16,6 +18,10 @@ from fastapi.testclient import TestClient
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import server
+from store import Store
+
+
+TIMELINE_PATH = Path(__file__).resolve().parents[2] / "front" / "src" / "data" / "september-timeline.json"
 
 
 class ServerTests(unittest.TestCase):
@@ -92,6 +98,17 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(self.request("GET", "/api/unknown")[1]["error"]["code"], "not_found")
 
     def test_trajectory_day_returns_one_fixed_sample_without_database_initialization(self):
+        timeline = json.loads(TIMELINE_PATH.read_text(encoding="utf-8"))
+        for source_day in timeline["days"]:
+            with self.subTest(date=source_day["date"]):
+                day_status, day_payload = self.request("GET", f'/api/trajectory/{source_day["date"]}')
+                used_places = {event["placeId"] for event in source_day["events"]}
+                used_places.update(place_id for leg in source_day["legs"] for place_id in leg.get("viaPlaceIds", []))
+                self.assertEqual(day_status, 200)
+                self.assertEqual(day_payload, {
+                    "places": {place_id: place for place_id, place in timeline["places"].items() if place_id in used_places},
+                    "days": [source_day],
+                })
         status, payload = self.request("GET", "/api/trajectory/2026-09-02")
         self.assertEqual(status, 200)
         self.assertEqual(set(payload), {"places", "days"})
@@ -111,6 +128,54 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(set(payload["places"]), used_places)
         self.assertEqual(payload["places"]["jrShibuya"]["coordinates"], [139.701636, 35.658034])
         self.assertEqual(self.request("GET", "/api/status"), (200, {"initialized": False}))
+
+    def test_trajectory_get_reads_sqlite(self):
+        with closing(sqlite3.connect(self.db)) as connection:
+            updated = connection.execute("""
+                UPDATE trajectory_places SET name = 'DB-edited' WHERE id = 'shibuyaStarbucks'
+            """)
+            self.assertEqual(updated.rowcount, 1)
+            connection.commit()
+        status, payload = self.request("GET", "/api/trajectory/2026-09-01")
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["places"]["shibuyaStarbucks"]["name"], "DB-edited")
+
+    def test_trajectory_database_error_response(self):
+        with patch.object(self.app.state.store, "get_trajectory_day", side_effect=sqlite3.OperationalError("private details")):
+            status, payload = self.request("GET", "/api/trajectory/2026-09-01")
+        self.assertEqual((status, payload["error"]["code"]), (500, "database_error"))
+        self.assertNotIn("private details", payload["error"]["message"])
+
+    def test_app_creation_resyncs_changed_fixture(self):
+        timeline = json.loads(TIMELINE_PATH.read_text(encoding="utf-8"))
+        fixture_path = Path(self.temp.name) / "timeline.json"
+        first = {"places": timeline["places"], "days": timeline["days"][:2]}
+        fixture_path.write_text(json.dumps(first, ensure_ascii=False), encoding="utf-8")
+        app = server.create_app(self.db, self.front, timeline_path=fixture_path)
+        with TestClient(app) as client:
+            self.assertEqual(client.get("/api/trajectory/2026-09-02", headers={"Host": "localhost:8765"}).status_code, 200)
+
+        second = copy.deepcopy(first)
+        second["days"] = second["days"][:1]
+        second["places"]["shibuyaStarbucks"]["name"] = "再同期後の店舗"
+        fixture_path.write_text(json.dumps(second, ensure_ascii=False), encoding="utf-8")
+        updated_app = server.create_app(self.db, self.front, timeline_path=fixture_path)
+        with TestClient(updated_app) as client:
+            response = client.get("/api/trajectory/2026-09-01", headers={"Host": "localhost:8765"})
+            self.assertEqual(response.json()["places"]["shibuyaStarbucks"]["name"], "再同期後の店舗")
+            self.assertEqual(client.get("/api/trajectory/2026-09-02", headers={"Host": "localhost:8765"}).status_code, 404)
+
+    def test_invalid_fixture_fails_startup_without_erasing_saved_rows(self):
+        timeline = json.loads(TIMELINE_PATH.read_text(encoding="utf-8"))
+        fixture_path = Path(self.temp.name) / "timeline.json"
+        fixture_path.write_text(json.dumps({"places": timeline["places"], "days": timeline["days"][:1]}, ensure_ascii=False), encoding="utf-8")
+        server.create_app(self.db, self.front, timeline_path=fixture_path)
+        previous = Store(self.db).get_trajectory_day("2026-09-01")
+        fixture_path.write_text("{broken", encoding="utf-8")
+
+        with self.assertRaises(ValueError):
+            server.create_app(self.db, self.front, timeline_path=fixture_path)
+        self.assertEqual(Store(self.db).get_trajectory_day("2026-09-01"), previous)
 
     def test_trajectory_day_rejects_invalid_and_missing_dates(self):
         for date in ("2026-9-02", "2026-09-31"):
