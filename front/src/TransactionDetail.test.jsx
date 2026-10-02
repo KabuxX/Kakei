@@ -11,6 +11,7 @@ it('shows a direct detail link for an old expense without inventing fields', () 
   expect(screen.getAllByText('未登録')).toHaveLength(2);
   expect(screen.getByText('品目は登録されていません')).toBeTruthy();
   expect(screen.getByRole('link', { name: '取引履歴へ戻る' }).getAttribute('href')).toBe('#transactions');
+  expect(screen.getByRole('link', { name: '取引を削除' }).getAttribute('href')).toBe('#transaction/a%2Fb%20%25%E6%97%A5%E6%9C%AC%E8%AA%9E/delete');
 });
 
 it('shows a missing state for an unknown detail ID', () => {

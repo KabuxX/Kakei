@@ -35,9 +35,49 @@ it('confirms sample deletion before one request', async () => {
   expect(window.confirm).toHaveBeenCalled();
 });
 
-it('confirms detail deletion before one request', async () => {
+it('shows a dedicated confirmation before deleting the selected transaction', async () => {
   window.location.hash = '#transaction/sample-0';
   render(<App />);
-  fireEvent.click(screen.getByRole('button', { name: '取引を削除' }));
+  fireEvent.click(screen.getByRole('link', { name: '取引を削除' }));
+  await waitFor(() => expect(screen.getByRole('heading', { name: 'この取引を削除しますか？' })).toBeTruthy());
+  expect(screen.getByRole('heading', { name: '給与' })).toBeTruthy();
+  expect(screen.getByRole('article', { name: '削除する取引' }).textContent).toContain('+¥320,000');
+  expect(methods.deleteTransaction).not.toHaveBeenCalled();
+  expect(window.confirm).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: '削除する' }));
   await waitFor(() => expect(methods.deleteTransaction).toHaveBeenCalledWith('sample-0'));
+  await waitFor(() => expect(window.location.hash).toBe('#transactions'));
+  expect(screen.getByRole('status').textContent).toContain('取引を削除しました');
+});
+
+it('returns to detail without deleting when confirmation is cancelled', async () => {
+  window.location.hash = '#transaction/sample-0/delete';
+  render(<App />);
+  fireEvent.click(screen.getByRole('link', { name: '取引詳細へ戻る' }));
+  await waitFor(() => expect(screen.getByRole('heading', { name: '取引詳細' })).toBeTruthy());
+  expect(window.location.hash).toBe('#transaction/sample-0');
+  expect(methods.deleteTransaction).not.toHaveBeenCalled();
+});
+
+it('keeps the delete action disabled while the request is pending', () => {
+  methods.deleteTransaction.mockReturnValue(new Promise(() => {}));
+  window.location.hash = '#transaction/sample-0/delete';
+  render(<App />);
+  expect(screen.getByText('削除後は元に戻せません。内容を確認してください。')).toBeTruthy();
+  expect(screen.getByRole('article', { name: '削除する取引' }).textContent).toContain('2026年9月28日');
+  fireEvent.click(screen.getByRole('button', { name: '削除する' }));
+  expect(screen.getByRole('button', { name: '削除中…' }).disabled).toBe(true);
+  fireEvent.click(screen.getByRole('button', { name: '削除中…' }));
+  expect(methods.deleteTransaction).toHaveBeenCalledTimes(1);
+});
+
+it('keeps confirmation and the transaction visible after a failed deletion', async () => {
+  methods.deleteTransaction.mockRejectedValueOnce(new Error('offline'));
+  window.location.hash = '#transaction/sample-0/delete';
+  render(<App />);
+  fireEvent.click(screen.getByRole('button', { name: '削除する' }));
+  await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('削除できませんでした'));
+  expect(window.location.hash).toBe('#transaction/sample-0/delete');
+  expect(screen.getByRole('heading', { name: '給与' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: '削除する' }).disabled).toBe(false);
 });

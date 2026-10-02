@@ -19,6 +19,18 @@ test('first viewport shows period and financial state at desktop and phone width
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
+test('deletion confirmation keeps the selected transaction and actions visible at desktop and phone widths', async ({ page }) => {
+  await page.goto('/#transaction/sample-0/delete');
+  await expect(page.getByRole('heading', { name: 'この取引を削除しますか？' })).toBeVisible();
+  await expect(page.getByRole('article', { name: '削除する取引' })).toContainText('給与');
+  await expect(page.getByRole('button', { name: '削除する' })).toBeInViewport();
+  await page.setViewportSize({ width: 375, height: 812 });
+  await expect(page.getByRole('article', { name: '削除する取引' })).toBeInViewport();
+  await expect(page.getByRole('link', { name: '取引詳細へ戻る' })).toBeInViewport();
+  await expect(page.getByRole('button', { name: '削除する' })).toBeInViewport();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
 test('imports an existing browser array once', async ({ page }) => {
   const record = { id: 'from-browser', date: '2026-09-12', type: 'income', title: '移行した収入', category: '収入', amount: 1234 };
   await page.addInitScript((saved) => localStorage.setItem('kakei-transactions-v1', JSON.stringify(saved)), [record]);
@@ -65,8 +77,10 @@ test('adds and deletes a real expense through FastAPI', async ({ page }) => {
   await expect(row).toBeVisible();
   await row.click();
   await expect(page.getByText('テスト店舗')).toBeVisible();
-  page.once('dialog', (dialog) => dialog.accept());
-  await page.getByRole('button', { name: '取引を削除' }).click();
+  await page.getByRole('link', { name: '取引を削除' }).click();
+  await expect(page.getByRole('heading', { name: 'この取引を削除しますか？' })).toBeVisible();
+  await expect(page.getByRole('article', { name: '削除する取引' })).toContainText('React 移行テスト');
+  await page.getByRole('button', { name: '削除する' }).click();
   await expect(page.locator('#dashboard-view')).toBeVisible();
   await expect(page.getByRole('link', { name: 'React 移行テスト' })).toHaveCount(0);
 });
@@ -129,9 +143,9 @@ test('failed save and delete keep the record state and explain the failure', asy
   await page.route('**/api/transactions/sample-0', (route) => route.fulfill({ status: 500, json: { error: { code: 'database_error', message: '削除できませんでした。' } } }));
   await page.goto('/#transaction/sample-0');
   await expect(page.getByRole('heading', { name: '給与' })).toBeVisible();
-  page.once('dialog', (dialog) => dialog.accept());
-  await page.getByRole('button', { name: '取引を削除' }).click();
-  await expect(page.locator('#toast')).toContainText('削除できませんでした');
+  await page.getByRole('link', { name: '取引を削除' }).click();
+  await page.getByRole('button', { name: '削除する' }).click();
+  await expect(page.getByRole('alert')).toContainText('削除できませんでした');
   await expect(page.getByRole('heading', { name: '給与' })).toBeVisible();
 });
 

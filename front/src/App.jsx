@@ -2,11 +2,12 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import AppShell from './AppShell.jsx';
 import Dashboard from './Dashboard.jsx';
 import TransactionDetail from './TransactionDetail.jsx';
+import TransactionDelete from './TransactionDelete.jsx';
 import TransactionDialog from './TransactionDialog.jsx';
 import { useTransactions } from './useTransactions.js';
 import { dashboardForMonth, monthKey } from './lib/dashboard.js';
 import { serializeTransactionsCsv } from './lib/transaction-data.js';
-import { detailIdFromHash } from './lib/transaction-detail.js';
+import { detailIdFromHash, deleteIdFromHash } from './lib/transaction-detail.js';
 
 export default function App() {
   const now = new Date();
@@ -14,13 +15,16 @@ export default function App() {
   const [route, setRoute] = useState(() => window.location.hash || '#overview');
   const [toast, setToast] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [deletePending, setDeletePending] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const addTrigger = useRef(null);
   const listReturn = useRef(null);
   const previousDetail = useRef(null);
   const data = useTransactions();
   const model = useMemo(() => dashboardForMonth(data.transactions, month), [data.transactions, month]);
   const isDetail = ['ready', 'stale'].includes(data.status) && (route === '#transaction' || route.startsWith('#transaction/'));
-  const detailId = isDetail ? detailIdFromHash(route) : null;
+  const isDelete = isDetail && route.endsWith('/delete');
+  const detailId = isDetail ? (isDelete ? deleteIdFromHash(route) : detailIdFromHash(route)) : null;
   const detailRecord = isDetail ? data.transactions.find((item) => item.id === detailId) : null;
   useEffect(() => {
     const onHash = () => setRoute(window.location.hash || '#overview');
@@ -36,9 +40,9 @@ export default function App() {
     if (isDetail) {
       previousDetail.current = detailId;
       document.body.classList.add('detail-route');
-      document.title = detailRecord ? `${detailRecord.title} | Kakei` : '取引が見つかりません | Kakei';
+      document.title = detailRecord ? `${isDelete ? '削除確認' : detailRecord.title} | Kakei` : '取引が見つかりません | Kakei';
       window.scrollTo(0, 0);
-      document.getElementById('detail-heading')?.focus({ preventScroll: true });
+      document.getElementById(isDelete ? 'delete-heading' : 'detail-heading')?.focus({ preventScroll: true });
     } else {
       document.body.classList.remove('detail-route');
       document.title = '家計の概要 | Kakei';
@@ -59,7 +63,8 @@ export default function App() {
       }
     }
     return () => document.body.classList.remove('detail-route');
-  }, [isDetail, detailId, detailRecord, route]);
+  }, [isDetail, isDelete, detailId, detailRecord, route]);
+  useEffect(() => { setDeleteError(''); }, [route]);
 
   const changeMonth = (step) => setMonth((previous) => new Date(previous.getFullYear(), previous.getMonth() + step, 1));
   const openDialog = (event) => {
@@ -79,14 +84,17 @@ export default function App() {
     return refreshed;
   };
   const deleteTransaction = async (record) => {
-    if (data.status !== 'ready' || data.writePending || data.refreshing || !window.confirm(`「${record.title}」を削除しますか？`)) return;
+    if (data.status !== 'ready' || data.writePending || data.refreshing || deletePending) return;
+    setDeletePending(true);
+    setDeleteError('');
     try {
       const refreshed = await data.deleteTransaction(record.id);
       listReturn.current = null;
       window.location.hash = '#transactions';
       setRoute('#transactions');
       setToast(refreshed ? '取引を削除しました。' : '取引を削除しました。表示を更新してください。');
-    } catch (_) { setToast('削除できませんでした。サーバーへの接続を確認してください。'); }
+    } catch (_) { setDeleteError('削除できませんでした。サーバーへの接続を確認して、もう一度お試しください。'); }
+    finally { setDeletePending(false); }
   };
   const deleteSamples = async () => {
     if (data.status !== 'ready' || data.writePending || data.refreshing || !window.confirm('サンプルデータをすべて削除しますか？')) return;
@@ -110,7 +118,9 @@ export default function App() {
     <AppShell route={route} onAdd={openDialog} addDisabled={data.status !== 'ready' || data.writePending || data.refreshing}>
       <div id="sync-status" className="sync-status" role="alert" hidden={data.status !== 'stale'}><span id="sync-status-message">{data.staleAfterWrite ? 'サーバーへの保存は完了しましたが、表示を更新できませんでした。再読み込みしてください。' : '最新の取引を読み込めませんでした。再読み込みしてください。'}</span><button id="retry-sync" className="secondary-button" type="button" onClick={() => data.refresh()}>表示を再読み込み</button></div>
       <Dashboard month={month} model={model} transactions={data.transactions} status={data.status} error={data.error} onMonthChange={changeMonth} onAdd={openDialog} onRetry={data.load} onClearSamples={deleteSamples} onExport={exportCsv} onOpenDetail={(id) => { listReturn.current = { id, scrollY: window.scrollY }; }} writePending={data.writePending || data.refreshing} hidden={isDetail} />
-      {isDetail && <TransactionDetail record={detailRecord} onDelete={deleteTransaction} busy={data.writePending || data.refreshing || data.status !== 'ready'} />}
+      {isDetail && (isDelete
+        ? <TransactionDelete record={detailRecord} onConfirm={deleteTransaction} error={deleteError} busy={deletePending || data.writePending || data.refreshing || data.status !== 'ready'} />
+        : <TransactionDetail record={detailRecord} busy={data.writePending || data.refreshing || data.status !== 'ready'} />)}
     </AppShell>
     <TransactionDialog open={dialogOpen} selectedMonth={month} busy={data.writePending || data.refreshing} onClose={closeDialog} onSubmit={submitTransaction} />
     <div id="toast" className={`toast${toast ? ' show' : ''}`} role="status" aria-live="polite">{toast}</div>

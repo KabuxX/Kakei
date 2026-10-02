@@ -21,6 +21,22 @@ it('opens an encoded direct detail URL and marks transactions active', () => {
   expect(screen.getByRole('link', { name: '取引履歴' }).getAttribute('aria-current')).toBe('page');
 });
 
+it('opens a direct deletion URL for an ID containing reserved characters', () => {
+  window.location.hash = '#transaction/a%2Fb%20%25%E6%97%A5%E6%9C%AC%E8%AA%9E/delete';
+  render(<App />);
+  expect(screen.getByRole('heading', { name: 'この取引を削除しますか？' })).toBeTruthy();
+  expect(screen.getByRole('heading', { name: '食材' })).toBeTruthy();
+  expect(screen.getByRole('link', { name: '取引詳細へ戻る' }).getAttribute('href')).toBe(detailHref(record.id));
+  expect(screen.getByRole('link', { name: '取引履歴' }).getAttribute('aria-current')).toBe('page');
+});
+
+it('shows a missing state without a delete action for an unknown deletion URL', () => {
+  window.location.hash = '#transaction/unknown/delete';
+  render(<App />);
+  expect(screen.getByRole('heading', { level: 1, name: '取引が見つかりません' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: '削除する' })).toBeNull();
+});
+
 it('returns focus to the original transaction row', async () => {
   window.location.hash = '#transactions';
   render(<App />);
