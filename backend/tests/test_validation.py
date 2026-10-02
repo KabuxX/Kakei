@@ -4,7 +4,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from validation import ValidationError, normalize_transaction
+from services.validation import ValidationError, normalize_transaction
 
 
 class TransactionValidationTests(unittest.TestCase):

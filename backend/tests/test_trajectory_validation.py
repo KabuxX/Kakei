@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from trajectory_validation import load_timeline, validate_timeline
+from services.trajectory_validation import load_timeline, validate_timeline
 
 
 FIXTURE = Path(__file__).resolve().parents[2] / "front" / "src" / "data" / "september-timeline.json"

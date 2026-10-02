@@ -4,7 +4,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from runtime import require_supported_python
+from config.runtime import require_supported_python
 
 
 class RuntimeTests(unittest.TestCase):
