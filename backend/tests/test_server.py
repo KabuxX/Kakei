@@ -303,6 +303,21 @@ class ServerTests(unittest.TestCase):
         self.assertEqual((status, result["error"]["code"]), (413, "body_too_large"))
         self.assertEqual(Store(self.db).get_trajectory_day("2026-09-19"), before)
 
+    def test_trajectory_rejects_oversized_integer_coordinate_without_writing(self):
+        with sqlite3.connect(self.db) as connection:
+            before = connection.execute("SELECT COUNT(*) FROM trajectory_places").fetchone()[0]
+        status, result = self.request("POST", "/api/trajectory", {
+            "kind": "place", "id": "oversized-coordinate", "data": {
+                "name": "Invalid", "address": "Tokyo",
+                "coordinates": [10**400, 35.65], "sourceUrl": "https://example.com/place",
+            },
+        })
+        self.assertEqual(status, 400)
+        self.assertEqual(result["error"]["code"], "validation_error")
+        with sqlite3.connect(self.db) as connection:
+            after = connection.execute("SELECT COUNT(*) FROM trajectory_places").fetchone()[0]
+        self.assertEqual(after, before)
+
     def test_ordered_items_api_round_trip(self):
         items = [{"name": "パン", "amount": 100}, {"name": "パン", "amount": 100}]
         record = {"id": "old-expense", "title": "買い物", "date": "2026-09-01",

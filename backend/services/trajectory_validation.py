@@ -85,7 +85,7 @@ def validate_timeline(value: object, *, require_complete: bool = True) -> dict:
         longitude, latitude = coordinates
         for coordinate, lower, upper in ((longitude, 139.4, 140.1), (latitude, 35.4, 35.9)):
             if (isinstance(coordinate, bool) or not isinstance(coordinate, (int, float))
-                    or not math.isfinite(coordinate) or not lower <= coordinate <= upper):
+                    or not lower <= coordinate <= upper or not math.isfinite(coordinate)):
                 raise ValueError(f"{path}.coordinates: Tokyo coordinates required")
 
     seen_dates = set()
