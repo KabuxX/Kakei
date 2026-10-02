@@ -5,10 +5,19 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('first viewport shows period and financial state at desktop and phone widths', async ({ page }) => {
+  let initialized = [];
+  await page.route('**/api/**', async (route) => {
+    const pathname = new URL(route.request().url()).pathname;
+    if (pathname === '/api/status') return route.fulfill({ status: 200, json: { initialized: false } });
+    if (pathname === '/api/initialize') { initialized = route.request().postDataJSON().transactions; return route.fulfill({ status: 201, json: { count: initialized.length } }); }
+    if (pathname === '/api/transactions') return route.fulfill({ status: 200, json: { transactions: initialized } });
+    return route.continue();
+  });
   await page.goto('/');
   await expect(page.locator('#dashboard-view')).toHaveClass(/data-ready/);
   await expect(page.locator('#month-label')).toHaveText('2026年9月');
   await expect(page.locator('#balance-amount')).not.toHaveText('—');
+  expect(new Set(initialized.map((transaction) => transaction.date)).size).toBe(30);
   await expect(page.getByRole('button', { name: '取引を追加' })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   const desktop = await page.locator('.balance-card').boundingBox();
@@ -56,6 +65,7 @@ test('trajectory shows a dated Tokyo sample on desktop and phone', async ({ page
   await expect(page.locator('#dashboard-view')).toBeHidden();
   await expect(page.locator('#trajectory-view')).toHaveCSS('display', 'block');
   await expect(page.getByRole('heading', { name: '生活軌跡' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '生活軌跡' })).toBeFocused();
   await expect(page.getByRole('combobox', { name: '表示する日付' })).toHaveValue('2026-09-01');
   await expect(page.getByText('3地点')).toBeVisible();
   await expect(page.getByRole('heading', { name: '時系列' })).toBeVisible();
@@ -67,6 +77,11 @@ test('trajectory shows a dated Tokyo sample on desktop and phone', async ({ page
   await page.setViewportSize({ width: 375, height: 812 });
   await expect(page.getByRole('combobox', { name: '表示する日付' })).toBeInViewport();
   await expect(page.getByText('5地点')).toBeInViewport();
+  for (const control of [page.getByRole('button', { name: '前の日' }), page.getByRole('button', { name: '次の日' }), page.getByRole('combobox', { name: '表示する日付' })]) {
+    const box = await control.boundingBox();
+    expect(box.height).toBeGreaterThanOrEqual(44);
+    expect(box.width).toBeGreaterThanOrEqual(44);
+  }
   await expect(page.getByRole('link', { name: '軌跡' })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.getByRole('link', { name: '概要' }).click();
