@@ -1,0 +1,1476 @@
+{
+  "places": {
+    "shibuyaStarbucks": {
+      "name": "スターバックス コーヒー 渋谷フクラス店",
+      "address": "東京都渋谷区道玄坂1-2-3 渋谷フクラス1F",
+      "coordinates": [
+        139.6998,
+        35.6575
+      ],
+      "sourceUrl": "https://store.starbucks.co.jp/detail-1651/"
+    },
+    "shibuyaMuji": {
+      "name": "無印良品 渋谷公園通り",
+      "address": "東京都渋谷区宇田川町19-7",
+      "coordinates": [
+        139.6991,
+        35.6623
+      ],
+      "sourceUrl": "https://www.muji.com/jp/ja/shop/detail/045231"
+    },
+    "shibuyaLife": {
+      "name": "ライフ 渋谷東店",
+      "address": "東京都渋谷区東1-26-22",
+      "coordinates": [
+        139.7048,
+        35.654
+      ],
+      "sourceUrl": "https://store.lifecorp.jp/detail/east829/"
+    },
+    "jrShibuya": {
+      "name": "JR渋谷駅",
+      "address": "東京都渋谷区道玄坂1丁目",
+      "coordinates": [
+        139.701636,
+        35.658034
+      ],
+      "sourceUrl": "https://www.jreast.co.jp/estation/station/info.aspx?StationCd=808"
+    },
+    "jrEbisu": {
+      "name": "JR恵比寿駅",
+      "address": "東京都渋谷区恵比寿南1丁目",
+      "coordinates": [
+        139.71007,
+        35.6469
+      ],
+      "sourceUrl": "https://www.jreast.co.jp/estation/stations/290.html"
+    },
+    "ebisuSeijoIshii": {
+      "name": "成城石井 アトレ恵比寿店",
+      "address": "東京都渋谷区恵比寿南1-5-5 アトレ恵比寿3F",
+      "coordinates": [
+        139.7107,
+        35.6468
+      ],
+      "sourceUrl": "https://shop.seijoishii.com/seijoishii/spot/detail?code=0009"
+    },
+    "ebisuMuji": {
+      "name": "無印良品 アトレ恵比寿",
+      "address": "東京都渋谷区恵比寿南1-6-1 アトレ恵比寿西館5-6F",
+      "coordinates": [
+        139.7099,
+        35.6467
+      ],
+      "sourceUrl": "https://www.muji.com/jp/ja/shop/045471/"
+    },
+    "metroShibuya": {
+      "name": "東京メトロ 渋谷駅",
+      "address": "東京都渋谷区渋谷2丁目",
+      "coordinates": [
+        139.702,
+        35.658
+      ],
+      "sourceUrl": "https://www.tokyometro.jp/station/shibuya/index.html"
+    },
+    "metroOmotesando": {
+      "name": "東京メトロ 表参道駅",
+      "address": "東京都港区北青山3-6-12",
+      "coordinates": [
+        139.7115,
+        35.6653
+      ],
+      "sourceUrl": "https://www.tokyometro.jp/station/omote-sando/index.html"
+    },
+    "aoyamaMuji": {
+      "name": "Found MUJI 青山",
+      "address": "東京都渋谷区神宮前5-50-6 中島ビル1-2F",
+      "coordinates": [
+        139.713,
+        35.662
+      ],
+      "sourceUrl": "https://www.muji.com/jp/shop/045941"
+    }
+  },
+  "days": [
+    {
+      "date": "2026-09-01",
+      "events": [
+        {
+          "id": "2026-09-01-1",
+          "time": "09:10",
+          "placeId": "shibuyaStarbucks",
+          "transactionId": "sample-20260901-a"
+        },
+        {
+          "id": "2026-09-01-2",
+          "time": "13:05",
+          "placeId": "shibuyaMuji",
+          "transactionId": "sample-20260901-b"
+        },
+        {
+          "id": "2026-09-01-3",
+          "time": "18:30",
+          "placeId": "shibuyaLife",
+          "transactionId": "sample-20260901-c"
+        }
+      ],
+      "legs": [
+        {
+          "fromEventId": "2026-09-01-1",
+          "toEventId": "2026-09-01-2",
+          "modeHint": "walk"
+        },
+        {
+          "fromEventId": "2026-09-01-2",
+          "toEventId": "2026-09-01-3",
+          "modeHint": "walk"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-02",
+      "events": [
+        {
+          "id": "2026-09-02-1",
+          "time": "08:45",
+          "placeId": "shibuyaStarbucks",
+          "transactionId": "sample-20260902-a"
+        },
+        {
+          "id": "2026-09-02-2",
+          "time": "12:10",
+          "placeId": "jrShibuya",
+          "transactionId": "sample-20260902-train"
+        },
+        {
+          "id": "2026-09-02-3",
+          "time": "12:26",
+          "placeId": "jrEbisu"
+        },
+        {
+          "id": "2026-09-02-4",
+          "time": "18:05",
+          "placeId": "ebisuSeijoIshii",
+          "transactionId": "sample-20260902-b"
+        },
+        {
+          "id": "2026-09-02-5",
+          "time": "18:40",
+          "placeId": "ebisuMuji",
+          "transactionId": "sample-20260902-c"
+        }
+      ],
+      "legs": [
+        {
+          "fromEventId": "2026-09-02-1",
+          "toEventId": "2026-09-02-2",
+          "modeHint": "walk"
+        },
+        {
+          "fromEventId": "2026-09-02-2",
+          "toEventId": "2026-09-02-3",
+          "modeHint": "train",
+          "transportTransactionId": "sample-20260902-train"
+        },
+        {
+          "fromEventId": "2026-09-02-3",
+          "toEventId": "2026-09-02-4",
+          "modeHint": "walk"
+        },
+        {
+          "fromEventId": "2026-09-02-4",
+          "toEventId": "2026-09-02-5",
+          "modeHint": "walk"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-03",
+      "events": [
+        {
+          "id": "2026-09-03-1",
+          "time": "08:20",
+          "placeId": "shibuyaLife",
+          "transactionId": "sample-20260903-a"
+        },
+        {
+          "id": "2026-09-03-2",
+          "time": "11:25",
+          "placeId": "metroShibuya",
+          "transactionId": "sample-20260903-metro"
+        },
+        {
+          "id": "2026-09-03-3",
+          "time": "11:36",
+          "placeId": "metroOmotesando"
+        },
+        {
+          "id": "2026-09-03-4",
+          "time": "12:20",
+          "placeId": "aoyamaMuji",
+          "transactionId": "sample-20260903-b"
+        }
+      ],
+      "legs": [
+        {
+          "fromEventId": "2026-09-03-1",
+          "toEventId": "2026-09-03-2",
+          "modeHint": "walk"
+        },
+        {
+          "fromEventId": "2026-09-03-2",
+          "toEventId": "2026-09-03-3",
+          "modeHint": "train",
+          "transportTransactionId": "sample-20260903-metro"
+        },
+        {
+          "fromEventId": "2026-09-03-3",
+          "toEventId": "2026-09-03-4",
+          "modeHint": "walk"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-04",
+      "events": [
+        {
+          "id": "2026-09-04-1",
+          "time": "09:10",
+          "placeId": "shibuyaStarbucks",
+          "transactionId": "sample-20260904-a"
+        },
+        {
+          "id": "2026-09-04-2",
+          "time": "13:05",
+          "placeId": "shibuyaMuji",
+          "transactionId": "sample-20260904-b"
+        },
+        {
+          "id": "2026-09-04-3",
+          "time": "18:30",
+          "placeId": "shibuyaLife",
+          "transactionId": "sample-20260904-c"
+        }
+      ],
+      "legs": [
+        {
+          "fromEventId": "2026-09-04-1",
+          "toEventId": "2026-09-04-2",
+          "modeHint": "walk"
+        },
+        {
+          "fromEventId": "2026-09-04-2",
+          "toEventId": "2026-09-04-3",
+          "modeHint": "walk"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-05",
+      "events": [
+        {
+          "id": "2026-09-05-1",
+          "time": "08:45",
+          "placeId": "shibuyaStarbucks",
+          "transactionId": "sample-20260905-a"
+        },
+        {
+          "id": "2026-09-05-2",
+          "time": "12:10",
+          "placeId": "jrShibuya",
+          "transactionId": "sample-20260905-train"
+        },
+        {
+          "id": "2026-09-05-3",
+          "time": "12:26",
+          "placeId": "jrEbisu"
+        },
+        {
+          "id": "2026-09-05-4",
+          "time": "18:05",
+          "placeId": "ebisuSeijoIshii",
+          "transactionId": "sample-20260905-b"
+        },
+        {
+          "id": "2026-09-05-5",
+          "time": "18:40",
+          "placeId": "ebisuMuji",
+          "transactionId": "sample-20260905-c"
+        }
+      ],
+      "legs": [
+        {
+          "fromEventId": "2026-09-05-1",
+          "toEventId": "2026-09-05-2",
+          "modeHint": "walk"
+        },
+        {
+          "fromEventId": "2026-09-05-2",
+          "toEventId": "2026-09-05-3",
+          "modeHint": "train",
+          "transportTransactionId": "sample-20260905-train"
+        },
+        {
+          "fromEventId": "2026-09-05-3",
+          "toEventId": "2026-09-05-4",
+          "modeHint": "walk"
+        },
+        {
+          "fromEventId": "2026-09-05-4",
+          "toEventId": "2026-09-05-5",
+          "modeHint": "walk"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-06",
+      "events": [
+        {
+          "id": "2026-09-06-1",
+          "time": "08:20",
+          "placeId": "shibuyaLife",
+          "transactionId": "sample-20260906-a"
+        },
+        {
+          "id": "2026-09-06-2",
+          "time": "11:25",
+          "placeId": "metroShibuya",
+          "transactionId": "sample-20260906-metro"
+        },
+        {
+          "id": "2026-09-06-3",
+          "time": "11:36",
+          "placeId": "metroOmotesando"
+        },
+        {
+          "id": "2026-09-06-4",
+          "time": "12:20",
+          "placeId": "aoyamaMuji",
+          "transactionId": "sample-20260906-b"
+        }
+      ],
+      "legs": [
+        {
+          "fromEventId": "2026-09-06-1",
+          "toEventId": "2026-09-06-2",
+          "modeHint": "walk"
+        },
+        {
+          "fromEventId": "2026-09-06-2",
+          "toEventId": "2026-09-06-3",
+          "modeHint": "train",
+          "transportTransactionId": "sample-20260906-metro"
+        },
+        {
+          "fromEventId": "2026-09-06-3",
+          "toEventId": "2026-09-06-4",
+          "modeHint": "walk"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-07",
+      "events": [
+        {
+          "id": "2026-09-07-1",
+          "time": "09:10",
+          "placeId": "shibuyaStarbucks",
+          "transactionId": "sample-20260907-a"
+        },
+        {
+          "id": "2026-09-07-2",
+          "time": "13:05",
+          "placeId": "shibuyaMuji",
+          "transactionId": "sample-20260907-b"
+        },
+        {
+          "id": "2026-09-07-3",
+          "time": "18:30",
+          "placeId": "shibuyaLife",
+          "transactionId": "sample-20260907-c"
+        }
+      ],
+      "legs": [
+        {
+          "fromEventId": "2026-09-07-1",
+          "toEventId": "2026-09-07-2",
+          "modeHint": "walk"
+        },
+        {
+          "fromEventId": "2026-09-07-2",
+          "toEventId": "2026-09-07-3",
+          "modeHint": "walk"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-08",
+      "events": [
+        {
+          "id": "2026-09-08-1",
+          "time": "08:45",
+          "placeId": "shibuyaStarbucks",
+          "transactionId": "sample-20260908-a"
+        },
+        {
+          "id": "2026-09-08-2",
+          "time": "12:10",
+          "placeId": "jrShibuya",
+          "transactionId": "sample-20260908-train"
+        },
+        {
+          "id": "2026-09-08-3",
+          "time": "12:26",
+          "placeId": "jrEbisu"
+        },
+        {
+          "id": "2026-09-08-4",
+          "time": "18:05",
+          "placeId": "ebisuSeijoIshii",
+          "transactionId": "sample-20260908-b"
+        },
+        {
+          "id": "2026-09-08-5",
+          "time": "18:40",
+          "placeId": "ebisuMuji",
+          "transactionId": "sample-20260908-c"
+        }
+      ],
+      "legs": [
+        {
+          "fromEventId": "2026-09-08-1",
+          "toEventId": "2026-09-08-2",
+          "modeHint": "walk"
+        },
+        {
+          "fromEventId": "2026-09-08-2",
+          "toEventId": "2026-09-08-3",
+          "modeHint": "train",
+          "transportTransactionId": "sample-20260908-train"
+        },
+        {
+          "fromEventId": "2026-09-08-3",
+          "toEventId": "2026-09-08-4",
+          "modeHint": "walk"
+        },
+        {
+          "fromEventId": "2026-09-08-4",
+          "toEventId": "2026-09-08-5",
+          "modeHint": "walk"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-09",
+      "events": [
+        {
+          "id": "2026-09-09-1",
+          "time": "08:20",
+          "placeId": "shibuyaLife",
+          "transactionId": "sample-20260909-a"
+        },
+        {
+          "id": "2026-09-09-2",
+          "time": "11:25",
+          "placeId": "metroShibuya",
+          "transactionId": "sample-20260909-metro"
+        },
+        {
+          "id": "2026-09-09-3",
+          "time": "11:36",
+          "placeId": "metroOmotesando"
+        },
+        {
+          "id": "2026-09-09-4",
+          "time": "12:20",
+          "placeId": "aoyamaMuji",
+          "transactionId": "sample-20260909-b"
+        }
+      ],
+      "legs": [
+        {
+          "fromEventId": "2026-09-09-1",
+          "toEventId": "2026-09-09-2",
+          "modeHint": "walk"
+        },
+        {
+          "fromEventId": "2026-09-09-2",
+          "toEventId": "2026-09-09-3",
+          "modeHint": "train",
+          "transportTransactionId": "sample-20260909-metro"
+        },
+        {
+          "fromEventId": "2026-09-09-3",
+          "toEventId": "2026-09-09-4",
+          "modeHint": "walk"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-10",
+      "events": [
+        {
+          "id": "2026-09-10-1",
+          "time": "09:10",
+          "placeId": "shibuyaStarbucks",
+          "transactionId": "sample-20260910-a"
+        },
+        {
+          "id": "2026-09-10-2",
+          "time": "13:05",
+          "placeId": "shibuyaMuji",
+          "transactionId": "sample-20260910-b"
+        },
+        {
+          "id": "2026-09-10-3",
+          "time": "18:30",
+          "placeId": "shibuyaLife",
+          "transactionId": "sample-20260910-c"
+        }
+      ],
+      "legs": [
+        {
+          "fromEventId": "2026-09-10-1",
+          "toEventId": "2026-09-10-2",
+          "modeHint": "walk"
+        },
+        {
+          "fromEventId": "2026-09-10-2",
+          "toEventId": "2026-09-10-3",
+          "modeHint": "walk"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-11",
+      "events": [
+        {
+          "id": "2026-09-11-1",
+          "time": "08:45",
+          "placeId": "shibuyaStarbucks",
+          "transactionId": "sample-20260911-a"
+        },
+        {
+          "id": "2026-09-11-2",
+          "time": "12:10",
+          "placeId": "jrShibuya",
+          "transactionId": "sample-20260911-train"
+        },
+        {
+          "id": "2026-09-11-3",
+          "time": "12:26",
+          "placeId": "jrEbisu"
+        },
+        {
+          "id": "2026-09-11-4",
+          "time": "18:05",
+          "placeId": "ebisuSeijoIshii",
+          "transactionId": "sample-20260911-b"
+        },
+        {
+          "id": "2026-09-11-5",
+          "time": "18:40",
+          "placeId": "ebisuMuji",
+          "transactionId": "sample-20260911-c"
+        }
+      ],
+      "legs": [
+        {
+          "fromEventId": "2026-09-11-1",
+          "toEventId": "2026-09-11-2",
+          "modeHint": "walk"
+        },
+        {
+          "fromEventId": "2026-09-11-2",
+          "toEventId": "2026-09-11-3",
+          "modeHint": "train",
+          "transportTransactionId": "sample-20260911-train"
+        },
+        {
+          "fromEventId": "2026-09-11-3",
+          "toEventId": "2026-09-11-4",
+          "modeHint": "walk"
+        },
+        {
+          "fromEventId": "2026-09-11-4",
+          "toEventId": "2026-09-11-5",
+          "modeHint": "walk"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-12",
+      "events": [
+        {
+          "id": "2026-09-12-1",
+          "time": "08:20",
+          "placeId": "shibuyaLife",
+          "transactionId": "sample-20260912-a"
+        },
+        {
+          "id": "2026-09-12-2",
+          "time": "11:25",
+          "placeId": "metroShibuya",
+          "transactionId": "sample-20260912-metro"
+        },
+        {
+          "id": "2026-09-12-3",
+          "time": "11:36",
+          "placeId": "metroOmotesando"
+        },
+        {
+          "id": "2026-09-12-4",
+          "time": "12:20",
+          "placeId": "aoyamaMuji",
+          "transactionId": "sample-20260912-b"
+        }
+      ],
+      "legs": [
+        {
+          "fromEventId": "2026-09-12-1",
+          "toEventId": "2026-09-12-2",
+          "modeHint": "walk"
+        },
+        {
+          "fromEventId": "2026-09-12-2",
+          "toEventId": "2026-09-12-3",
+          "modeHint": "train",
+          "transportTransactionId": "sample-20260912-metro"
+        },
+        {
+          "fromEventId": "2026-09-12-3",
+          "toEventId": "2026-09-12-4",
+          "modeHint": "walk"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-13",
+      "events": [
+        {
+          "id": "2026-09-13-1",
+          "time": "09:10",
+          "placeId": "shibuyaStarbucks",
+          "transactionId": "sample-20260913-a"
+        },
+        {
+          "id": "2026-09-13-2",
+          "time": "13:05",
+          "placeId": "shibuyaMuji",
+          "transactionId": "sample-20260913-b"
+        },
+        {
+          "id": "2026-09-13-3",
+          "time": "18:30",
+          "placeId": "shibuyaLife",
+          "transactionId": "sample-20260913-c"
+        }
+      ],
+      "legs": [
+        {
+          "fromEventId": "2026-09-13-1",
+          "toEventId": "2026-09-13-2",
+          "modeHint": "walk"
+        },
+        {
+          "fromEventId": "2026-09-13-2",
+          "toEventId": "2026-09-13-3",
+          "modeHint": "walk"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-14",
+      "events": [
+        {
+          "id": "2026-09-14-1",
+          "time": "08:45",
+          "placeId": "shibuyaStarbucks",
+          "transactionId": "sample-20260914-a"
+        },
+        {
+          "id": "2026-09-14-2",
+          "time": "12:10",
+          "placeId": "jrShibuya",
+          "transactionId": "sample-20260914-train"
+        },
+        {
+          "id": "2026-09-14-3",
+          "time": "12:26",
+          "placeId": "jrEbisu"
+        },
+        {
+          "id": "2026-09-14-4",
+          "time": "18:05",
+          "placeId": "ebisuSeijoIshii",
+          "transactionId": "sample-20260914-b"
+        },
+        {
+          "id": "2026-09-14-5",
+          "time": "18:40",
+          "placeId": "ebisuMuji",
+          "transactionId": "sample-20260914-c"
+        }
+      ],
+      "legs": [
+        {
+          "fromEventId": "2026-09-14-1",
+          "toEventId": "2026-09-14-2",
+          "modeHint": "walk"
+        },
+        {
+          "fromEventId": "2026-09-14-2",
+          "toEventId": "2026-09-14-3",
+          "modeHint": "train",
+          "transportTransactionId": "sample-20260914-train"
+        },
+        {
+          "fromEventId": "2026-09-14-3",
+          "toEventId": "2026-09-14-4",
+          "modeHint": "walk"
+        },
+        {
+          "fromEventId": "2026-09-14-4",
+          "toEventId": "2026-09-14-5",
+          "modeHint": "walk"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-15",
+      "events": [
+        {
+          "id": "2026-09-15-1",
+          "time": "08:20",
+          "placeId": "shibuyaLife",
+          "transactionId": "sample-20260915-a"
+        },
+        {
+          "id": "2026-09-15-2",
+          "time": "11:25",
+          "placeId": "metroShibuya",
+          "transactionId": "sample-20260915-metro"
+        },
+        {
+          "id": "2026-09-15-3",
+          "time": "11:36",
+          "placeId": "metroOmotesando"
+        },
+        {
+          "id": "2026-09-15-4",
+          "time": "12:20",
+          "placeId": "aoyamaMuji",
+          "transactionId": "sample-20260915-b"
+        }
+      ],
+      "legs": [
+        {
+          "fromEventId": "2026-09-15-1",
+          "toEventId": "2026-09-15-2",
+          "modeHint": "walk"
+        },
+        {
+          "fromEventId": "2026-09-15-2",
+          "toEventId": "2026-09-15-3",
+          "modeHint": "train",
+          "transportTransactionId": "sample-20260915-metro"
+        },
+        {
+          "fromEventId": "2026-09-15-3",
+          "toEventId": "2026-09-15-4",
+          "modeHint": "walk"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-16",
+      "events": [
+        {
+          "id": "2026-09-16-1",
+          "time": "09:10",
+          "placeId": "shibuyaStarbucks",
+          "transactionId": "sample-20260916-a"
+        },
+        {
+          "id": "2026-09-16-2",
+          "time": "13:05",
+          "placeId": "shibuyaMuji",
+          "transactionId": "sample-20260916-b"
+        },
+        {
+          "id": "2026-09-16-3",
+          "time": "18:30",
+          "placeId": "shibuyaLife",
+          "transactionId": "sample-20260916-c"
+        }
+      ],
+      "legs": [
+        {
+          "fromEventId": "2026-09-16-1",
+          "toEventId": "2026-09-16-2",
+          "modeHint": "walk"
+        },
+        {
+          "fromEventId": "2026-09-16-2",
+          "toEventId": "2026-09-16-3",
+          "modeHint": "walk"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-17",
+      "events": [
+        {
+          "id": "2026-09-17-1",
+          "time": "08:45",
+          "placeId": "shibuyaStarbucks",
+          "transactionId": "sample-20260917-a"
+        },
+        {
+          "id": "2026-09-17-2",
+          "time": "12:10",
+          "placeId": "jrShibuya",
+          "transactionId": "sample-20260917-train"
+        },
+        {
+          "id": "2026-09-17-3",
+          "time": "12:26",
+          "placeId": "jrEbisu"
+        },
+        {
+          "id": "2026-09-17-4",
+          "time": "18:05",
+          "placeId": "ebisuSeijoIshii",
+          "transactionId": "sample-20260917-b"
+        },
+        {
+          "id": "2026-09-17-5",
+          "time": "18:40",
+          "placeId": "ebisuMuji",
+          "transactionId": "sample-20260917-c"
+        }
+      ],
+      "legs": [
+        {
+          "fromEventId": "2026-09-17-1",
+          "toEventId": "2026-09-17-2",
+          "modeHint": "walk"
+        },
+        {
+          "fromEventId": "2026-09-17-2",
+          "toEventId": "2026-09-17-3",
+          "modeHint": "train",
+          "transportTransactionId": "sample-20260917-train"
+        },
+        {
+          "fromEventId": "2026-09-17-3",
+          "toEventId": "2026-09-17-4",
+          "modeHint": "walk"
+        },
+        {
+          "fromEventId": "2026-09-17-4",
+          "toEventId": "2026-09-17-5",
+          "modeHint": "walk"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-18",
+      "events": [
+        {
+          "id": "2026-09-18-1",
+          "time": "08:20",
+          "placeId": "shibuyaLife",
+          "transactionId": "sample-20260918-a"
+        },
+        {
+          "id": "2026-09-18-2",
+          "time": "11:25",
+          "placeId": "metroShibuya",
+          "transactionId": "sample-20260918-metro"
+        },
+        {
+          "id": "2026-09-18-3",
+          "time": "11:36",
+          "placeId": "metroOmotesando"
+        },
+        {
+          "id": "2026-09-18-4",
+          "time": "12:20",
+          "placeId": "aoyamaMuji",
+          "transactionId": "sample-20260918-b"
+        }
+      ],
+      "legs": [
+        {
+          "fromEventId": "2026-09-18-1",
+          "toEventId": "2026-09-18-2",
+          "modeHint": "walk"
+        },
+        {
+          "fromEventId": "2026-09-18-2",
+          "toEventId": "2026-09-18-3",
+          "modeHint": "train",
+          "transportTransactionId": "sample-20260918-metro"
+        },
+        {
+          "fromEventId": "2026-09-18-3",
+          "toEventId": "2026-09-18-4",
+          "modeHint": "walk"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-19",
+      "events": [
+        {
+          "id": "2026-09-19-1",
+          "time": "09:10",
+          "placeId": "shibuyaStarbucks",
+          "transactionId": "sample-20260919-a"
+        },
+        {
+          "id": "2026-09-19-2",
+          "time": "13:05",
+          "placeId": "shibuyaMuji",
+          "transactionId": "sample-20260919-b"
+        },
+        {
+          "id": "2026-09-19-3",
+          "time": "18:30",
+          "placeId": "shibuyaLife",
+          "transactionId": "sample-20260919-c"
+        }
+      ],
+      "legs": [
+        {
+          "fromEventId": "2026-09-19-1",
+          "toEventId": "2026-09-19-2",
+          "modeHint": "walk"
+        },
+        {
+          "fromEventId": "2026-09-19-2",
+          "toEventId": "2026-09-19-3",
+          "modeHint": "walk"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-20",
+      "events": [
+        {
+          "id": "2026-09-20-1",
+          "time": "08:45",
+          "placeId": "shibuyaStarbucks",
+          "transactionId": "sample-20260920-a"
+        },
+        {
+          "id": "2026-09-20-2",
+          "time": "12:10",
+          "placeId": "jrShibuya",
+          "transactionId": "sample-20260920-train"
+        },
+        {
+          "id": "2026-09-20-3",
+          "time": "12:26",
+          "placeId": "jrEbisu"
+        },
+        {
+          "id": "2026-09-20-4",
+          "time": "18:05",
+          "placeId": "ebisuSeijoIshii",
+          "transactionId": "sample-20260920-b"
+        },
+        {
+          "id": "2026-09-20-5",
+          "time": "18:40",
+          "placeId": "ebisuMuji",
+          "transactionId": "sample-20260920-c"
+        }
+      ],
+      "legs": [
+        {
+          "fromEventId": "2026-09-20-1",
+          "toEventId": "2026-09-20-2",
+          "modeHint": "walk"
+        },
+        {
+          "fromEventId": "2026-09-20-2",
+          "toEventId": "2026-09-20-3",
+          "modeHint": "train",
+          "transportTransactionId": "sample-20260920-train"
+        },
+        {
+          "fromEventId": "2026-09-20-3",
+          "toEventId": "2026-09-20-4",
+          "modeHint": "walk"
+        },
+        {
+          "fromEventId": "2026-09-20-4",
+          "toEventId": "2026-09-20-5",
+          "modeHint": "walk"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-21",
+      "events": [
+        {
+          "id": "2026-09-21-1",
+          "time": "08:20",
+          "placeId": "shibuyaLife",
+          "transactionId": "sample-20260921-a"
+        },
+        {
+          "id": "2026-09-21-2",
+          "time": "11:25",
+          "placeId": "metroShibuya",
+          "transactionId": "sample-20260921-metro"
+        },
+        {
+          "id": "2026-09-21-3",
+          "time": "11:36",
+          "placeId": "metroOmotesando"
+        },
+        {
+          "id": "2026-09-21-4",
+          "time": "12:20",
+          "placeId": "aoyamaMuji",
+          "transactionId": "sample-20260921-b"
+        }
+      ],
+      "legs": [
+        {
+          "fromEventId": "2026-09-21-1",
+          "toEventId": "2026-09-21-2",
+          "modeHint": "walk"
+        },
+        {
+          "fromEventId": "2026-09-21-2",
+          "toEventId": "2026-09-21-3",
+          "modeHint": "train",
+          "transportTransactionId": "sample-20260921-metro"
+        },
+        {
+          "fromEventId": "2026-09-21-3",
+          "toEventId": "2026-09-21-4",
+          "modeHint": "walk"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-22",
+      "events": [
+        {
+          "id": "2026-09-22-1",
+          "time": "09:10",
+          "placeId": "shibuyaStarbucks",
+          "transactionId": "sample-20260922-a"
+        },
+        {
+          "id": "2026-09-22-2",
+          "time": "13:05",
+          "placeId": "shibuyaMuji",
+          "transactionId": "sample-20260922-b"
+        },
+        {
+          "id": "2026-09-22-3",
+          "time": "18:30",
+          "placeId": "shibuyaLife",
+          "transactionId": "sample-20260922-c"
+        }
+      ],
+      "legs": [
+        {
+          "fromEventId": "2026-09-22-1",
+          "toEventId": "2026-09-22-2",
+          "modeHint": "walk"
+        },
+        {
+          "fromEventId": "2026-09-22-2",
+          "toEventId": "2026-09-22-3",
+          "modeHint": "walk"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-23",
+      "events": [
+        {
+          "id": "2026-09-23-1",
+          "time": "08:45",
+          "placeId": "shibuyaStarbucks",
+          "transactionId": "sample-20260923-a"
+        },
+        {
+          "id": "2026-09-23-2",
+          "time": "12:10",
+          "placeId": "jrShibuya",
+          "transactionId": "sample-20260923-train"
+        },
+        {
+          "id": "2026-09-23-3",
+          "time": "12:26",
+          "placeId": "jrEbisu"
+        },
+        {
+          "id": "2026-09-23-4",
+          "time": "18:05",
+          "placeId": "ebisuSeijoIshii",
+          "transactionId": "sample-20260923-b"
+        },
+        {
+          "id": "2026-09-23-5",
+          "time": "18:40",
+          "placeId": "ebisuMuji",
+          "transactionId": "sample-20260923-c"
+        }
+      ],
+      "legs": [
+        {
+          "fromEventId": "2026-09-23-1",
+          "toEventId": "2026-09-23-2",
+          "modeHint": "walk"
+        },
+        {
+          "fromEventId": "2026-09-23-2",
+          "toEventId": "2026-09-23-3",
+          "modeHint": "train",
+          "transportTransactionId": "sample-20260923-train"
+        },
+        {
+          "fromEventId": "2026-09-23-3",
+          "toEventId": "2026-09-23-4",
+          "modeHint": "walk"
+        },
+        {
+          "fromEventId": "2026-09-23-4",
+          "toEventId": "2026-09-23-5",
+          "modeHint": "walk"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-24",
+      "events": [
+        {
+          "id": "2026-09-24-1",
+          "time": "08:20",
+          "placeId": "shibuyaLife",
+          "transactionId": "sample-20260924-a"
+        },
+        {
+          "id": "2026-09-24-2",
+          "time": "11:25",
+          "placeId": "metroShibuya",
+          "transactionId": "sample-20260924-metro"
+        },
+        {
+          "id": "2026-09-24-3",
+          "time": "11:36",
+          "placeId": "metroOmotesando"
+        },
+        {
+          "id": "2026-09-24-4",
+          "time": "12:20",
+          "placeId": "aoyamaMuji",
+          "transactionId": "sample-20260924-b"
+        }
+      ],
+      "legs": [
+        {
+          "fromEventId": "2026-09-24-1",
+          "toEventId": "2026-09-24-2",
+          "modeHint": "walk"
+        },
+        {
+          "fromEventId": "2026-09-24-2",
+          "toEventId": "2026-09-24-3",
+          "modeHint": "train",
+          "transportTransactionId": "sample-20260924-metro"
+        },
+        {
+          "fromEventId": "2026-09-24-3",
+          "toEventId": "2026-09-24-4",
+          "modeHint": "walk"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-25",
+      "events": [
+        {
+          "id": "2026-09-25-1",
+          "time": "09:10",
+          "placeId": "shibuyaStarbucks",
+          "transactionId": "sample-20260925-a"
+        },
+        {
+          "id": "2026-09-25-2",
+          "time": "13:05",
+          "placeId": "shibuyaMuji",
+          "transactionId": "sample-20260925-b"
+        },
+        {
+          "id": "2026-09-25-3",
+          "time": "18:30",
+          "placeId": "shibuyaLife",
+          "transactionId": "sample-20260925-c"
+        }
+      ],
+      "legs": [
+        {
+          "fromEventId": "2026-09-25-1",
+          "toEventId": "2026-09-25-2",
+          "modeHint": "walk"
+        },
+        {
+          "fromEventId": "2026-09-25-2",
+          "toEventId": "2026-09-25-3",
+          "modeHint": "walk"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-26",
+      "events": [
+        {
+          "id": "2026-09-26-1",
+          "time": "08:45",
+          "placeId": "shibuyaStarbucks",
+          "transactionId": "sample-20260926-a"
+        },
+        {
+          "id": "2026-09-26-2",
+          "time": "12:10",
+          "placeId": "jrShibuya",
+          "transactionId": "sample-20260926-train"
+        },
+        {
+          "id": "2026-09-26-3",
+          "time": "12:26",
+          "placeId": "jrEbisu"
+        },
+        {
+          "id": "2026-09-26-4",
+          "time": "18:05",
+          "placeId": "ebisuSeijoIshii",
+          "transactionId": "sample-20260926-b"
+        },
+        {
+          "id": "2026-09-26-5",
+          "time": "18:40",
+          "placeId": "ebisuMuji",
+          "transactionId": "sample-20260926-c"
+        }
+      ],
+      "legs": [
+        {
+          "fromEventId": "2026-09-26-1",
+          "toEventId": "2026-09-26-2",
+          "modeHint": "walk"
+        },
+        {
+          "fromEventId": "2026-09-26-2",
+          "toEventId": "2026-09-26-3",
+          "modeHint": "train",
+          "transportTransactionId": "sample-20260926-train"
+        },
+        {
+          "fromEventId": "2026-09-26-3",
+          "toEventId": "2026-09-26-4",
+          "modeHint": "walk"
+        },
+        {
+          "fromEventId": "2026-09-26-4",
+          "toEventId": "2026-09-26-5",
+          "modeHint": "walk"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-27",
+      "events": [
+        {
+          "id": "2026-09-27-1",
+          "time": "08:20",
+          "placeId": "shibuyaLife",
+          "transactionId": "sample-20260927-a"
+        },
+        {
+          "id": "2026-09-27-2",
+          "time": "11:25",
+          "placeId": "metroShibuya",
+          "transactionId": "sample-20260927-metro"
+        },
+        {
+          "id": "2026-09-27-3",
+          "time": "11:36",
+          "placeId": "metroOmotesando"
+        },
+        {
+          "id": "2026-09-27-4",
+          "time": "12:20",
+          "placeId": "aoyamaMuji",
+          "transactionId": "sample-20260927-b"
+        }
+      ],
+      "legs": [
+        {
+          "fromEventId": "2026-09-27-1",
+          "toEventId": "2026-09-27-2",
+          "modeHint": "walk"
+        },
+        {
+          "fromEventId": "2026-09-27-2",
+          "toEventId": "2026-09-27-3",
+          "modeHint": "train",
+          "transportTransactionId": "sample-20260927-metro"
+        },
+        {
+          "fromEventId": "2026-09-27-3",
+          "toEventId": "2026-09-27-4",
+          "modeHint": "walk"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-28",
+      "events": [
+        {
+          "id": "2026-09-28-1",
+          "time": "09:10",
+          "placeId": "shibuyaStarbucks",
+          "transactionId": "sample-20260928-a"
+        },
+        {
+          "id": "2026-09-28-2",
+          "time": "13:05",
+          "placeId": "shibuyaMuji",
+          "transactionId": "sample-20260928-b"
+        },
+        {
+          "id": "2026-09-28-3",
+          "time": "18:30",
+          "placeId": "shibuyaLife",
+          "transactionId": "sample-20260928-c"
+        }
+      ],
+      "legs": [
+        {
+          "fromEventId": "2026-09-28-1",
+          "toEventId": "2026-09-28-2",
+          "modeHint": "walk"
+        },
+        {
+          "fromEventId": "2026-09-28-2",
+          "toEventId": "2026-09-28-3",
+          "modeHint": "walk"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-29",
+      "events": [
+        {
+          "id": "2026-09-29-1",
+          "time": "08:45",
+          "placeId": "shibuyaStarbucks",
+          "transactionId": "sample-20260929-a"
+        },
+        {
+          "id": "2026-09-29-2",
+          "time": "12:10",
+          "placeId": "jrShibuya",
+          "transactionId": "sample-20260929-train"
+        },
+        {
+          "id": "2026-09-29-3",
+          "time": "12:26",
+          "placeId": "jrEbisu"
+        },
+        {
+          "id": "2026-09-29-4",
+          "time": "18:05",
+          "placeId": "ebisuSeijoIshii",
+          "transactionId": "sample-20260929-b"
+        },
+        {
+          "id": "2026-09-29-5",
+          "time": "18:40",
+          "placeId": "ebisuMuji",
+          "transactionId": "sample-20260929-c"
+        }
+      ],
+      "legs": [
+        {
+          "fromEventId": "2026-09-29-1",
+          "toEventId": "2026-09-29-2",
+          "modeHint": "walk"
+        },
+        {
+          "fromEventId": "2026-09-29-2",
+          "toEventId": "2026-09-29-3",
+          "modeHint": "train",
+          "transportTransactionId": "sample-20260929-train"
+        },
+        {
+          "fromEventId": "2026-09-29-3",
+          "toEventId": "2026-09-29-4",
+          "modeHint": "walk"
+        },
+        {
+          "fromEventId": "2026-09-29-4",
+          "toEventId": "2026-09-29-5",
+          "modeHint": "walk"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-30",
+      "events": [
+        {
+          "id": "2026-09-30-1",
+          "time": "08:20",
+          "placeId": "shibuyaLife",
+          "transactionId": "sample-20260930-a"
+        },
+        {
+          "id": "2026-09-30-2",
+          "time": "11:25",
+          "placeId": "metroShibuya",
+          "transactionId": "sample-20260930-metro"
+        },
+        {
+          "id": "2026-09-30-3",
+          "time": "11:36",
+          "placeId": "metroOmotesando"
+        },
+        {
+          "id": "2026-09-30-4",
+          "time": "12:20",
+          "placeId": "aoyamaMuji",
+          "transactionId": "sample-20260930-b"
+        }
+      ],
+      "legs": [
+        {
+          "fromEventId": "2026-09-30-1",
+          "toEventId": "2026-09-30-2",
+          "modeHint": "walk"
+        },
+        {
+          "fromEventId": "2026-09-30-2",
+          "toEventId": "2026-09-30-3",
+          "modeHint": "train",
+          "transportTransactionId": "sample-20260930-metro"
+        },
+        {
+          "fromEventId": "2026-09-30-3",
+          "toEventId": "2026-09-30-4",
+          "modeHint": "walk"
+        }
+      ]
+    }
+  ]
+}
