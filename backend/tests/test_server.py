@@ -18,6 +18,7 @@ from fastapi.testclient import TestClient
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import server
+from api.app import create_app
 from store import Store
 
 
@@ -65,6 +66,20 @@ class ServerTests(unittest.TestCase):
         response = self.client.request(method, path, content=body, headers=headers)
         content = response.json() if response.headers.get("Content-Type", "").startswith("application/json") and response.content else response.content
         return response.status_code, content
+
+    def test_api_package_factory_preserves_status_and_trajectory_contracts(self):
+        app = create_app(Path(self.temp.name) / "package.sqlite3", self.front)
+        with TestClient(app) as client:
+            headers = {"Host": "localhost:8765"}
+            status = client.get("/api/status", headers=headers)
+            self.assertEqual((status.status_code, status.json()), (200, {"initialized": False}))
+            response = client.get("/api/trajectory/2026-09-29", headers=headers)
+            self.assertEqual(response.status_code, 200)
+            payload = response.json()
+            self.assertEqual(set(payload), {"places", "days"})
+            self.assertEqual(len(payload["days"]), 1)
+            self.assertEqual(payload["days"][0]["date"], "2026-09-29")
+            self.assertEqual(payload["places"]["jrShibuya"]["coordinates"], [139.701636, 35.658034])
 
     def test_api_lifecycle_and_codes(self):
         self.assertEqual(self.request("GET", "/api/status"), (200, {"initialized": False}))
@@ -219,7 +234,8 @@ class ServerTests(unittest.TestCase):
         status, error = self.request("POST", "/api/transactions", {"title": "x" * 70000})
         self.assertEqual((status, error["error"]["code"]), (413, "body_too_large"))
         status, error = self.request("POST", "/api/transactions", {"title": ""})
-        self.assertEqual((status, error["error"]["field"]), (400, "title"))
+        self.assertEqual((status, error["error"]["code"], error["error"]["field"]),
+                         (400, "validation_error", "title"))
 
     def test_cross_origin_write_and_static_escape_rejected(self):
         status, _ = self.request("POST", "/api/initialize", {"transactions": []},
