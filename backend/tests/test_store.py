@@ -2,8 +2,10 @@ import sqlite3
 import sys
 import tempfile
 import unittest
+from contextlib import contextmanager
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -154,6 +156,54 @@ class StoreTests(unittest.TestCase):
             children = connection.execute("SELECT transaction_id FROM transaction_items").fetchall()
         self.assertEqual(parents, [])
         self.assertEqual(children, [])
+
+    def _read_while_deleting(self, read):
+        with sqlite3.connect(self.path) as connection:
+            connection.execute("PRAGMA journal_mode = WAL")
+        original_connection = self.store._connection
+        deletes = []
+
+        @contextmanager
+        def instrumented_connection():
+            with original_connection() as connection:
+                def before_statement(sql):
+                    if "FROM transaction_items" in sql and not deletes:
+                        with sqlite3.connect(self.path) as writer:
+                            writer.execute("PRAGMA foreign_keys = ON")
+                            writer.execute("DELETE FROM transactions WHERE id = 'during-read'")
+                        deletes.append(True)
+
+                connection.set_trace_callback(before_statement)
+                try:
+                    yield connection
+                finally:
+                    connection.set_trace_callback(None)
+
+        with patch.object(self.store, "_connection", instrumented_connection):
+            result = read()
+        self.assertEqual(deletes, [True])
+        self.assertIsNone(self.store.get_transaction("during-read"))
+        return result
+
+    def test_list_keeps_items_when_deleted_during_read(self):
+        items = [{"name": "パン", "amount": 100}]
+        self.store.initialize([
+            {"id": "during-read", "title": "買い物", "date": "2026-09-01",
+             "type": "expense", "category": "食費", "amount": 100, "items": items},
+        ])
+        records = self._read_while_deleting(self.store.list_transactions)
+        self.assertEqual(records[0]["id"], "during-read")
+        self.assertEqual(records[0]["items"], items)
+
+    def test_get_keeps_items_when_deleted_during_read(self):
+        items = [{"name": "パン", "amount": 100}]
+        self.store.initialize([
+            {"id": "during-read", "title": "買い物", "date": "2026-09-01",
+             "type": "expense", "category": "食費", "amount": 100, "items": items},
+        ])
+        record = self._read_while_deleting(lambda: self.store.get_transaction("during-read"))
+        self.assertEqual(record["id"], "during-read")
+        self.assertEqual(record["items"], items)
 
 
 if __name__ == "__main__":

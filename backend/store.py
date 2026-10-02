@@ -107,6 +107,7 @@ class Store:
 
     def list_transactions(self):
         with self._connection() as connection:
+            connection.execute("BEGIN")
             self._require_initialized(connection)
             rows = connection.execute("SELECT * FROM transactions ORDER BY date DESC, id DESC").fetchall()
             items_by_transaction = {}
@@ -121,6 +122,7 @@ class Store:
 
     def get_transaction(self, transaction_id: str) -> Optional[dict]:
         with self._connection() as connection:
+            connection.execute("BEGIN")
             self._require_initialized(connection)
             row = connection.execute("SELECT * FROM transactions WHERE id = ?", (transaction_id,)).fetchone()
             if row is None:
