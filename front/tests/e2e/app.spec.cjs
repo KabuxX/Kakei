@@ -19,6 +19,37 @@ test('first viewport shows period and financial state at desktop and phone width
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
+test('sidebar can be hidden and restored without hiding phone navigation', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('#dashboard-view')).toHaveClass(/data-ready/);
+  const sidebar = page.getByRole('complementary', { name: 'サイドバー', includeHidden: true });
+  const toggle = page.getByRole('button', { name: 'サイドバーを隠す' });
+  const widthBefore = (await page.locator('#main').boundingBox()).width;
+
+  await toggle.click();
+  await expect(sidebar).toBeHidden();
+  await expect(page.getByRole('button', { name: 'サイドバーを表示' })).toHaveAttribute('aria-expanded', 'false');
+  await expect.poll(async () => (await page.locator('#main').boundingBox()).width).toBeGreaterThan(widthBefore + 200);
+  await expect(page.locator('#month-label')).toBeVisible();
+  await expect(page.locator('#balance-amount')).not.toHaveText('—');
+  await page.evaluate(() => { window.location.hash = '#transactions'; });
+  await expect(sidebar).toBeHidden();
+
+  await page.getByRole('button', { name: 'サイドバーを表示' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(sidebar).toBeVisible();
+  await page.getByRole('button', { name: 'サイドバーを隠す' }).click();
+  for (const width of [1024, 768]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(sidebar).toBeHidden();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  }
+  await page.setViewportSize({ width: 375, height: 812 });
+  await expect(sidebar).toBeVisible();
+  await expect(page.getByRole('button', { name: 'サイドバーを表示', includeHidden: true })).toBeHidden();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
 test('deletion confirmation keeps the selected transaction and actions visible at desktop and phone widths', async ({ page }) => {
   await page.goto('/#transaction/sample-0/delete');
   await expect(page.getByRole('heading', { name: 'この取引を削除しますか？' })).toBeVisible();
