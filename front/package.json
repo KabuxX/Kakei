@@ -8,9 +8,12 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@deck.gl/layers": "^9.4.0",
+    "@deck.gl/mapbox": "^9.4.0",
     "@turf/bbox": "^7.4.0",
     "@turf/helpers": "^7.4.0",
     "@turf/length": "^7.4.0",
+    "mapbox-gl": "^3.32.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
