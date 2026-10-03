@@ -33,7 +33,7 @@ test('address editing persists, invalidates only related locations, and exports 
  await page.goto('/#trajectory');await page.locator('#trajectory-date').selectOption('2026-10-04');await expect(page.getByText('住所と位置の再確認が必要')).toBeVisible();
  await expect(page.getByText('地図に表示する地点はありません。')).toBeVisible();
  await page.getByRole('button',{name:'Agentで位置を再確認'}).click();await expect(page.getByRole('textbox',{name:'メッセージ',exact:true})).toHaveValue(new RegExp(tx.id));expect(outgoing).toEqual([]);
- await page.goto('/#overview');await page.getByRole('button',{name:'次の月',exact:true}).click();await expect(page.locator('#month-label')).toHaveText('2026年10月');
+ await page.goto('/#overview');await expect(page.locator('#month-label')).toHaveText('2026年10月');
  // Navigate through the real month controls, whose current initial month follows saved records.
  const transactions=await page.request.get('/api/transactions');expect((await transactions.json()).transactions.find(t=>t.id===tx.id).merchantAddress).toBe('福岡市中央区天神2-11-30');
  const downloadPromise=page.waitForEvent('download');await page.getByRole('button',{name:'取引をCSVで保存'}).click();const download=await downloadPromise;

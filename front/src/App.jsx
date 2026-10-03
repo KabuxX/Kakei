@@ -172,7 +172,7 @@ export default function App() {
       {isAgent && (['ready','stale'].includes(data.status) ? <AgentChat session={agent} onCommitted={async () => { setTrajectoryRevision(v => v + 1); return await data.refresh(true); }} /> : <section><h1 id="agent-heading" tabIndex="-1">Agent Chat</h1>{data.status === 'loading' ? <p role="status">家計データを準備しています…</p> : <div role="alert"><p>家計データを読み込めませんでした。</p><button type="button" className="secondary-button" onClick={data.load}>再試行</button></div>}</section>)}
       {isDetail && (isDelete
         ? <TransactionDelete record={detailRecord} onConfirm={deleteTransaction} error={deleteError} busy={deletePending || data.writePending || data.refreshing || data.status !== 'ready'} />
-        : isEdit ? <TransactionEdit record={detailRecord} onSubmit={updateTransaction} onCancel={cancelEdit} busy={data.writePending || data.refreshing || data.status !== 'ready'}/>
+        : isEdit ? <TransactionEdit record={detailRecord} onSubmit={updateTransaction} onCancel={cancelEdit} busy={data.writePending || data.refreshing} saveDisabled={data.status !== 'ready'}/>
         : <TransactionDetail record={detailRecord} busy={data.writePending || data.refreshing || data.status !== 'ready'} />)}
     </AppShell>
     <TransactionDialog open={dialogOpen} selectedMonth={month} busy={data.writePending || data.refreshing} onClose={closeDialog} onSubmit={submitTransaction} />

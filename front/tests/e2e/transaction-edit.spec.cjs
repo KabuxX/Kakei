@@ -13,7 +13,7 @@ test('edits expense fields and items and saves through reload',async({page,baseU
   await page.setViewportSize({width,height});
   await page.getByRole('textbox',{name:/内容/}).focus();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-  await page.screenshot({path:`${shots}/edit-${name}.png`,fullPage:true});
+  await page.screenshot({path:`${shots}/edit-${name}.png`,fullPage:true,animations:'disabled'});
  }
  await page.getByRole('textbox',{name:/内容/}).fill('変更した買物');
  await page.getByRole('textbox',{name:/店名・取引先/}).fill('変更店舗');

@@ -7,9 +7,9 @@ import { parseExpenseDraft, readExpenseDetails, ValidationError } from './lib/tr
 import { dateTimeLocalValue, isValidTransactionDateTime } from './lib/transaction-datetime.js';
 
 const maxAmount = 999999999;
-const baseFieldIds = { title: 'title-input', amount: 'amount-input', date: 'date-input', merchant: 'merchant-input', merchantAddress: 'merchant-address-input', paymentMethod: 'payment-method-input', itemRows: 'item-rows' };
+const baseFieldIds = { title: 'title-input', amount: 'amount-input', date: 'date-input', category:'category-input', merchant: 'merchant-input', merchantAddress: 'merchant-address-input', paymentMethod: 'payment-method-input', itemRows: 'item-rows' };
 
-export default function TransactionForm({ record = null, busy = false, onCancel, onSubmit, onSaved, prefix = '' }) {
+export default function TransactionForm({ record = null, busy = false, saveDisabled = false, onCancel, onSubmit, onSaved, prefix = '' }) {
   const form = useRef(null);
   const initial = readExpenseDetails(record);
   const fieldIds = Object.fromEntries(Object.entries(baseFieldIds).map(([key,value])=>[key,prefix+value]));
@@ -31,6 +31,7 @@ export default function TransactionForm({ record = null, busy = false, onCancel,
   const itemized = type === 'expense' && itemRows.length > 0;
   const validItems = itemRows.every((row) => row.name.trim() && /^\d+$/.test(row.amount.trim()) && Number(row.amount) > 0);
   const itemTotal = itemRows.reduce((sum, row) => sum + Number(row.amount), 0);
+  const allowedCategories = type === 'income' ? ['収入'] : categories.map(item=>item.name);
   const amount = itemized ? validItems && itemTotal <= maxAmount ? String(itemTotal) : '' : manualAmount;
 
   const showError = (field, message) => {
@@ -61,11 +62,12 @@ export default function TransactionForm({ record = null, busy = false, onCancel,
 
   const submit = async (event) => {
     event.preventDefault();
-    if (blocked || pending.current) return;
+    if (blocked || saveDisabled || pending.current) return;
     setErrors({}); setFormError('');
     const cleanTitle = title.trim();
     if (!cleanTitle) { showError('title', '内容を入力してください。'); return; }
     if (!isValidTransactionDateTime(date)) { showError('date', '正しい日時を入力してください。'); return; }
+    if (!allowedCategories.includes(category)) { showError('category', 'カテゴリを選び直してください。'); return; }
     let parsedAmount;
     let details = {};
     if (type === 'expense') {
@@ -86,7 +88,7 @@ export default function TransactionForm({ record = null, busy = false, onCancel,
       await onSubmit({ title: cleanTitle, amount: parsedAmount, date, type, category, ...details });
       onSaved?.();
     } catch (cause) {
-      if (cause instanceof ApiError && cause.status === 400 && ['title', 'date', 'amount', 'merchant', 'merchantAddress', 'paymentMethod', 'items'].includes(cause.field)) {
+      if (cause instanceof ApiError && cause.status === 400 && ['title', 'date', 'amount', 'category', 'merchant', 'merchantAddress', 'paymentMethod', 'items'].includes(cause.field)) {
         showError(cause.field === 'items' ? 'itemRows' : cause.field, cause.message);
       } else {
         setFormError(cause instanceof ApiError && cause.status === 404 ? cause.message : '保存できませんでした。サーバーへの接続を確認して再試行してください。');
@@ -104,7 +106,7 @@ export default function TransactionForm({ record = null, busy = false, onCancel,
         <label className="field full"><span>内容 <em>必須</em></span><input id={`${prefix}title-input`} name="title" type="text" maxLength="60" placeholder="例：スーパーで買い物" aria-describedby={`${prefix}title-error`} aria-invalid={!!errors.title || undefined} required disabled={blocked} value={title} onChange={(event) => setTitle(event.target.value)} /><small id={`${prefix}title-error`} role="alert" className="field-error" hidden={!errors.title}>{errors.title}</small></label>
         <label className="field"><span>金額 <em>必須</em></span><span className="yen-input"><b>¥</b><input id={`${prefix}amount-input`} name="amount" type="number" inputMode="numeric" min="1" max="999999999" placeholder="0" aria-describedby={`${prefix}amount-error`} aria-invalid={!!errors.amount || undefined} disabled={blocked} required={!itemized} readOnly={itemized} value={amount} onChange={(event) => setManualAmount(event.target.value)} /></span><small id={`${prefix}amount-error`} role="alert" className="field-error" hidden={!errors.amount}>{errors.amount}</small></label>
         <label className="field"><span>日付と時刻 <em>必須</em></span><input id={`${prefix}date-input`} name="date" type="datetime-local" step="60" aria-describedby={`${prefix}date-error`} aria-invalid={!!errors.date || undefined} required disabled={blocked} value={date} onChange={(event) => setDate(event.target.value)} /><small id={`${prefix}date-error`} role="alert" className="field-error" hidden={!errors.date}>{errors.date}</small></label>
-        <label className="field full"><span>カテゴリ</span><select id={`${prefix}category-input`} name="category" disabled={blocked} value={category} onChange={(event) => setCategory(event.target.value)}>{(type === 'income' ? ['収入'] : categories.map((item) => item.name)).map((name) => <option key={name} value={name}>{name}</option>)}</select></label>
+        <label className="field full"><span>カテゴリ</span><select id={`${prefix}category-input`} name="category" aria-describedby={`${prefix}category-error`} aria-invalid={!!errors.category || undefined} disabled={blocked} value={category} onChange={(event) => setCategory(event.target.value)}>{!allowedCategories.includes(category) && <option value={category} disabled>{category}（選び直してください）</option>}{allowedCategories.map((name) => <option key={name} value={name}>{name}</option>)}</select><small id={`${prefix}category-error`} role="alert" className="field-error" hidden={!errors.category}>{errors.category}</small></label>
       </div>
       <div id={`${prefix}expense-fields`} className="expense-fields" hidden={type !== 'expense'}>
         <div className="form-grid"><label className="field full"><span>店名・取引先 <em>必須</em></span><input id={`${prefix}merchant-input`} name="merchant" type="text" maxLength="60" placeholder="例：スーパー○○" aria-describedby={`${prefix}merchant-error`} aria-invalid={!!errors.merchant || undefined} required={type === 'expense'} disabled={type !== 'expense' || blocked} value={merchant} onChange={(event) => setMerchant(event.target.value)} /><small id={`${prefix}merchant-error`} role="alert" className="field-error" hidden={!errors.merchant}>{errors.merchant}</small></label><label className="field full"><span>支払方法 <em>必須</em></span><select id={`${prefix}payment-method-input`} name="paymentMethod" aria-describedby={`${prefix}payment-method-error`} aria-invalid={!!errors.paymentMethod || undefined} required={type === 'expense'} disabled={type !== 'expense' || blocked} value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}><option value="">選択してください</option><option value="cash">現金</option><option value="credit_card">クレジットカード</option><option value="e_money">電子マネー</option><option value="bank_account">銀行口座</option></select><small id={`${prefix}payment-method-error`} role="alert" className="field-error" hidden={!errors.paymentMethod}>{errors.paymentMethod}</small></label></div>
@@ -115,6 +117,6 @@ export default function TransactionForm({ record = null, busy = false, onCancel,
       <p id={`${prefix}form-error`} className="field-error form-error" role="alert" hidden={!formError}>{formError}</p>
       {record?.timeEstimated && date === record.date && <p className="form-note">元の時刻は仮設定です。日時を変更すると入力時刻として保存します。</p>}
       <p className="form-note" id={`${prefix}form-note`}>入力した取引はこの端末のサーバーに保存されます。</p>
-      <div className="dialog-actions"><button type="button" className="secondary-button close-dialog" onClick={onCancel} disabled={blocked}>キャンセル</button><button type="submit" className="primary-button" disabled={blocked}>{!record && <Icon name="plus" />}{submitting ? '保存中…' : record ? '保存する' : '追加する'}</button></div>
+      <div className="dialog-actions"><button type="button" className="secondary-button close-dialog" onClick={onCancel} disabled={blocked}>キャンセル</button><button type="submit" className="primary-button" disabled={blocked || saveDisabled}>{!record && <Icon name="plus" />}{submitting ? '保存中…' : record ? '保存する' : '追加する'}</button></div>
   </form>;
 }
