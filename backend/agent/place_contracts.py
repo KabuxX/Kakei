@@ -76,6 +76,7 @@ class SearchResult(TypedDict, total=False):
     unresolved: list[str]
     truncated: bool
     reusedFrom: dict
+    grounding: Region | None
 
 class HistoryRecord(TypedDict, total=False):
     searchId: str | None

@@ -84,3 +84,16 @@ class SearchStoreTests(unittest.TestCase):
         with self.store._connection() as c: c.execute('DROP TABLE agent_place_searches')
         AgentSearchStore(self.path)
         self.assertEqual(self.searches.history(self.thread)['records'][0]['proposalId'],proposal['id'])
+
+    def test_selectable_names_are_not_shortened_to_meet_byte_limit(self):
+        import uuid
+        sid=self.searches.start(self.ctx,REQUEST)
+        candidate={'id':str(uuid.uuid4()),'providerId':'x'*500,'name':'カ'*190+'西鉄福岡駅店','address':'a'*500,'attribution':'a'*200,'sourceUrl':'https://example.com/'+'p'*100,'coordinates':[130.4,33.59],'matchReasons':['name_and_region_match'],'searchId':sid}
+        self.assertGreater(len(json.dumps(candidate,ensure_ascii=False).encode()),2048)
+        self.searches.finish(self.ctx,sid,result(sid,[candidate]))
+        saved=self.searches.get(self.thread,sid)['result']
+        self.assertTrue(saved['truncated'])
+        for c in saved['candidates']:
+            self.assertEqual(c['name'],candidate['name'])
+        self.assertEqual(saved['candidates'],[])
+        self.assertEqual(saved['omittedCandidates'],1)

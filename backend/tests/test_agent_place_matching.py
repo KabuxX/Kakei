@@ -59,3 +59,30 @@ class MatchingTests(unittest.TestCase):
         self.assertEqual(len(match_candidates([row],request,{'kind':'point','city':'London','country_code':'gb','coordinates':[-.1,51.5]})['candidates']),1)
         with self.assertRaises(ValidationError):
             self.resolver.resolve({**SEARCH,'locality':'福岡市','evidence':[{'field':'locality','source':'user_message','source_id':'missing','value':'福岡市'}]})
+
+    def test_landmark_and_saved_region_must_match_explicit_locality(self):
+        tokyo={**STATION,'name':'中央駅','city':'東京都','address':'東京都 中央駅','coordinates':[139.7,35.7]}
+        resolved=resolve_region([tokyo],{'landmark':'中央駅','locality':'福岡市'})
+        self.assertIsNone(resolved['region']);self.assertIsNotNone(resolved['clarification'])
+        saved={k:SHOP[k] for k in ('name','address','coordinates','sourceUrl','attribution')}
+        saved.update(name='中央駅',address='東京都 中央駅',coordinates=[139.7,35.7],placeEvidence='user')
+        self.store.sync_trajectory({'places':{'tokyo':saved},'days':[]})
+        request={**SEARCH,'query':'ドトール 中央駅','branch':None,'landmark':'中央駅','locality':'福岡市','evidence':[
+            {'field':'landmark','source':'saved_place','source_id':'tokyo','value':'中央駅'},
+            {'field':'locality','source':'user_message','source_id':'u','value':'福岡市'}]}
+        out=self.resolver.resolve(request)
+        self.assertIsNone(out['region']);self.assertEqual(out['clarification']['status'],'needs_clarification')
+
+    def test_latest_explicit_correction_cannot_be_omitted_from_evidence(self):
+        self.messages.extend([{'id':'old','role':'user','text':'東京で探して'},{'id':'new','role':'user','text':'今回は福岡市で探して'}])
+        request={**SEARCH,'locality':'東京','evidence':[{'field':'locality','source':'user_message','source_id':'old','value':'東京'}]}
+        self.assertEqual(self.resolver.resolve(request)['clarification']['status'],'needs_clarification')
+        request.update(locality='福岡市',evidence=[{'field':'locality','source':'user_message','source_id':'new','value':'福岡市'}])
+        self.assertIsNone(self.resolver.resolve(request)['clarification'])
+
+    def test_current_location_request_without_correction_marker_is_grounded(self):
+        for text in ('福岡市で探して','Please search in Fukuoka'):
+            with self.subTest(text=text):
+                self.resolver.messages=[{'id':'old','role':'user','text':'東京で探して'},{'id':'new','role':'user','text':text}]
+                request={**SEARCH,'locality':'東京','evidence':[{'field':'locality','source':'user_message','source_id':'old','value':'東京'}]}
+                self.assertIsNotNone(self.resolver.resolve(request)['clarification'])

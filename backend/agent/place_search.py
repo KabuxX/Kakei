@@ -53,7 +53,7 @@ class PlaceSearchService:
     async def search(self,request):
         resolved=self.resolver.resolve(request);request=resolved['request']
         reuse=request.get('reuse_search_id')
-        if reuse:
+        if reuse and not resolved['clarification']:
             old=self.searches.get(self.context['thread_id'],reuse)
             def conditions(r): return {k:v for k,v in r.items() if k not in ('place_id','reuse_search_id','evidence')}
             if old['status'] in ('running','cancelled') or not old['result'] or conditions(old['input'])!=conditions(request):
@@ -66,13 +66,17 @@ class PlaceSearchService:
             self.searches.finish(self.context,sid,out)
             # Use the persisted bounded version for tools and approval snapshots.
             return self.searches.get(self.context['thread_id'],sid)['result']
-        if reuse:
-            out.update(copy.deepcopy(old['result']));out.update(searchId=sid,placeId=request['place_id'],reusedFrom={'searchId':reuse,'createdAt':old['createdAt']})
-            for c in out['candidates']: c['id']=str(uuid.uuid4())
-            return finish()
         if resolved['clarification']:
             out['unresolved']=[resolved['clarification']['message']]
             return finish(resolved['clarification']['status'])
+        if reuse:
+            if old['result'].get('grounding') != resolved['region']:
+                out['unresolved']=['検索の根拠となる地点が変わりました。今回の地域を確認して再検索してください。']
+                return finish('needs_clarification')
+            out.update(copy.deepcopy(old['result']));out.update(searchId=sid,placeId=request['place_id'],reusedFrom={'searchId':reuse,'createdAt':old['createdAt']})
+            for c in out['candidates']: c['id']=str(uuid.uuid4())
+            return finish()
+        out['grounding']=copy.deepcopy(resolved['region'])
         region=resolved['region']; pool=resolved['saved_places'];attempts=[]; failures=[]; successes=0
         active=None
         async def run(stage,params):

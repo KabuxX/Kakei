@@ -89,3 +89,26 @@ class SearchTests(unittest.IsolatedAsyncioTestCase):
         out=await self.service.search(self.req)
         self.assertEqual(self.provider.calls,[])
         self.assertEqual(out['status'],'partial')
+
+    async def test_reuse_does_not_bypass_conflicting_evidence(self):
+        messages=[{'id':'f','role':'user','text':'福岡市'},{'id':'t','role':'user','text':'東京'}]
+        self.resolver.messages=messages
+        evidence={'field':'locality','source':'user_message','source_id':'f','value':'福岡市'}
+        request={**self.req,'locality':'福岡市','evidence':[evidence]}
+        first=await self.service.search(request)
+        second=await self.service.search({**request,'reuse_search_id':first['searchId'],'evidence':[evidence,{'field':'locality','source':'user_message','source_id':'t','value':'東京'}]})
+        self.assertEqual(second['status'],'needs_clarification')
+        self.assertEqual(second['candidates'],[])
+        self.assertTrue(second['unresolved'])
+
+    async def test_reuse_checks_effective_saved_region(self):
+        place={k:SHOP[k] for k in ('name','address','coordinates','sourceUrl','attribution')}
+        place['name']='西鉄福岡駅';place['placeEvidence']='user'
+        self.store.sync_trajectory({'places':{'anchor':place},'days':[]})
+        request={**self.req,'evidence':[{'field':'landmark','source':'saved_place','source_id':'anchor','value':'西鉄福岡駅'}]}
+        first=await self.service.search(request)
+        place={**place,'coordinates':[139.7,35.7],'address':'東京'}
+        self.store.sync_trajectory({'places':{'anchor':place},'days':[]})
+        second=await self.service.search({**request,'reuse_search_id':first['searchId']})
+        self.assertEqual(second['status'],'needs_clarification')
+        self.assertEqual(second['candidates'],[])

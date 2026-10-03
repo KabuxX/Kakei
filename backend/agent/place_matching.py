@@ -45,7 +45,7 @@ class EvidenceResolver:
         if not isinstance(evidence,list) or len(evidence)>12: raise ValidationError('evidence','検索の根拠を確認してください。')
         with self.store._connection() as c: state=read_state(c)
         users={m.get('id'):m.get('text','') for m in self.messages if m.get('role')=='user'}
-        values={}; region=None
+        values={}; region=None; saved_region_data=None
         for e in evidence:
             if not isinstance(e,dict) or set(e)!={'field','source','source_id','value'} or e['field'] not in ('brand','branch','locality','landmark','country_code') or not all(isinstance(v,str) for v in e.values()):
                 raise ValidationError('evidence','根拠の形式が不正です。')
@@ -68,7 +68,24 @@ class EvidenceResolver:
             values.setdefault(e['field'],set()).add(value)
             if source=='saved_place' and coordinates_valid(data.get('coordinates')):
                 region={'kind':'point','coordinates':data['coordinates'],'source_id':sid}
+                saved_region_data=data
         conflicts=[key for key,items in values.items() if len(items)>1 or request.get(key) not in items]
+        latest=next((m for m in reversed(self.messages) if m.get('role')=='user'),None)
+        if latest:
+            text=normalize_text(latest.get('text',''))
+            correction=re.search(r'(今回は|ではなく|じゃなく|代わりに|this time|instead|actually)',text)
+            location=re.search(r'(市|県|都|府|駅|で(?:探|検索)|の店舗|の店|\bin\s+\w)',text)
+            explicit_query=re.search(r'(?:市|県|都|府|駅)で(?:探|検索)|\b(?:search|look|find)\b.*\bin\s+\S+',text)
+            current=[e for e in evidence if e['source']=='user_message' and e['source_id']==latest.get('id') and e['field'] in ('locality','landmark','country_code') and request.get(e['field'])==normalize_text(e['value'])]
+            if ((correction and location) or explicit_query) and not current:
+                conflicts.append('current_location_correction')
+            for e in current:
+                if re.search(re.escape(compact(e['value']))+r'(?:ではなく|じゃなく|ではない)',compact(text)):
+                    conflicts.append('negated_location')
+        if saved_region_data and not locality_matches(request.get('locality'),saved_region_data):
+            conflicts.append('saved_region_mismatch')
+        if saved_region_data and request.get('country_code') and saved_region_data.get('country_code')!=request['country_code']:
+            conflicts.append('saved_country_unconfirmed')
         if conflicts:
             return {'request':request,'saved_places':[],'region':None,'category':None,'clarification':{'status':'needs_clarification','message':'地域や店舗の指定と過去の根拠が異なります。今回の店舗・地域を確認してください。'}}
         for key in ('brand','branch','landmark'):
@@ -81,6 +98,12 @@ class EvidenceResolver:
         return {'request':request,'saved_places':saved,'region':region,'clarification':None,'category':category}
 
 
+def locality_matches(locality, place):
+    if not locality: return True
+    parts=[str(place.get(k) or '') for k in ('city','district','name','address')]
+    return compact(locality) in compact(' '.join(parts))
+
+
 def resolve_region(places,request):
     target=compact(request.get('landmark') or request.get('locality') or '')
     stem=target.removesuffix('駅')
@@ -88,6 +111,7 @@ def resolve_region(places,request):
     for p in places:
         if not coordinates_valid(p.get('coordinates')): continue
         if request.get('country_code') and p.get('country_code')!=request['country_code']: continue
+        if not locality_matches(request.get('locality'),p): continue
         name=compact(p.get('name',''))
         if not name or not target: continue
         if request.get('landmark'):
@@ -126,6 +150,7 @@ def match_candidates(places,request,region):
         name=compact(p.get('name','')); address=compact(p.get('address',''))
         if not name or brand not in name: reasons.append('name_mismatch')
         if branch and branch not in name and name.endswith('店'): reasons.append('different_branch')
+        if request.get('locality') and not locality_matches(request['locality'],p): reasons.append('locality_unconfirmed')
         if region:
             for key in ('country_code','city'):
                 if region.get(key) and p.get(key) and compact(region[key])!=compact(p[key]): reasons.append(key+'_mismatch')

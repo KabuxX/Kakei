@@ -24,6 +24,7 @@ def bound(value, maximum):
         choices = []
         def scan(node):
             if isinstance(node, dict):
+                if 'name' in node and 'coordinates' in node: return
                 for k, v in node.items():
                     if isinstance(v, str) and len(v.encode()) > 100:
                         choices.append((len(v.encode()), node, k, v))
@@ -42,11 +43,16 @@ def bound(value, maximum):
 
 
 def bounded_candidates(node):
+    """Candidate names/IDs/coordinates are atomic; omit, never rewrite identity."""
     if isinstance(node, dict):
         for k,v in list(node.items()):
             if k == 'candidates' and isinstance(v,list):
-                node[k] = [bound(c,2048) for c in v[:20]]
-                if len(v)>20 or any(c.get('truncated') for c in node[k]): node['truncated']=True
+                node[k] = [c for c in v[:20] if size(c)<=2048]
+                omitted=len(v)-len(node[k])
+                if omitted:
+                    node.update(truncated=True,omittedCandidates=omitted)
+            elif k=='candidate' and isinstance(v,dict) and size(v)>2048:
+                node[k]={'id':v.get('id'),'truncated':True,'omissionReason':'candidate_size_limit'}
             else: bounded_candidates(v)
     elif isinstance(node,list):
         for v in node: bounded_candidates(v)
@@ -109,6 +115,9 @@ class AgentSearchStore:
     def finish(self,context,search_id,result):
         if result.get('status') not in END_STATES: raise ValidationError('search','検索状態が不正です。')
         clean=copy.deepcopy(result); bounded_candidates(clean); clean=bound(clean,40*1024)
+        if clean.get('omittedCandidates'):
+            clean['status']='partial'
+            clean['error']='大きすぎる候補を省略しました。検索条件を絞って再検索してください。'
         with self.store._connection() as c:
             c.execute('BEGIN IMMEDIATE'); self._running(c,context,search_id)
             c.execute('UPDATE agent_place_searches SET result_json=?,status=?,finished_at=? WHERE id=?',(encoded(clean),clean['status'],time.time(),search_id))
