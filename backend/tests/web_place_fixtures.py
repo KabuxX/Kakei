@@ -5,3 +5,8 @@ ADDRESS='福岡県福岡市中央区天神1丁目2-3'
 GEOCODING={'provider':'mapbox','providerId':'mapbox.1','queryAddress':ADDRESS,'matchedAddress':ADDRESS,'featureType':'address','accuracy':'rooftop','matchCode':{'confidence':'exact','address_number':'matched'},'permanent':True,'retrievedAt':1.0}
 PLACE={'name':NAME,'address':ADDRESS,'coordinates':[130.4,33.59],'sourceUrl':SOURCE['url'],'attribution':'© Mapbox','placeEvidence':'provider','sources':[SOURCE],'geocoding':GEOCODING}
 WEB_PLACE={'id':'w1','name':NAME,'branch':'西鉄福岡駅店','address':ADDRESS,'country_code':'jp','locality':'福岡市','sources':[SOURCE],'evidenceText':NAME+' '+ADDRESS,'unresolved':[]}
+
+def feature(address=ADDRESS, country='jp', **overrides):
+    p={'mapbox_id':'mapbox.1','feature_type':'address','full_address':address,'coordinates':{'longitude':130.4,'latitude':33.59,'accuracy':'rooftop'},'context':{'country':{'country_code':country},'place':{'name':'福岡市' if country=='jp' else 'London'}},'match_code':{'confidence':'exact','address_number':'matched','street':'matched','place':'matched','region':'matched'}}
+    p.update(overrides)
+    return {'type':'Feature','properties':p,'geometry':{'type':'Point','coordinates':[130.4,33.59]}}
