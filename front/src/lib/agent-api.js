@@ -1,0 +1,12 @@
+import { request } from './api.js';
+const base='/api/agent';
+const id=encodeURIComponent;
+export const status=()=>request('GET',`${base}/status`);
+export const listThreads=async()=>(await request('GET',`${base}/threads`)).threads;
+export const createThread=async()=>(await request('POST',`${base}/threads`,{})).thread;
+export const getThread=async(thread)=>(await request('GET',`${base}/threads/${id(thread)}`)).thread;
+export const deleteThread=(thread)=>request('DELETE',`${base}/threads/${id(thread)}`);
+export const sendMessage=(thread,body)=>request('POST',`${base}/threads/${id(thread)}/messages`,body);
+export const revise=async(proposal,revision,commands)=>(await request('PUT',`${base}/proposals/${id(proposal)}`,{revision,commands})).proposal;
+export const approve=async(proposal,revision)=>(await request('POST',`${base}/proposals/${id(proposal)}/approve`,{revision})).result;
+export const reject=async(proposal,revision)=>(await request('POST',`${base}/proposals/${id(proposal)}/reject`,{revision})).proposal;

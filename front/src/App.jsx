@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import AppShell from './AppShell.jsx';
+import AgentChat from './AgentChat.jsx';
 import Dashboard from './Dashboard.jsx';
 import Trajectory from './Trajectory.jsx';
 import TransactionDetail from './TransactionDetail.jsx';
@@ -25,6 +26,8 @@ export default function App() {
   const previousTrajectory = useRef(false);
   const data = useTransactions();
   const model = useMemo(() => dashboardForMonth(data.transactions, month), [data.transactions, month]);
+  const isAgent = route === '#agent';
+  const [trajectoryRevision, setTrajectoryRevision] = useState(0);
   const isTrajectory = route === '#trajectory';
   const isDetail = ['ready', 'stale'].includes(data.status) && (route === '#transaction' || route.startsWith('#transaction/'));
   const isDelete = isDetail && route.endsWith('/delete');
@@ -46,14 +49,18 @@ export default function App() {
       previousDetail.current = detailId;
       document.body.classList.add('detail-route');
       document.title = detailRecord ? `${isDelete ? '削除確認' : detailRecord.title} | Kakei` : '取引が見つかりません | Kakei';
-      window.scrollTo(0, 0);
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
       document.getElementById(isDelete ? 'delete-heading' : 'detail-heading')?.focus({ preventScroll: true });
     } else {
       document.body.classList.remove('detail-route');
-      document.title = isTrajectory ? '軌跡 | Kakei' : '家計の概要 | Kakei';
-      if (isTrajectory) {
+      document.title = isAgent ? 'Agent Chat | Kakei' : isTrajectory ? '軌跡 | Kakei' : '家計の概要 | Kakei';
+      if (isAgent) {
         previousTrajectory.current = true;
-        window.scrollTo(0, 0);
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+        document.getElementById('agent-heading')?.focus({ preventScroll: true });
+      } else if (isTrajectory) {
+        previousTrajectory.current = true;
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
         document.getElementById('trajectory-heading')?.focus({ preventScroll: true });
       } else if (previousDetail.current !== null || previousTrajectory.current) {
         const saved = listReturn.current?.id === previousDetail.current ? listReturn.current : null;
@@ -66,7 +73,7 @@ export default function App() {
         } else if (route === '#budget' || route === '#insights') {
           document.querySelector(route)?.scrollIntoView();
         } else if (route === '#overview') {
-          window.scrollTo(0, 0);
+          window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
           document.getElementById('dashboard-heading')?.focus({ preventScroll: true });
         }
         previousDetail.current = null;
@@ -74,7 +81,7 @@ export default function App() {
       }
     }
     return () => document.body.classList.remove('detail-route');
-  }, [isDetail, isDelete, isTrajectory, detailId, detailRecord, route]);
+  }, [isDetail, isDelete, isTrajectory, isAgent, detailId, detailRecord, route]);
   useEffect(() => { setDeleteError(''); }, [route]);
 
   const changeMonth = (step) => setMonth((previous) => new Date(previous.getFullYear(), previous.getMonth() + step, 1));
@@ -128,8 +135,9 @@ export default function App() {
   return <>
     <AppShell route={route} onAdd={openDialog} addDisabled={data.status !== 'ready' || data.writePending || data.refreshing}>
       <div id="sync-status" className="sync-status" role="alert" hidden={isTrajectory || data.status !== 'stale'}><span id="sync-status-message">{data.staleAfterWrite ? 'サーバーへの保存は完了しましたが、表示を更新できませんでした。再読み込みしてください。' : '最新の取引を読み込めませんでした。再読み込みしてください。'}</span><button id="retry-sync" className="secondary-button" type="button" onClick={() => data.refresh()}>表示を再読み込み</button></div>
-      <Dashboard month={month} model={model} transactions={data.transactions} status={data.status} error={data.error} onMonthChange={changeMonth} onAdd={openDialog} onRetry={data.load} onClearSamples={deleteSamples} onExport={exportCsv} onOpenDetail={(id) => { listReturn.current = { id, scrollY: window.scrollY }; }} writePending={data.writePending || data.refreshing} hidden={isDetail || isTrajectory} />
-      <div id="trajectory-view" hidden={!isTrajectory}>{isTrajectory && <Trajectory transactions={data.transactions} />}</div>
+      <Dashboard month={month} model={model} transactions={data.transactions} status={data.status} error={data.error} onMonthChange={changeMonth} onAdd={openDialog} onRetry={data.load} onClearSamples={deleteSamples} onExport={exportCsv} onOpenDetail={(id) => { listReturn.current = { id, scrollY: window.scrollY }; }} writePending={data.writePending || data.refreshing} hidden={isDetail || isTrajectory || isAgent} />
+      <div id="trajectory-view" hidden={!isTrajectory}>{isTrajectory && <Trajectory transactions={data.transactions} refreshKey={trajectoryRevision} />}</div>
+      {isAgent && <AgentChat onCommitted={async () => { setTrajectoryRevision(v => v + 1); return await data.refresh(true); }} />}
       {isDetail && (isDelete
         ? <TransactionDelete record={detailRecord} onConfirm={deleteTransaction} error={deleteError} busy={deletePending || data.writePending || data.refreshing || data.status !== 'ready'} />
         : <TransactionDetail record={detailRecord} busy={data.writePending || data.refreshing || data.status !== 'ready'} />)}

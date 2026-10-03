@@ -60,3 +60,11 @@ it('returns focus to the original transaction row', async () => {
   fireEvent.click(screen.getByRole('link', { name: '取引履歴へ戻る' }));
   await waitFor(() => expect(document.activeElement?.textContent).toBe('食材'));
 });
+
+it('opens agent route with navigation and heading focus', async () => {
+  vi.stubGlobal('fetch', vi.fn(async (url) => ({ok:true,status:200,json:async()=>url.endsWith('status')?{available:false,message:'未設定'}:{threads:[]}})));
+  window.location.hash='#agent'; render(<App />);
+  expect(screen.getByRole('link',{name:'Agent Chat'}).getAttribute('aria-current')).toBe('page');
+  expect(screen.getByRole('heading',{name:'Agent Chat'})).toBe(document.activeElement);
+  expect(document.getElementById('dashboard-view').hidden).toBe(true);
+});

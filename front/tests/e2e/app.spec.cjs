@@ -164,7 +164,7 @@ test('failed refresh after a successful write offers retry without duplicate POS
     reads += 1;
     if (reads === 1) return route.fulfill({ status: 200, json: { transactions: [] } });
     if (reads === 2) return route.abort();
-    return route.fulfill({ status: 200, json: { transactions: [{ id: 'saved', date: '2026-09-01', type: 'income', title: '保存済み', category: '収入', amount: 1000 }] } });
+    return route.fulfill({ status: 200, json: { transactions: [{ id: 'saved', date: '2026-10-02T12:00', type: 'income', title: '保存済み', category: '収入', amount: 1000 }] } });
   });
   await page.goto('/');
   await expect(page.locator('#dashboard-view')).toHaveClass(/data-ready/);
@@ -229,4 +229,42 @@ test('overview anchors still scroll to Budget and Insights after leaving detail'
     await expect(page.locator(target)).toBeVisible();
     await expect.poll(async () => page.locator(target).evaluate((element) => Math.round(element.getBoundingClientRect().top))).toBeLessThan(200);
   }
+});
+
+test('agent approval survives lost response and refreshes visible app data', async ({page})=>{
+  test.skip(test.info().config.projects[0].use.baseURL!=='http://127.0.0.1:8767','requires isolated fake runner');
+  await page.goto('/');
+  await expect(page.locator('#dashboard-view')).toHaveClass(/data-ready/);
+  await page.getByRole('link',{name:'Agent Chat'}).click();
+  await expect(page.getByRole('heading',{name:'Agent Chat'})).toBeFocused();
+  await page.getByRole('textbox',{name:'メッセージ'}).fill('給与を追加');
+  await page.getByRole('button',{name:'送信',exact:true}).click();
+  await expect(page.getByRole('article',{name:'変更案'})).toContainText('12');
+  await page.getByRole('button',{name:'内容を修正'}).click();
+  await page.getByRole('spinbutton',{name:'金額 1'}).fill('15000');
+  await page.getByRole('button',{name:'差分を更新'}).click();
+  await expect(page.getByText('確認待ち · 第2版')).toBeVisible();
+  await page.evaluate(()=>window.scrollTo({top:0,behavior:'instant'}));
+  await page.screenshot({animations:'disabled',path:'../.superpowers/sdd/2026-10-03-agent-chat-foundation/agent-desktop.png'});
+  await page.setViewportSize({width:390,height:844});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.screenshot({animations:'disabled',path:'../.superpowers/sdd/2026-10-03-agent-chat-foundation/agent-phone.png'});
+  let count=0;
+  await page.route('**/api/agent/proposals/*/approve',async route=>{
+    count++; if(count===1){await route.fetch();return route.abort();}return route.continue();
+  });
+  await page.getByRole('button',{name:'確認して保存'}).click();
+  await expect(page.getByRole('alert')).toBeVisible();
+  await page.getByRole('button',{name:'確認して保存'}).click();
+  await expect(page.getByText('保存済み',{exact:true})).toBeVisible();
+  await page.getByRole('link',{name:'概要',exact:true}).click();
+  await expect(page.getByRole('link',{name:'Agent 動作確認'})).toHaveCount(1);
+  await expect(page.locator('#month-label')).toHaveText('2026年9月');
+  expect((await page.locator('.balance-card').boundingBox()).y).toBeLessThan(160);
+  await page.evaluate(()=>window.scrollTo({top:0,behavior:'instant'}));
+  expect((await page.locator('.balance-card').boundingBox()).y).toBeGreaterThanOrEqual(0);
+  await page.screenshot({animations:'disabled',path:'../.superpowers/sdd/2026-10-03-agent-chat-foundation/dashboard-phone-after-agent.png'});
+  await page.setViewportSize({width:1440,height:900});
+  await page.clock.runFor(300);
+  await page.screenshot({animations:'disabled',path:'../.superpowers/sdd/2026-10-03-agent-chat-foundation/dashboard-desktop-after-agent.png'});
 });
