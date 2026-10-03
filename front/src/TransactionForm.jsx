@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import MerchantAddressField from './MerchantAddressField.jsx';
 import { Icon } from './AppShell.jsx';
 import { categories } from './lib/dashboard.js';
@@ -15,6 +15,7 @@ export default function TransactionForm({ record = null, busy = false, saveDisab
   const fieldIds = Object.fromEntries(Object.entries(baseFieldIds).map(([key,value])=>[key,prefix+value]));
   const sequence = useRef(initial.items.length);
   const pending = useRef(false);
+  const pendingItemFocus = useRef(null);
   const [type, setType] = useState(record?.type || 'expense');
   const [title, setTitle] = useState(record?.title || '');
   const [manualAmount, setManualAmount] = useState(record ? String(record.amount) : '');
@@ -34,6 +35,11 @@ export default function TransactionForm({ record = null, busy = false, saveDisab
   const allowedCategories = type === 'income' ? ['収入'] : categories.map(item=>item.name);
   const amount = itemized ? validItems && itemTotal <= maxAmount ? String(itemTotal) : '' : manualAmount;
 
+  useLayoutEffect(()=>{
+    const key=pendingItemFocus.current;
+    if(key!==null){pendingItemFocus.current=null;form.current?.querySelector(`[data-item-key="${key}"] [data-item-name]`)?.focus();}
+  },[itemRows]);
+
   const showError = (field, message) => {
     setErrors((current) => ({ ...current, [field]: message }));
     let selector = `#${fieldIds[field]}`;
@@ -48,8 +54,8 @@ export default function TransactionForm({ record = null, busy = false, saveDisab
   const addItem = () => {
     sequence.current += 1;
     const key = sequence.current;
+    pendingItemFocus.current=key;
     setItemRows((current) => [...current, { key, name: '', amount: '' }]);
-    requestAnimationFrame(() => form.current?.querySelector(`[data-item-key="${key}"] [data-item-name]`)?.focus());
   };
   const updateItem = (key, field, value) => {
     setItemRows((current) => current.map((row) => row.key === key ? { ...row, [field]: value } : row));

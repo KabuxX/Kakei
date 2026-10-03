@@ -54,3 +54,13 @@ it('sends minute-level datetime with a visible label', async () => {
   })));
   expect(onSubmit.mock.calls[0][0]).not.toHaveProperty('timeEstimated');
 });
+
+it('focuses a new item when it mounts so a later frame cannot steal typing focus',()=>{
+ render(<TransactionDialog {...props}/>);
+ fireEvent.click(screen.getByRole('button',{name:'＋ 品目を追加'}));
+ expect(document.activeElement).toBe(screen.getByRole('textbox',{name:'品目1の名前'}));
+ fireEvent.change(screen.getByRole('textbox',{name:'品目1の名前'}),{target:{value:'パン'}});
+ const amount=screen.getByRole('spinbutton',{name:'品目1の金額（円）'});amount.focus();
+ fireEvent.change(amount,{target:{value:'100'}});
+ expect(document.activeElement).toBe(amount);
+});
