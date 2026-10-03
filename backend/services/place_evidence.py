@@ -37,6 +37,10 @@ def validate_sources(sources, *, maximum=3):
         ids.add(s['id'])
 
 def validate_place_evidence(place):
+    if 'coordinateEvidence' in place:
+        from services.coordinate_evidence import validate_coordinate_evidence
+        validate_coordinate_evidence(place)
+        return
     if 'sources' in place:validate_sources(place['sources'])
     if 'geocoding' not in place:return
     g=place['geocoding']

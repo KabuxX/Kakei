@@ -28,7 +28,7 @@ _DATA_FIELDS = {
     "day": ({"events", "legs"}, set()),
     "event": ({"time", "placeId"}, {"transactionId", "timeEvidence", "timeEvidenceNote"}),
     "leg": (set(), {"modeHint", "transportTransactionId", "viaPlaceIds", "modeEvidence", "modeEvidenceNote"}),
-    "place": ({"name", "address", "coordinates", "sourceUrl"}, {"placeEvidence", "attribution", "sources", "geocoding"}),
+    "place": ({"name", "address", "coordinates", "sourceUrl"}, {"placeEvidence", "attribution", "sources", "geocoding", "coordinateEvidence"}),
 }
 
 

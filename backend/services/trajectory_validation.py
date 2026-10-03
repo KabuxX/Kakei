@@ -73,7 +73,7 @@ def validate_timeline(value: object, *, require_complete: bool = True) -> dict:
     for place_id, place in places.items():
         _string(place_id, "placeId")
         path = f"places.{place_id}"
-        _shape(place, {"name", "address", "coordinates", "sourceUrl"}, {"placeEvidence", "attribution", "sources", "geocoding"}, path)
+        _shape(place, {"name", "address", "coordinates", "sourceUrl"}, {"placeEvidence", "attribution", "sources", "geocoding", "coordinateEvidence"}, path)
         _string(place["name"], f"{path}.name")
         from services.place_evidence import validate_place_evidence
         validate_place_evidence(place)

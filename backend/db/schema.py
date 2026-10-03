@@ -119,7 +119,7 @@ def _create_trajectory_tables(connection: sqlite3.Connection) -> None:
         )
     """)
 
-    for name,decl in (('sources_json', "TEXT NOT NULL DEFAULT '[]'"),('geocoding_json','TEXT')):
+    for name,decl in (('sources_json', "TEXT NOT NULL DEFAULT '[]'"),('geocoding_json','TEXT'),('coordinate_evidence_json','TEXT')):
         if name not in {r[1] for r in connection.execute('PRAGMA table_info(trajectory_places)')}:
             connection.execute(f'ALTER TABLE trajectory_places ADD COLUMN {name} {decl}')
 

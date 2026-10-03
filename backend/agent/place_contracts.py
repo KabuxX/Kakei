@@ -27,6 +27,7 @@ class SearchInput(TypedDict):
     address: NotRequired[str | None]
 
 class Candidate(TypedDict, total=False):
+    coordinateEvidence: dict
     id: str
     providerId: str
     name: str
