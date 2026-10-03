@@ -36,3 +36,24 @@ class PlacesTests(unittest.TestCase):
    with self.assertRaises(TrajectoryConflict):agent.select_place_candidate(proposal['id'],1,'candidate-a')
    store.apply_agent_proposal(proposal['id'],2)
    self.assertEqual(store.get_trajectory_day('2027-01-04')['places']['unknown-store']['coordinates'],CANDIDATE['coordinates'])
+ def test_reselection_preserves_edits_and_resolves_saved_place_without_duplicates(self):
+  with tempfile.TemporaryDirectory() as directory:
+   path=Path(directory)/'db';store=Store(path);store.initialize([]);agent=AgentStore(path);thread=agent.create_thread()['id']
+   saved={k:CANDIDATE[k] for k in ('name','address','coordinates','sourceUrl','attribution')};saved['placeEvidence']='provider'
+   store.sync_trajectory({'places':{'saved':saved},'days':[]})
+   candidates=[CANDIDATE,{**CANDIDATE,'id':'candidate-b','coordinates':[0,51],'address':'London'},{**CANDIDATE,'id':'saved-choice','savedPlaceId':'saved'}]
+   p=agent.create_proposal(thread,[COMMAND],place_candidates=[{'placeId':'unknown-store','query':'store','candidates':candidates}])
+   p=agent.select_place_candidate(p['id'],p['revision'],'candidate-a')
+   p=agent.select_place_candidate(p['id'],p['revision'],'candidate-b')
+   self.assertEqual(p['after'][1]['coordinates'],[0,51]);self.assertEqual(len(p['commands']),2)
+   p=agent.select_place_candidate(p['id'],p['revision'],'saved-choice')
+   self.assertEqual(len(p['commands']),1);self.assertEqual(p['after'][0]['events'][0]['placeId'],'saved')
+   commands=p['commands'];commands[0]['data']['events'][0].update(time='10:00',timeEvidence='exact')
+   p=agent.revise_proposal(p['id'],p['revision'],commands)
+   p=agent.select_place_candidate(p['id'],p['revision'],manual={'name':'Manual','coordinates':[140,36]},place_id='unknown-store')
+   self.assertEqual(p['after'][0]['events'][0]['time'],'10:00')
+   p=agent.select_place_candidate(p['id'],p['revision'],'saved-choice')
+   store.apply_agent_proposal(p['id'],p['revision'])
+   day=store.get_trajectory_day('2027-01-04')
+   self.assertEqual(day['days'][0]['events'][0]['placeId'],'saved')
+   self.assertNotIn('unknown-store',day['places'])

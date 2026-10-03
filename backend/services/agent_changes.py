@@ -172,7 +172,7 @@ def apply_proposal(connection, proposal_id, revision):
         return json.loads(row['result_json'])
     if row['status'] != 'pending' or row['expires_at'] <= time.time():
         raise TrajectoryConflict('この変更案は期限切れか却下済みです。新しい案を作成してください。')
-    from services.agent_places import unresolved, validate_bound_places
+    from services.agent_places import unresolved, validate_bound_places, resolve_places
     metadata = json.loads(row['metadata_json'])
     if metadata.get('orderRequired') and not metadata.get('orderConfirmed'):
         raise TrajectoryConflict('時刻が不明・推定の訪問順序を確認してください。')
@@ -182,7 +182,7 @@ def apply_proposal(connection, proposal_id, revision):
     expected = json.loads(row['baselines_json'])
     if fingerprints(read_state(connection), expected) != expected:
         raise TrajectoryConflict('元データが変更されました。差分を更新して再確認してください。')
-    preview = prepare_changes(connection, json.loads(row['commands_json']))
+    preview = prepare_changes(connection, resolve_places(json.loads(row['commands_json']), metadata))
     mapping = {f'new:{index}': str(uuid.uuid5(uuid.UUID(proposal_id), f'transaction:{index}'))
                for index, command in enumerate(preview['commands']) if command['kind'] == 'transaction.create'}
     changed = []

@@ -377,14 +377,11 @@ class Store:
                 raise TrajectoryNotFound("取引が見つかりません。")
             if old["date"] == normalized["date"] and not confirm_time:
                 normalized["timeEstimated"] = bool(old["time_estimated"])
-            invalid_reference = connection.execute("""
-                SELECT day_date FROM trajectory_events WHERE transaction_id = ? AND day_date != ?
-                UNION ALL
-                SELECT day_date FROM trajectory_legs WHERE transport_transaction_id = ? AND day_date != ?
-            """, (transaction_id, normalized["date"][:10], transaction_id, normalized["date"][:10])).fetchone()
-            if invalid_reference:
-                raise TrajectoryConflict("取引の日付を変更するには、参照する軌跡も修正してください。")
-            record = {"id": transaction_id, **normalized}
+            from services.agent_changes import prepare_changes
+            preview = prepare_changes(connection, [{"kind": "transaction.update",
+                "identity": {"id": transaction_id},
+                "data": {**normalized, "confirmTime": confirm_time}}])
+            record = preview["after"][0]
             self._update(connection, record)
             return record
 

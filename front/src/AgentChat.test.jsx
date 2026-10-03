@@ -57,3 +57,22 @@ it('uploads a receipt without submitting or approving it',async()=>{
  expect(await screen.findByRole('img',{name:'添付レシート'})).toBeTruthy();
  expect(api.sendMessage).not.toHaveBeenCalled();expect(api.approve).not.toHaveBeenCalled();
 });
+it('refreshes application data when proposal reload discovers committed approval',async()=>{
+ const onCommitted=vi.fn().mockResolvedValue(true);
+ api.approve.mockRejectedValueOnce(new Error('lost response'));
+ api.getProposal.mockResolvedValue({...proposal,status:'applied'});
+ render(<AgentChat onCommitted={onCommitted}/>);await start();
+ fireEvent.click(screen.getByRole('button',{name:'確認して保存'}));
+ fireEvent.click(await screen.findByRole('button',{name:'変更案を再読み込み'}));
+ await screen.findByText('保存済み');
+ expect(onCommitted).toHaveBeenCalledTimes(1);
+});
+it('keeps receipt source and destination context in the final approval and edit card',async()=>{
+ proposal={...proposal,threadId:'t',metadata:{receiptId:'r',targetChoice:'existing',receiptReview:{receiptId:'r',mimeType:'image/png',matches:[{reason:'hash',transaction:{id:'existing',title:'既存の食材',date:'2026-10-01T12:00',amount:100}}]}}};
+ render(<AgentChat onCommitted={vi.fn()}/>);await start();
+ expect(screen.getByRole('img',{name:'確認するレシート'}).getAttribute('src')).toBe('/api/agent/threads/t/receipts/r');
+ expect(screen.getByRole('link',{name:'レシート原本を開く'})).toBeTruthy();
+ expect(screen.getByText(/保存先:.*既存の食材/)).toBeTruthy();expect(screen.getByText(/同じレシート/)).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:'内容を修正'}));
+ expect(screen.getByRole('link',{name:'レシート原本を開く'})).toBeTruthy();
+});

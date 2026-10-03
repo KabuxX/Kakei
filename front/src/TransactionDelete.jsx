@@ -7,6 +7,7 @@ export default function TransactionDelete({ record, busy = false, error, onConfi
     <h1 id="delete-heading" tabIndex="-1">{record ? 'この取引を削除しますか？' : '取引が見つかりません'}</h1>
     {record ? <>
       <p id="delete-warning" className="delete-warning">削除後は元に戻せません。内容を確認してください。</p>
+      <p>紐づくレシート原本も削除されます。軌跡の訪問記録は残りますが、この取引の購入・交通費の参照と、それを根拠にした移動手段は外れます。</p>
       <article className="delete-summary" aria-label="削除する取引">
         <span className="delete-summary-label">削除する取引</span>
         <h2>{record.title}</h2>

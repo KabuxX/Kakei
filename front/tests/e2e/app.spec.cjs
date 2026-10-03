@@ -255,7 +255,7 @@ test('agent approval survives lost response and refreshes visible app data', asy
   });
   await page.getByRole('button',{name:'確認して保存'}).click();
   await expect(page.getByRole('alert')).toBeVisible();
-  await page.getByRole('button',{name:'確認して保存'}).click();
+  await page.getByRole('button',{name:'変更案を再読み込み'}).click();
   await expect(page.getByText('保存済み',{exact:true})).toBeVisible();
   await page.getByRole('link',{name:'概要',exact:true}).click();
   await expect(page.getByRole('link',{name:'Agent 動作確認'})).toHaveCount(1);
@@ -285,6 +285,10 @@ test('receipt upload corrects discrepancy then saves and opens attached bytes',a
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  await page.screenshot({animations:'disabled',path:'../.superpowers/sdd/2026-10-03-agent-chat-receipts/receipt-phone.png',fullPage:true});
  await page.getByRole('button',{name:'変更案を確認'}).click();
+ await expect(page.getByRole('img',{name:'確認するレシート'})).toBeVisible();
+ const original=await page.request.get(await page.getByRole('link',{name:'レシート原本を開く'}).getAttribute('href'));
+ expect(original.status()).toBe(200);
+ await page.screenshot({animations:'disabled',path:'../.superpowers/sdd/2026-10-03-agent-chat-receipts/receipt-approval-phone.png',fullPage:true});
  await page.getByRole('button',{name:'確認して保存'}).click();
  await expect(page.getByText('保存済み',{exact:true})).toBeVisible();
  await page.getByRole('link',{name:'概要',exact:true}).click();
@@ -303,8 +307,10 @@ test('trajectory proposal binds a place and confirms order then appears in live 
  await expect(page.getByRole('button',{name:'確認して保存'})).toBeDisabled();
  await page.getByRole('radio',{name:/New York/}).check();await page.getByRole('button',{name:'この地点を選ぶ'}).click();
  await expect(page.getByText('確認待ち · 第2版')).toBeVisible();
- await page.getByRole('button',{name:'この訪問順を確認した'}).click();
+ await page.getByRole('radio',{name:/London/}).check();await page.getByRole('button',{name:'この地点を選ぶ'}).click();
  await expect(page.getByText('確認待ち · 第3版')).toBeVisible();
+ await page.getByRole('button',{name:'この訪問順を確認した'}).click();
+ await expect(page.getByText('確認待ち · 第4版')).toBeVisible();
  await page.screenshot({animations:'disabled',path:'../.superpowers/sdd/2026-10-03-agent-chat-trajectory/review-desktop.png',fullPage:true});
  await page.setViewportSize({width:390,height:844});
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);

@@ -35,7 +35,8 @@ it('confirms sample deletion before one request', async () => {
   render(<App />);
   fireEvent.click(screen.getByRole('button', { name: 'サンプルを削除' }));
   await waitFor(() => expect(methods.deleteSamples).toHaveBeenCalledTimes(1));
-  expect(window.confirm).toHaveBeenCalled();
+  expect(window.confirm).toHaveBeenCalledWith(expect.stringMatching(/レシート原本/));
+  expect(window.confirm.mock.calls[0][0]).toMatch(/軌跡/);
 });
 
 it('shows a dedicated confirmation before deleting the selected transaction', async () => {
@@ -45,6 +46,8 @@ it('shows a dedicated confirmation before deleting the selected transaction', as
   await waitFor(() => expect(screen.getByRole('heading', { name: 'この取引を削除しますか？' })).toBeTruthy());
   expect(screen.getByRole('heading', { name: '給与' })).toBeTruthy();
   expect(screen.getByRole('article', { name: '削除する取引' }).textContent).toContain('+¥320,000');
+  expect(screen.getByText(/紐づくレシート原本/)).toBeTruthy();
+  expect(screen.getByText(/交通費の参照/)).toBeTruthy();
   expect(methods.deleteTransaction).not.toHaveBeenCalled();
   expect(window.confirm).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: '削除する' }));

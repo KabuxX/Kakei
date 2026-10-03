@@ -10,7 +10,7 @@ def source_version(connection):return hashlib.sha256(canonical(read_state(connec
 def unresolved(metadata):return [g for g in metadata.get('placeCandidates',[]) if not g.get('selectedCandidateId')]
 
 def preview(connection,commands,metadata):
-    if not unresolved(metadata):return prepare_changes(connection,commands)
+    if not unresolved(metadata):return prepare_changes(connection,resolve_places(commands,metadata))
     state=read_state(connection)
     before=[];after=[]
     for command in commands:
@@ -26,10 +26,21 @@ def check_source(connection,metadata):
     if metadata.get('sourceVersion') and source_version(connection)!=metadata['sourceVersion']:
         raise TrajectoryConflict('元データが変わりました。最新の取引から変更案を作り直してください。')
 
+def resolve_places(commands,metadata):
+    # Keep placeholder identities in editable commands so a saved-place selection
+    # can be changed without rewriting unrelated references to that saved place.
+    aliases={g['placeId']:g['selectedPlaceId'] for g in metadata.get('placeCandidates',[]) if g.get('selectedPlaceId')}
+    def resolve(value):
+        if isinstance(value,list):return [resolve(v) for v in value]
+        if isinstance(value,dict):
+            return {k:aliases.get(v,v) if k=='placeId' else [aliases.get(p,p) for p in v] if k=='viaPlaceIds' else resolve(v) for k,v in value.items()}
+        return value
+    return resolve(commands)
+
 def choose(connection,commands,metadata,candidate_id=None,manual=None,place_id=None):
     check_source(connection,metadata)
     commands=copy.deepcopy(commands);metadata=copy.deepcopy(metadata)
-    groups=unresolved(metadata)
+    groups=metadata.get('placeCandidates',[])
     if manual is not None:
         group=next((g for g in groups if g['placeId']==place_id),None)
         if not group or not isinstance(manual,dict) or set(manual)!={'name','coordinates'}:
@@ -44,14 +55,18 @@ def choose(connection,commands,metadata,candidate_id=None,manual=None,place_id=N
             identifier=candidate['savedPlaceId']
             if identifier not in read_state(connection)['timeline']['places']:
                 raise TrajectoryConflict('選択した地点が変更されました。')
-            def replace(value):
-                if isinstance(value,list):return [replace(v) for v in value]
-                if isinstance(value,dict):return {k:identifier if k=='placeId' and v==group['placeId'] else [identifier if p==group['placeId'] else p for p in v] if k=='viaPlaceIds' else replace(v) for k,v in value.items()}
-                return value
-            commands=replace(commands);place=None
+            group['selectedPlaceId']=identifier;place=None
         else:
             place={k:candidate[k] for k in ('name','address','coordinates','sourceUrl','attribution')};place['placeEvidence']='provider'
+    # Remove this group's previously staged place only; preserve edits to the
+    # day and all other selections. Rebase new:<index> links after removal.
+    retained=[(i,c) for i,c in enumerate(commands) if not (c['kind'].startswith('trajectory.') and c['identity'].get('kind')=='place' and c['identity'].get('id')==group['placeId'])]
+    from services.agent_changes import resolve_ids
+    mapping={f'new:{old}':f'new:{new}' for new,(old,c) in enumerate(retained) if c['kind']=='transaction.create'}
+    commands=resolve_ids([c for _,c in retained],mapping)
+    metadata.setdefault('authorizedPlaces',{}).pop(group['placeId'],None)
     if place:
+        group.pop('selectedPlaceId',None)
         validate_timeline({'places':{group['placeId']:place},'days':[]})
         commands.append({'kind':'trajectory.create','identity':{'kind':'place','id':group['placeId']},'data':place})
         metadata.setdefault('authorizedPlaces',{})[group['placeId']]=place

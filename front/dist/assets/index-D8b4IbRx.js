@@ -1,4 +1,4 @@
-import{c as N}from"./expression-Bl_GL2tO.js";import{g as f,c as v,r as m,f as k,A as M,d as V,e as L,b as S,G as z,h as y,i as R,C as $,j as _}from"./TrajectoryMap-S_U7YyUX.js";import{k as xe}from"./TrajectoryMap-S_U7YyUX.js";import"./index-B09LQBky.js";const B=`fn arithmetic_add(x: {TYPE}, y: {TYPE}) -> {TYPE} {
+import{c as N}from"./expression-Bl_GL2tO.js";import{g as f,c as v,r as m,f as k,A as M,d as V,e as L,b as S,G as z,h as y,i as R,C as $,j as _}from"./TrajectoryMap-fxf_jQfL.js";import{k as xe}from"./TrajectoryMap-fxf_jQfL.js";import"./index-BsAPc2BC.js";const B=`fn arithmetic_add(x: {TYPE}, y: {TYPE}) -> {TYPE} {
   return x + y;
 }
 

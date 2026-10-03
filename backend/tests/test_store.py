@@ -55,6 +55,22 @@ class StoreTests(unittest.TestCase):
                 "paymentMethod": "cash", "items": [{"name": "x", "amount": 200}]})
         self.assertEqual(self.store.get_transaction("old"), old)
 
+    def test_manual_edit_cannot_break_fare_or_merchant_evidence(self):
+        self.store.initialize([])
+        record = self.store.create_transaction({"title":"fare","date":"2026-09-01T10:00","type":"expense",
+            "category":"交通","amount":100,"merchant":"Station","paymentMethod":"cash","items":[]})
+        place={"name":"Station","coordinates":[139,35],"address":None,"sourceUrl":None,"placeEvidence":"user"}
+        self.store.sync_trajectory({"places":{"p":place},"days":[{"date":"2026-09-01",
+            "events":[{"id":"a","time":"10:00","timeEvidence":"exact","placeId":"p","transactionId":record["id"]},
+                      {"id":"b","time":"11:00","timeEvidence":"exact","placeId":"p"}],
+            "legs":[{"fromEventId":"a","toEventId":"b","modeHint":"train","modeEvidence":"fare","transportTransactionId":record["id"]}]}]})
+        before=self.store.get_trajectory_day("2026-09-01")
+        for change in ({"category":"食費"},{"merchant":"Other"}):
+            with self.subTest(change=change),self.assertRaises((ValidationError,TrajectoryConflict)):
+                self.store.update_transaction(record["id"],{k:v for k,v in {**record,**change}.items() if k!="id"})
+            self.assertEqual(self.store.get_transaction(record["id"]),record)
+            self.assertEqual(self.store.get_trajectory_day("2026-09-01"),before)
+
     def test_delete_detaches_event_and_train_leg(self):
         for samples in (False, True):
             with self.subTest(samples=samples):

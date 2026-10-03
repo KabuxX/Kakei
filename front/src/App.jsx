@@ -115,7 +115,7 @@ export default function App() {
     finally { setDeletePending(false); }
   };
   const deleteSamples = async () => {
-    if (data.status !== 'ready' || data.writePending || data.refreshing || !window.confirm('サンプルデータをすべて削除しますか？')) return;
+    if (data.status !== 'ready' || data.writePending || data.refreshing || !window.confirm('サンプルデータをすべて削除しますか？ 紐づくレシート原本も削除されます。軌跡の訪問記録は残りますが、対象取引の購入・交通費の参照と、それを根拠にした移動手段は外れます。元に戻せません。')) return;
     try {
       const refreshed = await data.deleteSamples();
       setToast(refreshed ? 'サンプルデータを削除しました。' : 'サンプルを削除しました。表示を更新してください。');
