@@ -397,3 +397,10 @@ class Store:
             detach_trajectory_references(connection, ids)
             cursor = connection.execute("DELETE FROM transactions WHERE substr(id, 1, 7) = 'sample-'")
             return cursor.rowcount
+
+    def apply_agent_proposal(self, proposal_id: str, revision: int) -> dict:
+        from services.agent_changes import apply_proposal
+        with self._connection() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            self._require_initialized(connection)
+            return apply_proposal(connection, proposal_id, revision)

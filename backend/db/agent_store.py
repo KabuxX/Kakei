@@ -92,16 +92,19 @@ class AgentStore:
             return {'id': identifier, 'role': role, 'text': text, 'createdAt': now}
 
     def create_proposal(self, thread_id, commands, baselines):
+        from services.agent_changes import prepare_changes
         commands = command_dicts(commands)
         identifier, now = str(uuid.uuid4()), time.time()
         with self.store._connection() as c:
             c.execute('BEGIN IMMEDIATE')
             self._thread(c, thread_id)
             self._expire(c)
+            preview = prepare_changes(c, commands)
             c.execute('''INSERT INTO agent_proposals
-                (id, thread_id, revision, status, commands_json, baselines_json, created_at, expires_at)
-                VALUES (?, ?, 1, 'pending', ?, ?, ?, ?)''',
-                      (identifier, thread_id, dumps(commands), dumps(baselines), now, now + 86400))
+                (id, thread_id, revision, status, commands_json, baselines_json, created_at, expires_at, before_json, after_json)
+                VALUES (?, ?, 1, 'pending', ?, ?, ?, ?, ?, ?)''',
+                      (identifier, thread_id, dumps(commands), dumps(preview['baselines']), now, now + 86400,
+                       dumps(preview['before']), dumps(preview['after'])))
             return proposal_record(c.execute('SELECT * FROM agent_proposals WHERE id = ?', (identifier,)).fetchone())
 
     def get_proposal(self, proposal_id):
@@ -113,12 +116,16 @@ class AgentStore:
             return proposal_record(row)
 
     def revise_proposal(self, proposal_id, expected_revision, commands):
+        from services.agent_changes import prepare_changes
         commands = command_dicts(commands)
         with self.store._connection() as c:
             c.execute('BEGIN IMMEDIATE')
             self._expire(c)
             self._pending(c, proposal_id, expected_revision)
-            c.execute('UPDATE agent_proposals SET commands_json = ?, revision = revision + 1 WHERE id = ?', (dumps(commands), proposal_id))
+            preview = prepare_changes(c, commands)
+            c.execute('''UPDATE agent_proposals SET commands_json = ?, revision = revision + 1,
+                baselines_json = ?, before_json = ?, after_json = ? WHERE id = ?''',
+                (dumps(commands), dumps(preview['baselines']), dumps(preview['before']), dumps(preview['after']), proposal_id))
             return proposal_record(c.execute('SELECT * FROM agent_proposals WHERE id = ?', (proposal_id,)).fetchone())
 
     def reject_proposal(self, proposal_id, revision=None):
