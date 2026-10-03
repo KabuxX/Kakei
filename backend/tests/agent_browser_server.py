@@ -8,6 +8,9 @@ from api.app import create_app
 class BrowserRunner:
     def __init__(self,store):self.store=store
     async def run_turn(self, thread_id, messages, receipt_id=None):
+        if '軌跡' in messages[-1]['text']:
+            candidates=[{'id':'ny','name':'同名店','address':'New York, USA','coordinates':[-73.9,40.7],'sourceUrl':'https://www.openstreetmap.org/copyright','attribution':'© OpenStreetMap contributors'}, {'id':'london','name':'同名店','address':'London, UK','coordinates':[-0.1,51.5],'sourceUrl':'https://www.openstreetmap.org/copyright','attribution':'© OpenStreetMap contributors'}]
+            return {'text':'地点候補と訪問順を確認してください。','commands':[{'kind':'trajectory.create','identity':{'kind':'day','date':'2027-01-04'},'data':{'events':[{'id':'future-a','placeId':'future-shop','time':None,'timeEvidence':'unknown'},{'id':'future-b','placeId':'future-shop','time':None,'timeEvidence':'unknown'}],'legs':[{'fromEventId':'future-a','toEventId':'future-b','modeEvidence':'inferred','modeEvidenceNote':'訪問順から結んだ概算。実際の経路と手段は不明。'}]}}], 'placeCandidates':[{'placeId':'future-shop','query':'同名店','candidates':candidates}]}
         if receipt_id:
             from agent.receipt import ReceiptCandidate, receipt_review
             from services.receipt_matching import find_receipt_matches

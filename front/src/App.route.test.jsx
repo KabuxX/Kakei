@@ -68,3 +68,11 @@ it('opens agent route with navigation and heading focus', async () => {
   expect(screen.getByRole('heading',{name:'Agent Chat'})).toBe(document.activeElement);
   expect(document.getElementById('dashboard-view').hidden).toBe(true);
 });
+
+it('waits for local transaction initialization before loading agent threads',async()=>{
+ const fetch=vi.fn();vi.stubGlobal('fetch',fetch);
+ useTransactions.mockReturnValue({transactions:[],status:'loading',refresh:vi.fn(),load:vi.fn()});
+ window.location.hash='#agent';render(<App/>);
+ expect(screen.getByText('家計データを準備しています…')).toBeTruthy();
+ expect(fetch).not.toHaveBeenCalled();
+});

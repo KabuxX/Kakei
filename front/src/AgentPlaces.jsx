@@ -1,0 +1,9 @@
+import React,{useState} from 'react';
+import * as api from './lib/agent-api.js';
+export default function AgentPlaces({proposal,group,act,onChange,busy}){
+ const [selected,setSelected]=useState(''),[name,setName]=useState(group.query),[longitude,setLongitude]=useState(''),[latitude,setLatitude]=useState('');
+ return <section className="agent-place-choice" aria-label={`${group.query} の地点候補`}><h3>地点を選択 · {group.query}</h3>{group.error&&<p className="agent-notice">{group.error}</p>}
+ {group.candidates.length?<fieldset><legend>住所と出典を確認してください</legend>{group.candidates.map(c=><div key={c.id} className="agent-place-option"><label><input type="radio" name={`place-${group.placeId}`} checked={selected===c.id} onChange={()=>setSelected(c.id)} disabled={busy}/><span><strong>{c.name}</strong><span>{c.address||'住所なし'}</span><small>{c.attribution||'保存済み地点'}</small></span></label>{c.sourceUrl&&<a href={c.sourceUrl} target="_blank" rel="noreferrer">出典</a>}</div>)}<button type="button" className="secondary-button" disabled={!selected||busy} onClick={()=>act(async()=>onChange(await api.selectPlaceCandidate(proposal.id,proposal.revision,selected)))}>この地点を選ぶ</button></fieldset>:<p>候補がありません。地域を含めて会話で再検索するか、確認した座標を入力してください。</p>}
+ <details><summary>座標を自分で指定する</summary><div className="agent-fields"><label>地点名<input value={name} onChange={e=>setName(e.target.value)} /></label><label>経度<input type="number" min="-180" max="180" step="any" value={longitude} onChange={e=>setLongitude(e.target.value)}/></label><label>緯度<input type="number" min="-90" max="90" step="any" value={latitude} onChange={e=>setLatitude(e.target.value)}/></label></div><button type="button" className="secondary-button" disabled={busy||!name.trim()||longitude===''||latitude===''} onClick={()=>act(async()=>onChange(await api.specifyPlace(proposal.id,proposal.revision,group.placeId,{name,coordinates:[Number(longitude),Number(latitude)]})))}>この座標を使う</button></details>
+ </section>;
+}

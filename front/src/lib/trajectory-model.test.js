@@ -127,7 +127,7 @@ it('rejects unknown, cross-date, and duplicate references', async () => {
   const copy = () => structuredClone(timeline);
   const unknown = copy();
   unknown.days[0].events[0].transactionId = 'missing';
-  expect(() => buildTrajectoryDays(transactions, unknown)).toThrow(/missing/);
+  expect(buildTrajectoryDays(transactions, unknown).get(date).events[0].transactionMissing).toBe(true);
   const crossDate = copy();
   crossDate.days[0].events[0].transactionId = 'yesterday';
   expect(() => buildTrajectoryDays([...transactions, { ...transactions[0], id: 'yesterday', date: '2026-09-01' }], crossDate)).toThrow(/date|日付/i);
@@ -148,4 +148,12 @@ it('rejects transport without matching fare evidence and classifies unsupported 
   const inferred = structuredClone(timeline);
   delete inferred.days[0].legs[0].modeHint;
   expect(buildTrajectoryDays(transactions, inferred).get(date).segments[0].mode).toBe('inferred');
+});
+
+it('keeps unknown times and unresolved places without fabricated map points',async()=>{
+ const {buildTrajectoryDays}=await import('./trajectory-model.js');
+ const timeline={places:{p:{name:'手動地点',address:null,sourceUrl:null,coordinates:[-73,40],placeEvidence:'user'}},days:[{date:'2027-01-04',events:[{id:'a',placeId:'p',time:null,timeEvidence:'unknown'},{id:'b',placeId:'unresolved',time:null,timeEvidence:'unknown'}],legs:[{fromEventId:'a',toEventId:'b',modeEvidence:'inferred',modeEvidenceNote:'経路は不明'}]}]};
+ const day=buildTrajectoryDays([],timeline).get('2027-01-04');
+ expect(day.events[0].time).toBeNull();expect(day.events[1].coordinates).toBeNull();
+ expect(day.segments[0].distanceKm).toBeNull();expect(day.bounds).toEqual([-73,40,-73,40]);
 });

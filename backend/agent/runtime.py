@@ -17,7 +17,7 @@ class TurnLimit(Exception):
 
 def configuration():
     missing = [name for name in ('OPENAI_API_KEY', 'KAKEI_AGENT_MODEL') if not os.environ.get(name, '').strip()]
-    return {'available': not missing, 'missing': missing,
+    return {'available': not missing, 'missing': missing, 'placesAvailable': bool(os.environ.get('GEOAPIFY_API_KEY', '').strip()),
             'message': 'サーバーで ' + ' と '.join(missing) + ' を設定してください。' if missing else '利用できます。'}
 
 

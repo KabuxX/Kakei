@@ -7,6 +7,7 @@ import '../trajectory.css';
 const TrajectoryMap = lazy(() => import('./TrajectoryMap.jsx'));
 const yen = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY', maximumFractionDigits: 0 });
 const dateLabel = (date) => `${Number(date.slice(5, 7))}月${Number(date.slice(8))}日`;
+const evidenceLabel = {exact:'確定',estimated:'推定',unknown:'不明',legacy:'既存記録',fare:'交通費の記録',user:'ユーザー指定',inferred:'推定'};
 const modeLabel = { train: '電車', bus: 'バス', walk_estimated: '徒歩（推定）', inferred: '移動（推定）' };
 
 class MapErrorBoundary extends React.Component {
@@ -108,16 +109,16 @@ export default function Trajectory({ transactions = EMPTY, refreshKey = 0 }) {
         <div className="trajectory-panel-heading"><div><p className="trajectory-section-label">TIMELINE</p><h2 id="trajectory-timeline-heading">時系列</h2></div><span>{day.events.length}件</span></div>
         <ol className="trajectory-timeline">
           {day.events.map((event, index) => {
-            const before = day.segments[index - 1];
+            const before = day.segments.find(s => s.toEventId === event.id);
             return <li key={event.id}>
-              {before && <p className="trajectory-leg-label" style={{ '--stage-color': stageColor(before.stageNumber).hex }}><i className="trajectory-legend-line" aria-hidden="true" />区間{before.stageNumber} · {modeLabel[before.mode]} · 約{before.distanceKm.toFixed(1)} km</p>}
+              {before && <p className="trajectory-leg-label" style={{ '--stage-color': stageColor(before.stageNumber).hex }}><i className="trajectory-legend-line" aria-hidden="true" />区間{before.stageNumber} · {modeLabel[before.mode]} · 約{before.distanceKm === null ? '距離不明' : `${before.distanceKm.toFixed(1)} km`} · {evidenceLabel[before.modeEvidence]}{before.modeEvidenceNote && `（${before.modeEvidenceNote}）`}</p>}
               <button className="trajectory-event" type="button" aria-pressed={selectedEventId === event.id} onClick={() => setSelectedEventId(event.id)}>
                 <span className="trajectory-event-index">{index + 1}</span>
-                <span className="trajectory-event-main"><span className="trajectory-event-time">{event.time}</span><strong>{event.place.name}</strong><small>{event.place.address}</small>
+                <span className="trajectory-event-main"><span className="trajectory-event-time">{event.time || '時刻不明'} · {evidenceLabel[event.timeEvidence || 'legacy']}</span>{event.timeEvidenceNote && <small>{event.timeEvidenceNote}</small>}<strong>{event.place.name}</strong><small>{event.place.address || '住所未登録'}</small>{event.transactionMissing && <small>関連取引は見つかりません</small>}
                   {event.transaction && <span className="trajectory-purchase">{event.transaction.title} · {yen.format(event.transaction.amount)}<span>{event.transaction.items?.map((item) => item.name).join('・')}</span></span>}
                 </span>
               </button>
-              <a className="trajectory-source" href={event.place.sourceUrl} target="_blank" rel="noreferrer">店舗・駅の情報を見る<span className="sr-only">（新しいタブ）</span></a>
+              <p className="trajectory-source">{event.place.sourceUrl && <a href={event.place.sourceUrl} target="_blank" rel="noreferrer">地点の出典を見る<span className="sr-only">（新しいタブ）</span></a>}{event.place.attribution && <span> · {event.place.attribution}</span>}{event.place.placeEvidence === 'user' && <span>ユーザー指定の座標</span>}</p>
             </li>;
           })}
         </ol>

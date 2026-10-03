@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import { PathLayer, ScatterplotLayer } from '@deck.gl/layers';
@@ -36,6 +36,7 @@ function layersFor(day, selectedEventId, onSelectEvent) {
 }
 
 export default function TrajectoryMap({ day, selectedEventId, onSelectEvent }) {
+  const mapDay = useMemo(() => ({...day, events: day.events.every(e => e.coordinates) ? day.events : day.events.filter(e => e.coordinates), segments: day.segments.every(s => s.coordinates) ? day.segments : day.segments.filter(s => s.coordinates)}), [day]);
   const token = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
   const containerRef = useRef(null);
   const mapRef = useRef(null);
@@ -78,14 +79,15 @@ export default function TrajectoryMap({ day, selectedEventId, onSelectEvent }) {
 
   useEffect(() => {
     if (!mapRef.current || !overlayRef.current || issue) return;
-    overlayRef.current.setProps({ layers: layersFor(day, selectedEventId, onSelectEvent) });
-  }, [day, selectedEventId, onSelectEvent, issue]);
+    overlayRef.current.setProps({ layers: layersFor(mapDay, selectedEventId, onSelectEvent) });
+  }, [mapDay, selectedEventId, onSelectEvent, issue]);
 
   useEffect(() => {
     const map = mapRef.current;
     if (!map || issue || !day.bounds) return undefined;
     const markers = [];
     day.events.forEach((event, index) => {
+      if (!event.coordinates) return;
       const element = document.createElement('span');
       element.className = 'trajectory-map-stop-number';
       element.textContent = String(index + 1);

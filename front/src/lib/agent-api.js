@@ -17,3 +17,7 @@ export async function uploadReceipt(thread,file){
 }
 export const listTransactionReceipts=async(transaction)=>(await request('GET',`/api/transactions/${id(transaction)}/receipts`)).receipts;
 export const proposeReceipt=async(thread,body)=>(await request('POST',`${base}/threads/${id(thread)}/receipt-proposals`,body)).proposal;
+export const selectPlaceCandidate=async(proposal,revision,candidateId)=>(await request('POST',`${base}/proposals/${id(proposal)}/places/selection`,{revision,candidateId})).proposal;
+export const specifyPlace=async(proposal,revision,placeId,place)=>(await request('POST',`${base}/proposals/${id(proposal)}/places/manual`,{revision,placeId,place})).proposal;
+export const confirmOrder=async(proposal,revision)=>(await request('POST',`${base}/proposals/${id(proposal)}/order/confirmation`,{revision})).proposal;
+export const getProposal=async(proposal)=>(await request('GET',`${base}/proposals/${id(proposal)}`)).proposal;

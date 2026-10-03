@@ -170,3 +170,8 @@
 .agent-upload{border:1px dashed #cdd2da;padding:16px;border-radius:16px;background:#f8f9fc}
 .agent-upload p{font-size:12px;color:#595d65;line-height:1.6}
 .receipt-review form>label{margin:16px 0}.receipt-review form>button{margin:8px 8px 0 0}
+.agent-place-choice{border-top:1px solid #d3dae5;margin:20px 0;padding:20px 0}
+.agent-place-choice h3{margin:0 0 16px}.agent-place-option{padding:12px 0;display:flex;gap:12px;align-items:start}
+.agent-place-option label{flex-direction:row;align-items:start;flex:1}.agent-place-option span span,.agent-place-option small{display:block;margin-top:4px}
+.agent-place-choice details{margin-top:16px}.agent-place-choice summary{cursor:pointer;padding:10px 0}.agent-place-choice details button{margin-top:16px}
+.agent-event-edit{padding:16px 0;border-bottom:1px solid #d3dae5}.agent-event-edit .agent-fields{margin:12px 0}

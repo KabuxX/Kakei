@@ -42,3 +42,10 @@ it('shows empty saved days and arbitrary years', async () => {
   expect(await screen.findByText('2027年1月4日')).toBeTruthy();
   expect(await screen.findByText('この日の訪問地点はまだありません。')).toBeTruthy();
 });
+
+it('renders a single unknown-time user coordinate without a source link',async()=>{
+ vi.stubGlobal('fetch',vi.fn(async url=>({ok:true,status:200,json:async()=>url==='/api/trajectory'?{dates:['2027-01-04']}:{places:{p:{name:'手動の地点',address:null,sourceUrl:null,placeEvidence:'user',coordinates:[-73,40]}},days:[{date:'2027-01-04',events:[{id:'e',placeId:'p',time:null,timeEvidence:'unknown'}],legs:[]}]}})));
+ render(<Trajectory transactions={[]}/>);
+ expect(await screen.findByText('手動の地点')).toBeTruthy();
+ expect(screen.getByText(/時刻不明/)).toBeTruthy();expect(screen.queryByRole('link',{name:/地点の出典/})).toBeNull();
+});

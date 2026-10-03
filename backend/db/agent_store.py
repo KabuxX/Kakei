@@ -113,6 +113,8 @@ class AgentStore:
         preview = place_preview(c, commands, metadata)
         from agent.trajectory import order_required
         metadata['orderRequired'] = order_required(preview['after'])
+        from services.agent_places import review_labels
+        metadata['referenceLabels'] = review_labels(c, commands, preview['after'])
         c.execute("""INSERT INTO agent_proposals
             (id, thread_id, revision, status, commands_json, baselines_json, created_at, expires_at, before_json, after_json)
             VALUES (?, ?, 1, 'pending', ?, ?, ?, ?, ?, ?)""",

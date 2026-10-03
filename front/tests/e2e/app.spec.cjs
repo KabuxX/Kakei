@@ -294,3 +294,29 @@ test('receipt upload corrects discrepancy then saves and opens attached bytes',a
  const response=await page.request.get(await receipt.getAttribute('href'));
  expect(response.headers()['content-type']).toBe('image/png');expect(response.status()).toBe(200);
 });
+
+test('trajectory proposal binds a place and confirms order then appears in live API view',async({page})=>{
+ test.skip(test.info().config.projects[0].use.baseURL!=='http://127.0.0.1:8767','requires isolated fake runner');
+ await page.goto('/');await expect(page.locator('#dashboard-view')).toHaveClass(/data-ready/);
+ await page.getByRole('link',{name:'Agent Chat'}).click();
+ await page.getByRole('textbox',{name:'メッセージ'}).fill('2027-01-04の軌跡を作成');await page.getByRole('button',{name:'送信',exact:true}).click();
+ await expect(page.getByRole('button',{name:'確認して保存'})).toBeDisabled();
+ await page.getByRole('radio',{name:/New York/}).check();await page.getByRole('button',{name:'この地点を選ぶ'}).click();
+ await expect(page.getByText('確認待ち · 第2版')).toBeVisible();
+ await page.getByRole('button',{name:'この訪問順を確認した'}).click();
+ await expect(page.getByText('確認待ち · 第3版')).toBeVisible();
+ await page.screenshot({animations:'disabled',path:'../.superpowers/sdd/2026-10-03-agent-chat-trajectory/review-desktop.png',fullPage:true});
+ await page.setViewportSize({width:390,height:844});
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await page.screenshot({animations:'disabled',path:'../.superpowers/sdd/2026-10-03-agent-chat-trajectory/review-phone.png',fullPage:true});
+ await page.getByRole('button',{name:'確認して保存'}).click();await expect(page.getByText('保存済み',{exact:true})).toBeVisible();
+ await page.getByRole('link',{name:'軌跡',exact:true}).click();await page.getByRole('combobox',{name:'表示する日付'}).selectOption('2027-01-04');
+ await expect(page.getByText('時刻不明 · 不明')).toHaveCount(2);
+ await expect(page.getByText(/Mapbox の公開トークン/)).toBeVisible();
+ await expect(page.getByText('© OpenStreetMap contributors',{exact:false})).toHaveCount(2);
+ await expect(page.getByText(/実際に通った経路や移動距離ではありません/)).toBeVisible();
+ await page.evaluate(()=>window.scrollTo({top:0,behavior:'instant'}));
+ await page.screenshot({animations:'disabled',path:'../.superpowers/sdd/2026-10-03-agent-chat-trajectory/trajectory-phone.png',fullPage:true});
+ await page.setViewportSize({width:1440,height:900});
+ await page.screenshot({animations:'disabled',path:'../.superpowers/sdd/2026-10-03-agent-chat-trajectory/trajectory-desktop.png',fullPage:true});
+});

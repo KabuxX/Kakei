@@ -64,3 +64,17 @@ def validate_bound_places(commands,metadata):
         if command['kind'].startswith('trajectory.') and command['identity'].get('kind')=='place':
             if allowed.get(command['identity'].get('id'))!=command['data']:
                 raise ValidationError('place','地点は候補選択または座標入力で指定してください。')
+
+def review_labels(connection, commands, after):
+    state=read_state(connection);labels={}
+    for value in after:
+        if not isinstance(value,dict):continue
+        for event in value.get('events',[]):
+            place=state['timeline']['places'].get(event.get('placeId'))
+            if place:labels[event['placeId']]=place['name']
+            identifier=event.get('transactionId');record=state['transactions'].get(identifier)
+            if record:labels[identifier]=f"{record['title']} · {record['amount']}円"
+        for leg in value.get('legs',[]):
+            identifier=leg.get('transportTransactionId');record=state['transactions'].get(identifier)
+            if record:labels[identifier]=f"{record['title']} · {record['amount']}円"
+    return labels

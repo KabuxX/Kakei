@@ -4,7 +4,7 @@ import { featureCollection, lineString, point } from '@turf/helpers';
 import { transactionCalendarDate } from './transaction-datetime.js';
 
 function checkPlace(placeId, place) {
-  if (!place || !place.name || !place.address || !/^https:\/\//.test(place.sourceUrl || '')) {
+  if (!place || !place.name || (place.placeEvidence !== 'user' && (!place.address || !/^https:\/\//.test(place.sourceUrl || '')))) {
     throw new Error(`Place ${placeId} needs a name, address, and source URL`);
   }
   const [longitude, latitude] = place.coordinates || [];
@@ -16,7 +16,7 @@ function checkPlace(placeId, place) {
 
 function matchTransaction(transactionId, transactionsById, date) {
   const transaction = transactionsById.get(transactionId);
-  if (!transaction) throw new Error(`Unknown transaction ${transactionId}`);
+  if (!transaction) return null;
   if (transactionCalendarDate(transaction.date) !== date) throw new Error(`Transaction ${transactionId} has a different date`);
   return transaction;
 }
@@ -44,15 +44,15 @@ function buildTrajectoryDays(transactions, timeline) {
     const events = day.events.map((event) => {
       if (eventIds.has(event.id)) throw new Error(`Duplicate event ${event.id}`);
       eventIds.add(event.id);
-      const place = timeline.places[event.placeId];
-      if (!place) throw new Error(`Unknown place ${event.placeId}`);
-      if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(event.time)) throw new Error(`Invalid time ${event.time}`);
+      const place = timeline.places[event.placeId] || { name: '地点未確定', address: null, sourceUrl: null, coordinates: null, placeEvidence: 'unknown' };
+      if (!(event.time === null && event.timeEvidence === 'unknown') && !/^([01]\d|2[0-3]):[0-5]\d$/.test(event.time)) throw new Error(`Invalid time ${event.time}`);
       const transaction = event.transactionId
         ? matchTransaction(event.transactionId, transactionsById, day.date)
         : null;
-      return { ...event, place, transaction, coordinates: place.coordinates };
+      return { ...event, place, transaction, transactionMissing: !!event.transactionId && !transaction, coordinates: place.coordinates };
     });
-    if (events.some((event, index) => index > 0 && event.time <= events[index - 1].time)) {
+    const knownTimes = events.filter(event => event.time !== null);
+    if (knownTimes.some((event, index) => index > 0 && event.time <= knownTimes[index - 1].time)) {
       throw new Error(`Day ${day.date} events are not chronological`);
     }
     if (!Array.isArray(day.legs)) throw new Error(`Day ${day.date} needs legs`);
@@ -67,10 +67,9 @@ function buildTrajectoryDays(transactions, timeline) {
       let transportTransaction = null;
       if (leg.modeHint === 'walk') mode = 'walk_estimated';
       else if (leg.modeHint === 'train' || leg.modeHint === 'bus') {
-        if (!leg.transportTransactionId) throw new Error(`Leg ${index + 1} needs transport fare evidence`);
-        transportTransaction = matchTransaction(leg.transportTransactionId, transactionsById, day.date);
-        if (transportTransaction.category !== '交通'
-          || !transportTransaction.items?.some((item) => /線|電車|鉄道|バス/.test(item.name))) {
+        if (!leg.transportTransactionId && !['user','inferred'].includes(leg.modeEvidence)) throw new Error(`Leg ${index + 1} needs transport fare evidence`);
+        transportTransaction = leg.transportTransactionId ? matchTransaction(leg.transportTransactionId, transactionsById, day.date) : null;
+        if (transportTransaction && transportTransaction.category !== '交通') {
           throw new Error(`Leg ${index + 1} has no matching transport fare item`);
         }
         mode = leg.modeHint;
@@ -79,10 +78,10 @@ function buildTrajectoryDays(transactions, timeline) {
       }
       const via = (leg.viaPlaceIds || []).map((placeId) => {
         const place = timeline.places[placeId];
-        if (!place) throw new Error(`Unknown via place ${placeId}`);
-        return place.coordinates;
+        return place?.coordinates || null;
       });
-      const coordinates = [from.coordinates, ...via, to.coordinates];
+      const points = [from.coordinates, ...via, to.coordinates];
+      const coordinates = points.every(Boolean) ? points : null;
       return {
         id: `${from.id}-${to.id}`,
         stageNumber: index + 1,
@@ -90,11 +89,13 @@ function buildTrajectoryDays(transactions, timeline) {
         toEventId: to.id,
         coordinates,
         mode,
+        modeEvidence: leg.modeEvidence || 'legacy',
+        modeEvidenceNote: leg.modeEvidenceNote,
         transportTransaction,
-        distanceKm: length(lineString(coordinates)),
+        distanceKm: coordinates ? length(lineString(coordinates)) : null,
       };
     });
-    const features = [...segments.map((segment) => lineString(segment.coordinates)), ...events.map((event) => point(event.coordinates))];
+    const features = [...segments.filter(s => s.coordinates).map((segment) => lineString(segment.coordinates)), ...events.filter(e => e.coordinates).map((event) => point(event.coordinates))];
     result.set(day.date, {
       date: day.date,
       events,
