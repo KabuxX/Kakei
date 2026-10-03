@@ -1,12 +1,13 @@
 """Application wiring, local access control, and static serving."""
 
 import sqlite3
+import os
 from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 
-from api.http import HTTPFailure, error_response
+from api.http import HTTPFailure, error_response, json_response
 from api.transactions import register_transactions
 from api.agent import register_agent
 from api.receipts import register_receipts
@@ -34,7 +35,7 @@ def create_app(db_path: Path, front_dir: Path, *, port: int = 8765,
             if request.headers.get("origin") != f"http://{host}":
                 return error_response(403, "forbidden_origin", "同じアドレスの画面から操作してください。")
         path = request.url.path
-        if (path.startswith("/api/") and path not in ("/api/status", "/api/initialize", "/api/trajectory", "/api/agent/status")
+        if (path.startswith("/api/") and path not in ("/api/status", "/api/initialize", "/api/trajectory", "/api/agent/status", "/api/map-config")
                 and not path.startswith("/api/trajectory/")):
             try:
                 if not store.is_initialized():
@@ -75,10 +76,15 @@ def create_app(db_path: Path, front_dir: Path, *, port: int = 8765,
     register_agent(app, store, runner_factory)
     register_transactions(app, store)
 
+    @app.get("/api/map-config")
+    def map_config():
+        token = os.getenv('VITE_MAPBOX_ACCESS_TOKEN', '').strip()
+        return json_response(200, {'mapboxPublicToken': token if token.startswith('pk.') else None})
+
     @app.api_route("/api/{remaining:path}", methods=["GET", "POST", "DELETE", "PUT", "PATCH", "OPTIONS", "HEAD"])
     def unknown_api(request: Request, remaining: str):
         path = request.url.path
-        if (path in ("/api/status", "/api/initialize", "/api/transactions", "/api/samples", "/api/trajectory")
+        if (path in ("/api/status", "/api/initialize", "/api/transactions", "/api/samples", "/api/trajectory", "/api/map-config")
                 or path.startswith(("/api/transactions/", "/api/trajectory/"))):
             raise HTTPFailure(405, "method_not_allowed", "この操作は利用できません。")
         raise HTTPFailure(404, "not_found", "APIが見つかりません。")

@@ -3,6 +3,7 @@ import mapboxgl from 'mapbox-gl';
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import { PathLayer, ScatterplotLayer } from '@deck.gl/layers';
 import { stageColor } from './lib/trajectory-display.js';
+import { request } from './lib/api.js';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 function layersFor(day, selectedEventId, onSelectEvent) {
@@ -37,14 +38,31 @@ function layersFor(day, selectedEventId, onSelectEvent) {
 
 export default function TrajectoryMap({ day, selectedEventId, onSelectEvent }) {
   const mapDay = useMemo(() => ({...day, events: day.events.every(e => e.coordinates) ? day.events : day.events.filter(e => e.coordinates), segments: day.segments.every(s => s.coordinates) ? day.segments : day.segments.filter(s => s.coordinates)}), [day]);
-  const token = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
+  const [config,setConfig] = useState({token:null,loading:true,error:''});
+  const [attempt,setAttempt] = useState(0);
+  const token = config.token;
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const overlayRef = useRef(null);
   const [issue, setIssue] = useState('');
 
   useEffect(() => {
+    let active=true;
+    setConfig({token:null,loading:true,error:''});
+    request('GET','/api/map-config').then(value=>{
+      if(!value || !Object.hasOwn(value,'mapboxPublicToken'))throw new Error('Invalid map configuration');
+      const publicToken=value.mapboxPublicToken;
+      if(publicToken!==null && (typeof publicToken!=='string'||!publicToken.startsWith('pk.')))throw new Error('Invalid public token');
+      if(active)setConfig({token:publicToken,loading:false,error:''});
+    }).catch(()=>{
+      if(active)setConfig({token:null,loading:false,error:'地図の設定を取得できませんでした。再試行してください。'});
+    });
+    return ()=>{active=false;};
+  },[attempt]);
+
+  useEffect(() => {
     if (!token) return undefined;
+    setIssue('');
     if (!mapboxgl.supported()) {
       setIssue('この端末では WebGL を利用できないため、地図を表示できません。');
       return undefined;
@@ -75,12 +93,12 @@ export default function TrajectoryMap({ day, selectedEventId, onSelectEvent }) {
       setIssue('地図を読み込めませんでした。時系列は下の一覧から確認できます。');
       return undefined;
     }
-  }, []);
+  }, [token]);
 
   useEffect(() => {
     if (!mapRef.current || !overlayRef.current || issue) return;
     overlayRef.current.setProps({ layers: layersFor(mapDay, selectedEventId, onSelectEvent) });
-  }, [mapDay, selectedEventId, onSelectEvent, issue]);
+  }, [mapDay, selectedEventId, onSelectEvent, issue, token]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -97,7 +115,7 @@ export default function TrajectoryMap({ day, selectedEventId, onSelectEvent }) {
     return () => {
       markers.forEach((marker) => marker.remove());
     };
-  }, [day, issue]);
+  }, [day, issue, token]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -114,12 +132,12 @@ export default function TrajectoryMap({ day, selectedEventId, onSelectEvent }) {
     fitDay();
     map.on('resize', fitDay);
     return () => map.off('resize', fitDay);
-  }, [day, issue]);
+  }, [day, issue, token]);
 
-  const message = !token ? 'Mapbox の公開トークンを設定すると地図を表示できます。時系列はそのまま確認できます。' : issue;
+  const message = config.loading ? '地図の設定を読み込み中…' : config.error || (!token ? 'Mapbox の公開トークンを設定すると地図を表示できます。時系列はそのまま確認できます。' : issue);
   return <div className="trajectory-map-frame" role="region" aria-label={`${day.date} の推定移動地図`} aria-describedby="trajectory-map-description">
     <p id="trajectory-map-description" className="sr-only">地点と直線で示した推定経路です。地点は下の時系列一覧からも選べます。</p>
-    {message ? <div className="trajectory-map-message" role="status">{message}</div> : null}
+    {message ? <div className="trajectory-map-message" role="status"><div>{message}{config.error&&<p><button type="button" className="secondary-button" onClick={()=>setAttempt(n=>n+1)}>地図の設定を再取得</button></p>}</div></div> : null}
     <div ref={containerRef} className="trajectory-map-canvas" aria-hidden="true" hidden={Boolean(message)} />
   </div>;
 }

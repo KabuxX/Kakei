@@ -24,6 +24,10 @@ export function mockApi() {
         if (path === '/api/status' && request.method === 'GET') {
           return send(response, 200, { initialized: true });
         }
+        if (path === '/api/map-config' && request.method === 'GET') {
+          const token=server.config.env.VITE_MAPBOX_ACCESS_TOKEN?.trim();
+          return send(response, 200, { mapboxPublicToken: token?.startsWith('pk.') ? token : null });
+        }
         if (path === '/api/trajectory' && request.method === 'GET') {
           return send(response, 200, { dates: timeline.days.map((day) => day.date) });
         }
