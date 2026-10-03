@@ -154,3 +154,18 @@ it('does not offer resend when only the sidebar refresh fails after a completed 
  expect(screen.queryByRole('button',{name:'再送'})).toBeNull();
  expect(screen.queryByRole('status',{name:'Agentが処理中'})).toBeNull();
 });
+it('sources_survive_message_reload and user citation syntax stays plain',async()=>{
+ const source={id:'s',title:'店舗案内',url:'https://example.com/store'};
+ api.listThreads.mockResolvedValue([{id:'t',title:'出典の会話'}]);
+ api.sendMessage.mockRejectedValueOnce(new Error('通信が途切れました')).mockResolvedValueOnce({});
+ api.getThread.mockResolvedValue({id:'t',messages:[{id:'u',role:'user',text:'検索 [source:s]',sources:[source]},{id:'a',role:'assistant',text:'店舗を確認 [source:s]',sources:[source]}],proposals:[]});
+ render(<AgentChat onCommitted={vi.fn()}/>);await enterMessage('検索 [source:s]');await screen.findByRole('alert');
+ fireEvent.click(screen.getByRole('button',{name:'再送'}));
+ expect(await screen.findByRole('link',{name:/引用.*店舗案内/})).toBeTruthy();
+ expect(screen.getByText('検索 [source:s]').closest('article').querySelector('a')).toBeNull();
+ fireEvent.click(screen.getByRole('button',{name:'新しい会話'}));
+ await vi.waitFor(()=>expect(screen.queryByRole('link',{name:/引用/})).toBeNull());
+ await vi.waitFor(()=>expect(screen.getByRole('button',{name:'出典の会話'}).disabled).toBe(false));
+ fireEvent.click(screen.getByRole('button',{name:'出典の会話'}));
+ expect(await screen.findByRole('link',{name:/店舗情報/})).toBeTruthy();
+});

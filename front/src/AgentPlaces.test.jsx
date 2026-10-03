@@ -25,3 +25,10 @@ it('keeps candidate choices available after selection while allowing approval',a
  fireEvent.click(screen.getByRole('button',{name:'この地点を選ぶ'}));
  await vi.waitFor(()=>expect(api.selectPlaceCandidate).toHaveBeenCalledWith('p',2,'c2'));
 });
+it('unlocated_store_cannot_be_selected',()=>{
+ const proposal={id:'p',revision:1,status:'pending',expiresAt:Date.now()/1000+86400,commands:[],before:[],after:[],metadata:{placeCandidates:[{placeId:'x',query:'店舗',candidates:[],unlocatedCandidates:[{id:'w',name:'住所のみ判明した店舗',address:'福岡市',unresolved:['address_precision_unconfirmed'],sources:[{id:'s',title:'店舗案内',url:'https://example.com/store'}]}]}]}};
+ render(<AgentProposal proposal={proposal} onChange={vi.fn()} onCommitted={vi.fn()} busy={false} setBusy={vi.fn()}/>);
+ expect(screen.getByText('位置未確認')).toBeTruthy();expect(screen.getByText('住所のみ判明した店舗')).toBeTruthy();
+ expect(screen.queryByRole('radio')).toBeNull();expect(screen.getByRole('link',{name:/店舗情報/})).toBeTruthy();
+ expect(screen.getByText(/番地まで/)).toBeTruthy();
+});

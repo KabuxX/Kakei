@@ -1,5 +1,6 @@
 import React, {useEffect, useRef, useState} from 'react';
 import AgentProposal from './AgentProposal.jsx';
+import PlaceSources,{renderCitedText} from './PlaceSources.jsx';
 import ReceiptReview from './ReceiptReview.jsx';
 import {ChatButton,ChatIcon} from './AgentControls.jsx';
 
@@ -34,7 +35,7 @@ export default function AgentChat({session,onCommitted}) {
     <h1 id="agent-heading" className="sr-only" tabIndex="-1">Agent Chat</h1>
     {active&&<div className="agent-history-content" ref={conversation}>
       <div className="agent-conversation" aria-label="会話の内容" aria-live="polite">
-        {messages.map((m,i)=><article ref={i===messages.length-1?latestMessage:null} key={m.id} className={`agent-message ${m.role}`}><strong>{m.role==='user'?'あなた':'Agent'}</strong><p>{m.text}</p>{m.state==='failed'&&<small>応答を確認できませんでした。入力欄から再送できます。</small>}</article>)}
+        {messages.map((m,i)=><article ref={i===messages.length-1?latestMessage:null} key={m.id} className={`agent-message ${m.role}`}><strong>{m.role==='user'?'あなた':'Agent'}</strong><p>{m.role==='assistant'?renderCitedText(m.text,m.sources):m.text}</p>{m.role==='assistant'&&<PlaceSources sources={m.sources}/>}{m.state==='failed'&&<small>応答を確認できませんでした。入力欄から再送できます。</small>}</article>)}
       </div>
       {sending&&<div ref={progress} className="agent-message agent-processing" role="status" aria-label="Agentが処理中"><span className="agent-loading-dots" aria-hidden="true"><i/><i/><i/></span><span>Agentが処理中</span></div>}
       {thread?.receiptReviews?.filter(r=>!thread.proposals?.some(p=>p.metadata?.receiptId===r.receiptId)).map(r=><ReceiptReview key={r.receiptId} review={r} threadId={thread.id} busy={busy} setBusy={setBusy} onProposed={proposed}/>)}
@@ -43,7 +44,7 @@ export default function AgentChat({session,onCommitted}) {
     <div className="agent-input-region">
       {!active&&<h2 className="agent-greeting">{greeting}</h2>}
       {!loading&&status&&!status.available&&<p className="agent-notice">{status.message}</p>}
-      {status?.available&&status.placesAvailable===false&&<p className="agent-notice">地点検索を利用できません。保存済み地点や座標指定は利用できます。</p>}
+      {status?.available&&status.placesAvailable===false&&<p className="agent-notice">{status.placesMessage||'地点検索を利用できません。保存済み地点や座標指定は利用できます。'}</p>}
       <form className="agent-composer" aria-label="メッセージを作成" onSubmit={submit}>
         {receipt&&<div className="agent-attachment">
           <a href={receiptUrl} target="_blank" rel="noreferrer" aria-label="添付レシートを開く">{receipt.mimeType.startsWith('image/')?<img alt="添付レシート" src={receiptUrl}/>:<ChatIcon name="file"/>}<span>{receipt.name||'添付レシート'}</span></a>

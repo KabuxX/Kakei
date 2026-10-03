@@ -49,3 +49,9 @@ it('renders a single unknown-time user coordinate without a source link',async()
  expect(await screen.findByText('手動の地点')).toBeTruthy();
  expect(screen.getByText(/時刻不明/)).toBeTruthy();expect(screen.queryByRole('link',{name:/地点の出典/})).toBeNull();
 });
+it('trajectory_shows_store_and_coordinate_evidence',async()=>{
+ vi.stubGlobal('fetch',vi.fn(async url=>({ok:true,status:200,json:async()=>url==='/api/trajectory'?{dates:['2027-01-04']}:{places:{p:{name:'店舗',address:'福岡市',sourceUrl:'https://example.com/store',coordinates:[130,33],sources:[{id:'s',title:'店舗案内',url:'https://example.com/store'}],geocoding:{provider:'mapbox',accuracy:'interpolated'}}},days:[{date:'2027-01-04',events:[{id:'e',placeId:'p',time:null,timeEvidence:'unknown'}],legs:[]}]}})));
+ render(<Trajectory transactions={[]}/>);
+ expect((await screen.findByRole('link',{name:/店舗情報/})).getAttribute('href')).toBe('https://example.com/store');
+ expect(screen.getByText(/座標.*Mapbox.*補間/)).toBeTruthy();
+});

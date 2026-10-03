@@ -231,3 +231,15 @@
 .agent-loading-dots i:nth-child(3) { animation-delay:.3s; }
 @keyframes agent-dot-pulse { 0%,80%,100% { opacity:.35; transform:translateY(0); } 40% { opacity:1; transform:translateY(-3px); } }
 @media(prefers-reduced-motion:reduce) { .agent-loading-dots i { animation:none; opacity:1; transform:none; } }
+
+/* Store evidence is separate from the coordinate provider's attribution. */
+.place-sources { display: flex; flex-direction: column; gap: 6px; min-width: 0; margin-top: 8px; font-size: 12px; line-height: 1.6; color: #62666d; }
+.place-sources a, .place-citation { color: #405ab5; text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
+.place-sources a:focus-visible, .place-citation:focus-visible { outline: 2px solid #415eee; outline-offset: 3px; border-radius: 3px; }
+.agent-place-option { flex-direction: column; }
+.agent-place-option label { width: 100%; }
+.agent-unlocated { margin: 16px 0; padding: 16px; border-radius: 16px; background: #ebf0f8; }
+.agent-unlocated h4 { margin: 0; }
+.agent-unlocated article { padding: 12px 0; border-bottom: 1px solid #d5deed; overflow-wrap: anywhere; }
+.agent-unlocated p { font-size: 13px; line-height: 1.6; }
+.trajectory-source { display: block; }

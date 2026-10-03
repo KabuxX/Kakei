@@ -1,3 +1,4 @@
+import PlaceSources from './PlaceSources.jsx';
 import React, { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { listTrajectoryDates, loadTrajectoryDay } from './lib/api.js';
 import { buildTrajectoryDays } from './lib/trajectory-model.js';
@@ -118,7 +119,7 @@ export default function Trajectory({ transactions = EMPTY, refreshKey = 0 }) {
                   {event.transaction && <span className="trajectory-purchase">{event.transaction.title} · {yen.format(event.transaction.amount)}<span>{event.transaction.items?.map((item) => item.name).join('・')}</span></span>}
                 </span>
               </button>
-              <p className="trajectory-source">{event.place.sourceUrl && <a href={event.place.sourceUrl} target="_blank" rel="noreferrer">地点の出典を見る<span className="sr-only">（新しいタブ）</span></a>}{event.place.attribution && <span> · {event.place.attribution}</span>}{event.place.placeEvidence === 'user' && <span>ユーザー指定の座標</span>}</p>
+              <div className="trajectory-source"><PlaceSources {...event.place}/>{event.place.placeEvidence === 'user' && <span>ユーザー指定の座標</span>}</div>
             </li>;
           })}
         </ol>
