@@ -27,13 +27,16 @@ class TrajectoryAgentTests(unittest.IsolatedAsyncioTestCase):
   revised=self.agent.confirm_trajectory_order(proposal['id'],1)
   self.store.apply_agent_proposal(proposal['id'],revised['revision'])
  async def test_place_search_failure_keeps_revisable_proposal(self):
-  from api.http import HTTPFailure
+  from agent.places import PlaceProviderError
   command=self.day_command([{'id':'a','placeId':'unknown','time':None,'timeEvidence':'unknown'}])
   model=ScriptModel(replies=[AIMessage(content='',tool_calls=[{'name':'search_place','args':{'query':'店','place_id':'unknown'},'id':'1','type':'tool_call'}]),AIMessage(content='',tool_calls=[{'name':'edit_trajectory','args':{'operation':'create','identity':command['identity'],'data':command['data']},'id':'2','type':'tool_call'}]),AIMessage(content='座標を指定してください')])
-  with patch('agent.places.search_places',side_effect=HTTPFailure(502,'places_error','検索失敗')):
-   result=await AgentRunner(self.store,model=model).run_turn(self.thread,[{'role':'user','text':'軌跡を作成'}])
+  lease=self.agent.begin_turn(self.thread,'search-failure','軌跡を作成')
+  context={'thread_id':self.thread,'client_message_id':'search-failure','run_token':lease['token']}
+  with patch('agent.places.GeoapifyProvider.geocode',side_effect=PlaceProviderError('network')):
+   result=await AgentRunner(self.store,model=model).run_turn(self.thread,[{'role':'user','text':'軌跡を作成'}],turn_context=context)
   proposal=self.agent.create_proposal(self.thread,result['commands'],place_candidates=result['placeCandidates'])
   self.assertIsNone(self.store.get_trajectory_day('2027-01-04'));self.assertEqual(proposal['metadata']['placeCandidates'][0]['candidates'],[])
+  self.assertEqual(result['placeCandidates'][0]['status'],'error')
  async def test_same_transaction_not_assigned_twice(self):
   tx=self.store.create_transaction({'title':'給与','date':'2027-01-04T12:00','type':'income','category':'収入','amount':100})
   events=[{'id':name,'placeId':'p','time':None,'timeEvidence':'unknown','transactionId':tx['id']} for name in ['a','b']]
