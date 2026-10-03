@@ -29,3 +29,12 @@ class ExtractionTests(unittest.IsolatedAsyncioTestCase):
     async def test_discount_mismatch_requires_item_correction(self):
         review=receipt_review(ReceiptCandidate(total=90,items=[{'name':'商品','amount':100}],discount=10),[],'receipt')
         self.assertTrue(review['itemMismatch']);self.assertEqual(review['candidate']['items'],[{'name':'商品','amount':100}])
+    async def test_receipt_address_round_trip(self):
+        model=Model({'merchant':'店','merchant_address':'東京都千代田区二番町8-8','total':100})
+        candidate=await extract_receipt(validate_receipt(png(),'a.png'),model)
+        review=receipt_review(candidate,[],'receipt')
+        self.assertEqual(review['candidate']['merchant_address'],'東京都千代田区二番町8-8')
+        self.assertNotIn('merchant_address',review['missingFields'])
+        from pydantic import ValidationError
+        for value in [123,'𠮷'*501]:
+            with self.assertRaises(ValidationError):ReceiptCandidate(merchant_address=value)

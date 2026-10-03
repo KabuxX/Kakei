@@ -31,3 +31,13 @@ it('requires explicit manual verification when tax evidence is inconsistent',()=
  fireEvent.click(screen.getByLabelText('原本と照合し、金額・品目を確認しました'));
  expect(screen.getByRole('button',{name:'変更案を確認'}).disabled).toBe(false);
 });
+it('keeps address edits separate for each receipt target',()=>{
+ const review={receiptId:'r',candidate:{merchant:'店',total:100,currency:'JPY'},missingFields:[],matches:['A','B'].map(id=>({reason:'near',transaction:{id,title:id,merchantAddress:'住所'+id}}))};
+ render(<ReceiptReview review={review} threadId="t" busy={false} setBusy={vi.fn()} onProposed={vi.fn()}/>);
+ const select=screen.getByLabelText('保存先');
+ fireEvent.change(select,{target:{value:'A'}});expect(screen.getByLabelText('住所（任意）').value).toBe('住所A');
+ fireEvent.change(screen.getByLabelText('住所（任意）'),{target:{value:'修正A'}});
+ fireEvent.change(select,{target:{value:'B'}});expect(screen.getByLabelText('住所（任意）').value).toBe('住所B');
+ fireEvent.change(select,{target:{value:'new'}});expect(screen.getByLabelText('住所（任意）').value).toBe('');
+ fireEvent.change(select,{target:{value:'A'}});expect(screen.getByLabelText('住所（任意）').value).toBe('修正A');
+});
