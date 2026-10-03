@@ -72,3 +72,21 @@ class WebTests(unittest.IsolatedAsyncioTestCase):
         for response in cases:
             async with httpx.AsyncClient(transport=httpx.MockTransport(lambda req:httpx.Response(200,json=response))) as c:
                 with self.assertRaises(PlaceProviderError):await WebPlaceProvider(c).research({'query':NAME},timeout=1)
+
+    async def test_iso_country_case_preserves_cited_address(self):
+        report={'sources':[SOURCE],'supports':{SOURCE['id']:REPORT.replace('jp','JP')},'text':REPORT.replace('jp','JP')}
+        for country in ('JP','jp'):
+            response=extraction(SOURCE['id'],country_code=country,evidenceText=REPORT.replace('jp','JP').split(' [1]')[0])
+            async with httpx.AsyncClient(transport=httpx.MockTransport(lambda req:httpx.Response(200,json=response))) as c:
+                rows=await WebPlaceProvider(c).extract(report,timeout=1)
+            self.assertEqual(len(rows),1)
+            self.assertEqual(rows[0]['country_code'],'jp')
+            self.assertEqual(rows[0]['address'],ADDRESS)
+    async def test_separate_branch_uses_only_contiguous_cited_full_name(self):
+        report={'sources':[SOURCE],'supports':{SOURCE['id']:REPORT},'text':REPORT}
+        for name in ('ドトールコーヒーショップ','別の店舗'):
+            response=extraction(SOURCE['id'],name=name)
+            async with httpx.AsyncClient(transport=httpx.MockTransport(lambda req:httpx.Response(200,json=response))) as c:
+                rows=await WebPlaceProvider(c).extract(report,timeout=1)
+            if name=='別の店舗':self.assertEqual(rows,[])
+            else:self.assertEqual(rows[0]['name'],NAME)

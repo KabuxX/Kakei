@@ -1,10 +1,10 @@
 # Web店舗検索への移行検証
 
-2026-10-03。ブランチ `feat/web-place-search`。実装は隔離worktreeで行い、稼働アプリのDBと `.env` は変更していない。
+2026-10-03。ブランチ `feat/web-place-search`。実装は隔離worktreeで行い、稼働アプリのDBは変更していない。利用者の許可後、ルート `.env` に既存のMapboxトークンを専用変数として追加した。
 
 ## 検証結果
 
-- Backend: `python -m unittest discover -s backend/tests` — 231件成功。
+- Backend: `python -m unittest discover -s backend/tests` — 233件成功。
 - Front: `npm --prefix front test` — 21ファイル、102件成功。
 - Build: `npm --prefix front run build` — 成功。既存Mapboxチャンクの500 kB警告あり。生成distはコミットしない。
 - Browser: `playwright.agent-search.config.cjs`、一時SQLite、port8767 — 15件成功。
@@ -22,11 +22,20 @@
 - [Phone・出典](2026-10-03-web-place-search/web-evidence-phone.png)
 - [Phone・座標入力](2026-10-03-web-place-search/web-manual-phone.png)
 
-## 実API確認の制限
+## 実API確認
 
-実APIの通し確認は未実施。ルート `.env` にはOpenAI・通常モデル・地図表示用Mapboxトークンがあるが、`MAPBOX_GEOCODING_ACCESS_TOKEN` が未設定。既存トークンを専用設定にも使うか利用者へ質問中。`.env` を無断変更せず、課金資格を変更しない。外部通信は0件。この記録の店名・住所・座標は合成fixtureであり、実店舗の確認結果ではない。
+利用者の許可により、既存の地図表示用トークンを `MAPBOX_GEOCODING_ACCESS_TOKEN` にも設定した。`KAKEI_AGENT_SEARCH_MODEL` 未設定のため既存 `gpt-6-luna` を使用。追加課金設定の変更なし、キー表示なし。
 
-`KAKEI_AGENT_SEARCH_MODEL` は未設定時に既存モデルへフォールバック。Web検索のモデル対応状況とMapbox永久保存モードの利用資格は実接続時に確認が必要。キーは表示しない。
+実APIはWeb調査2要求（内部アクション計3: search 2/open_page 1）、構造化4要求（取得済みレポートの再処理2を含む）、Mapbox住所2要求。上限のWeb3回・Mapbox5住所以内。最初のsandbox内試行は外部接続できず、許可後に実接続を実施。
+
+- OpenAI: HTTP200。公式店舗ページ `https://shop.doutor.co.jp/doutor/spot/detail?code=2010774` と「〒810-0001 福岡県福岡市中央区天神2-11-3」を取得。
+- Webのusage: 初回 input8406/output200/total8606、2回目 input10205/output197/total10402。構造化の再処理はtotal883、932、最終947。初回構造化のusageは記録していない。
+- 最終検索取得時刻: UNIX 1791034374.3405519（2026-10-03 JST）。名称・住所・引用を1つの店舗として抽出でき、一時DBに保存。
+- Mapbox: `permanent=true` でHTTP200。最上位はaddress/rooftopだが、番地・街区・丁目が `unmatched`、confidenceなし。ほかにblock/別番地/localityなどが返ったため自動確定せず、出典付き「位置未確認」として残した。永久保存要求のHTTP成功は確認したが、契約資格全体を別途監査したものではない。
+
+実接続で、国コードの大文字JPと、name/branchが別々に返る場合に候補が消える問題を検出。国コードは大小文字を正規化し、支店の結合は同じ引用文に完全店名が連続して存在する場合のみ認める。両方にRED→GREENの回帰テストを追加した。
+
+店舗検索は成功したが、この店舗の座標は自動確定していない。手動座標入力が必要。合成fixtureの座標を実店舗の位置として扱っていない。
 
 ## 制限と互換性
 
