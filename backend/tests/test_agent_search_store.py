@@ -70,7 +70,7 @@ class SearchStoreTests(unittest.TestCase):
         with self.assertRaises(TrajectoryNotFound): self.searches.history(other,before_id=sid)
         with self.store._connection() as c:
             self.assertEqual(source_version(c),before)
-            c.execute('UPDATE agent_turns SET started_at=?',(time.time()-71,))
+            c.execute('UPDATE agent_turns SET started_at=?',(time.time()-131,))
         AgentStore(self.path)
         self.assertEqual(self.searches.get(self.thread,sid)['status'],'cancelled')
 

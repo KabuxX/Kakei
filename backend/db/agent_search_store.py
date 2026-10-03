@@ -1,3 +1,4 @@
+from agent.limits import TURN_LEASE_SECONDS
 """Durable bounded search evidence, independent of proposals and model success."""
 import copy
 import json
@@ -71,10 +72,10 @@ def cancel_searches(connection, context, *, now):
 
 
 def recover_stale_turns(connection, *, now):
-    rows=connection.execute("SELECT thread_id,client_message_id,token FROM agent_turns WHERE status='processing' AND started_at<=?",(now-70,)).fetchall()
+    rows=connection.execute("SELECT thread_id,client_message_id,token FROM agent_turns WHERE status='processing' AND started_at<=?",(now-TURN_LEASE_SECONDS,)).fetchall()
     for r in rows:
         cancel_searches(connection,{'thread_id':r[0],'client_message_id':r[1],'run_token':r[2]},now=now)
-    connection.execute("UPDATE agent_turns SET status='failed' WHERE status='processing' AND started_at<=?",(now-70,))
+    connection.execute("UPDATE agent_turns SET status='failed' WHERE status='processing' AND started_at<=?",(now-TURN_LEASE_SECONDS,))
 
 
 class AgentSearchStore:

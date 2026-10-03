@@ -47,11 +47,11 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(TimeoutError):
                 await AgentRunner(self.store, model=ScriptModel(replies=[])).run_turn('t', [{'role':'user','text':'test'}])
 
-    async def test_search_only_turn_is_remembered_after_restart(self):
+    async def test_search_sources_without_proposal_survive_reload(self):
         import json
         from db.agent_store import AgentStore
         from db.agent_search_store import AgentSearchStore
-        from test_agent_place_search import Provider
+        from test_agent_place_search import Provider, Geocoder
         from agent_search_fixtures import SEARCH
         repository=AgentStore(self.store.db_path)
         thread=repository.create_thread()['id']; lease=repository.begin_turn(thread,'one','店舗を探して')
@@ -61,10 +61,12 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
         class FakeProvider(Provider):
             async def __aenter__(self): return self
             async def __aexit__(self,*args): pass
-        with patch('agent.places.GeoapifyProvider',FakeProvider):
+        with patch('agent.web_places.WebPlaceProvider',FakeProvider), patch('agent.geocoding.MapboxGeocoder',Geocoder):
             raw=await AgentRunner(self.store,model=model).run_turn(thread,repository.get_thread(thread)['messages'],turn_context=ctx)
         response=repository.complete_turn(thread,'one',lease,raw)
         self.assertIsNone(response['proposal'])
+        self.assertTrue(response['message']['sources'])
+        self.assertEqual(response['message']['sources'],repository.get_thread(thread)['messages'][-1]['sources'])
         history=AgentSearchStore(self.store.db_path).history(thread)
         self.assertEqual(len(history['records']),1)
         self.assertEqual(len(history['records'][0]['result']['candidates']),1)
@@ -103,3 +105,25 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
         model=ScriptModel(replies=[AIMessage(content='',tool_calls=[{'name':'read_place_search_history','args':{'search_id':sid},'id':'h','type':'tool_call'}])])
         with self.assertRaises(TrajectoryNotFound):
             await AgentRunner(self.store,model=model).run_turn(b,repo.get_thread(b)['messages'],turn_context={'thread_id':b,'client_message_id':'one','run_token':other['token']})
+
+    async def test_search_configuration_is_independent(self):
+        from agent.runtime import configuration
+        with patch.dict('os.environ',{'OPENAI_API_KEY':'secret','KAKEI_AGENT_MODEL':'test'},clear=True):
+            status=configuration()
+            self.assertTrue(status['available']);self.assertFalse(status['placesAvailable'])
+            self.assertEqual(status['placesMissing'],['MAPBOX_GEOCODING_ACCESS_TOKEN'])
+
+    async def test_long_turn_keeps_lease_and_stale_retries_are_fenced(self):
+        import time
+        from agent.runtime import TURN_SECONDS
+        from agent.limits import TURN_LEASE_SECONDS
+        from db.agent_store import AgentStore
+        from db.store import TrajectoryConflict
+        self.assertEqual(TURN_SECONDS,120);self.assertEqual(TURN_LEASE_SECONDS,130)
+        repo=AgentStore(self.store.db_path);thread=repo.create_thread()['id']
+        lease=repo.begin_turn(thread,'one','search')
+        with self.store._connection() as c:c.execute('UPDATE agent_turns SET started_at=?',(time.time()-80,))
+        with self.assertRaises(TrajectoryConflict):repo.begin_turn(thread,'two','search again')
+        with self.store._connection() as c:c.execute('UPDATE agent_turns SET started_at=?',(time.time()-131,))
+        repo.begin_turn(thread,'two','search again')
+        with self.assertRaises(TrajectoryConflict):repo.complete_turn(thread,'one',lease,{'text':'late'})

@@ -1,3 +1,4 @@
+from agent.limits import TURN_LEASE_SECONDS
 """Durable conversation and review proposal repository."""
 import json
 import time
@@ -143,7 +144,7 @@ class AgentStore:
                     raise TrajectoryConflict('同じ送信IDで内容を変更できません。')
                 if old['status'] == 'complete':
                     return {'cached': json.loads(old['result_json'])}
-            if c.execute("SELECT 1 FROM agent_turns WHERE thread_id=? AND status='processing' AND started_at>?", (thread_id, time.time()-70)).fetchone():
+            if c.execute("SELECT 1 FROM agent_turns WHERE thread_id=? AND status='processing' AND started_at>?", (thread_id, time.time()-TURN_LEASE_SECONDS)).fetchone():
                 raise TrajectoryConflict('応答を作成中です。少し待って再送してください。')
             token = str(uuid.uuid4())
             c.execute("INSERT OR REPLACE INTO agent_turns VALUES (?, ?, ?, ?, 'processing', ?, NULL)", (thread_id, client_id, encoded, token, time.time()))

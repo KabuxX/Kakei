@@ -258,7 +258,7 @@ curl http://localhost:8765/api/trajectory/2026-09-19
 
 すべて同じローカル Host / Origin 制約、JSONエラー形式、`Cache-Control: no-store` を使用します。
 
-- `GET /api/agent/status` → `{available, missing, message}`。モデル未設定でも取得可能。
+- `GET /api/agent/status` → `{available, missing, message, placesAvailable, placesMissing, placesMessage}`。モデル未設定でも取得可能。
 - `GET /api/agent/threads` → `{threads}`。`POST` に `{}` → `201 {thread}`。
 - `GET /api/agent/threads/{id}` → `{thread}`（messages, proposals含む）。`DELETE` → `204`。適用済み監査記録と取引は残ります。
 - `POST /api/agent/threads/{id}/messages` に `{clientMessageId,text,receiptId?}` → `{message,proposal}`。再送時は同じIDと本文を使います。会話内の同時送信は409。
@@ -295,3 +295,12 @@ curl http://localhost:8765/api/trajectory/2026-09-19
 `{"mapboxPublicToken":"pk.…"}` を返します。`VITE_MAPBOX_ACCESS_TOKEN` が未設定、
 または公開トークン形式でない場合は `null` です。他の環境変数や秘密キーは返しません。
 ルート `.env` の変更はサーバー再起動後に反映されます。
+
+
+## Web店舗検索の出典
+
+assistantメッセージに `sources: [{id,title,url,kind,retrievedAt}]` を追加します。送信直後・再送・会話読込で同じ出典を返し、旧メッセージは空配列です。本文の `[source:<id>]` は当該メッセージの出典だけに解決します。
+
+候補グループには `pipelineVersion: "web-mapbox-v1"`、`unlocatedCandidates`、`sources` が加わります。位置未確認の候補IDは `/places/selection` に使えません。旧候補IDの選択は維持します。地点には任意の `sources` と `geocoding`（Mapboxの住所・精度・永久保存情報）が追加され、軌跡読込と更新で保持します。
+
+Agent処理期限120秒、processingリース130秒。検索停止でも保存済み検索履歴を参照できます。設定不足時も会話や既存地点の利用は可能で、追加の検索設定は `placesMissing` に返します。HTTP応答で資格情報を返しません。

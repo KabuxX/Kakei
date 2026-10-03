@@ -13,7 +13,7 @@ class MapConfigTests(unittest.TestCase):
         self.addCleanup(self.client.close)
 
     def test_public_token_is_available_before_initialization_without_other_secrets(self):
-        with patch.dict(os.environ,{'VITE_MAPBOX_ACCESS_TOKEN':'pk.public-test','OPENAI_API_KEY':'secret-openai','GEOAPIFY_API_KEY':'secret-geo'}):
+        with patch.dict(os.environ,{'VITE_MAPBOX_ACCESS_TOKEN':'pk.public-test','OPENAI_API_KEY':'secret-openai','MAPBOX_GEOCODING_ACCESS_TOKEN':'secret-geo'}):
             response=self.client.get('/api/map-config')
         self.assertEqual(response.status_code,200)
         self.assertEqual(response.json(),{'mapboxPublicToken':'pk.public-test'})

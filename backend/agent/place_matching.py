@@ -165,7 +165,7 @@ def match_candidates(places,request,region):
         if branch and branch not in name: notes.append('branch_unconfirmed')
         exact=(branch in name if branch else compact(request['query'])==name) and region_match
         candidate={k:p.get(k) for k in ('id','providerId','name','address','coordinates','sourceUrl','attribution','savedPlaceId') if p.get(k) is not None}
-        candidate.setdefault('sourceUrl','https://www.geoapify.com/');candidate.setdefault('attribution','Powered by Geoapify')
+        candidate.setdefault('sourceUrl',None);candidate.setdefault('attribution',None)
         candidate['matchReasons']=notes or ['name_and_region_match']
         rank=0 if exact else 2 if notes else 1
         meters=distance(coords,region['coordinates']) if region and region.get('coordinates') else 0

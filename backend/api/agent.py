@@ -3,6 +3,7 @@ import asyncio
 from fastapi import Request
 from fastapi.responses import Response
 from agent.runtime import AgentRunner, TurnLimit, configuration
+from agent.limits import TURN_SECONDS
 from api.http import HTTPFailure, json_response, read_json
 from db.agent_store import AgentStore
 from db.store import TrajectoryConflict, TrajectoryNotFound
@@ -52,7 +53,7 @@ def register_agent(app, store, runner_factory=None):
             return json_response(200, lease['cached'])
         try:
             runner = runner_factory(store) if runner_factory else AgentRunner(store)
-            result = await asyncio.wait_for(runner.run_turn(thread_id, repository.get_thread(thread_id)['messages'], payload.get('receiptId'), turn_context={'thread_id':thread_id,'client_message_id':client_id,'run_token':lease['token']}), 60)
+            result = await asyncio.wait_for(runner.run_turn(thread_id, repository.get_thread(thread_id)['messages'], payload.get('receiptId'), turn_context={'thread_id':thread_id,'client_message_id':client_id,'run_token':lease['token']}), TURN_SECONDS)
             return json_response(200, repository.complete_turn(thread_id, client_id, lease, result))
         except BaseException as error:
             repository.fail_turn(thread_id, client_id, lease['token'])
