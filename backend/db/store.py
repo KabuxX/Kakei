@@ -201,12 +201,12 @@ class Store:
     def _insert(connection, record):
         connection.execute("""
             INSERT INTO transactions
-                (id, title, date, type, category, amount, merchant, payment_method, time_estimated)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (id, title, date, type, category, amount, merchant, payment_method, time_estimated, merchant_address)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             record["id"], record["title"], record["date"], record["type"],
             record["category"], record["amount"], record.get("merchant"),
-            record.get("paymentMethod"), int(record["timeEstimated"]),
+            record.get("paymentMethod"), int(record["timeEstimated"]), record.get("merchantAddress"),
         ))
         connection.executemany("""
             INSERT INTO transaction_items (transaction_id, position, name, amount)
@@ -226,7 +226,7 @@ class Store:
         if row["type"] == "expense":
             result.update({
                 "merchant": row["merchant"], "paymentMethod": row["payment_method"],
-                "items": items,
+                "items": items, "merchantAddress": row["merchant_address"],
             })
         return result
 
@@ -346,6 +346,8 @@ class Store:
     def create_transaction(self, draft):
         normalized = normalize_transaction(draft)
         record = {"id": str(uuid.uuid4()), **normalized}
+        if record["type"] == "expense":
+            record.setdefault("merchantAddress", None)
         with self._connection() as connection:
             connection.execute("BEGIN IMMEDIATE")
             self._require_initialized(connection)
@@ -356,9 +358,9 @@ class Store:
     def _update(connection, record):
         connection.execute("""
             UPDATE transactions SET title = ?, date = ?, type = ?, category = ?, amount = ?,
-                merchant = ?, payment_method = ?, time_estimated = ? WHERE id = ?
+                merchant = ?, payment_method = ?, time_estimated = ?, merchant_address = ? WHERE id = ?
         """, (record["title"], record["date"], record["type"], record["category"], record["amount"],
-              record.get("merchant"), record.get("paymentMethod"), int(record["timeEstimated"]), record["id"]))
+              record.get("merchant"), record.get("paymentMethod"), int(record["timeEstimated"]), record.get("merchantAddress"), record["id"]))
         connection.execute("DELETE FROM transaction_items WHERE transaction_id = ?", (record["id"],))
         connection.executemany("INSERT INTO transaction_items VALUES (?, ?, ?, ?)", (
             (record["id"], position, item["name"], item["amount"])
@@ -369,6 +371,8 @@ class Store:
         if type(confirm_time) is not bool:
             raise ValidationError("confirmTime", "時刻の確認は true または false で指定してください。")
         normalized = normalize_transaction(draft)
+        if "merchantAddress" not in draft:
+            normalized.pop("merchantAddress", None)
         with self._connection() as connection:
             connection.execute("BEGIN IMMEDIATE")
             self._require_initialized(connection)

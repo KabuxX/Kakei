@@ -10,6 +10,7 @@ from db.trajectory_store import read_trajectory_timeline, replace_trajectory
 from services.trajectory_mutation import parse_trajectory_command
 from services.trajectory_validation import validate_timeline
 from services.validation import ValidationError, normalize_transaction
+from services.merchant_address import resolve_updated_merchant_address
 
 
 def canonical(value):
@@ -38,8 +39,19 @@ def baseline_value(state, key):
     raise ValidationError('proposal', '元データの参照が正しくありません。')
 
 
+def _baseline_canonical(value):
+    # Legacy snapshots predate the optional address. Only hash normalization:
+    # command serialization must retain explicit null (the erase operation).
+    if isinstance(value, dict):
+        return {k: _baseline_canonical(v) for k, v in value.items()
+                if not (k == 'merchantAddress' and v is None)}
+    if isinstance(value, list):
+        return [_baseline_canonical(v) for v in value]
+    return value
+
+
 def fingerprints(state, keys):
-    return {key: hashlib.sha256(canonical(baseline_value(state, key)).encode()).hexdigest() for key in keys}
+    return {key: hashlib.sha256(canonical(_baseline_canonical(baseline_value(state, key))).encode()).hexdigest() for key in keys}
 
 
 def prepare_changes(connection, commands):
@@ -68,6 +80,8 @@ def prepare_changes(connection, commands):
             if type(confirm) is not bool:
                 raise ValidationError('confirmTime', '時刻の確認を選択してください。')
             record = {'id': identifier, **normalize_transaction(draft)}
+            if record['type'] == 'expense':
+                record['merchantAddress'] = resolve_updated_merchant_address(old or {}, draft)
             if old and old['date'] == record['date'] and not confirm:
                 record['timeEstimated'] = old['timeEstimated']
             before[index] = copy.deepcopy(old)

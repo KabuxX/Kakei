@@ -3,6 +3,7 @@
 from typing import Optional
 
 from transaction_datetime import parse_transaction_datetime
+from services.merchant_address import normalize_merchant_address
 
 
 MAX_AMOUNT = 999_999_999
@@ -89,6 +90,8 @@ def normalize_transaction(payload: object, *, import_mode: bool = False) -> dict
     if import_mode:
         result["id"] = transaction_id
     if kind == "expense":
+        if "merchantAddress" in payload:
+            result["merchantAddress"] = normalize_merchant_address(payload["merchantAddress"])
         if import_mode:
             merchant = payload.get("merchant")
             result["merchant"] = merchant.strip() if isinstance(merchant, str) and merchant.strip() else None

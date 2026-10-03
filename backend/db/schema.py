@@ -16,6 +16,7 @@ def _create_transactions(connection: sqlite3.Connection, table_name: str) -> Non
             category TEXT NOT NULL,
             amount INTEGER NOT NULL,
             merchant TEXT,
+            merchant_address TEXT,
             payment_method TEXT,
             time_estimated INTEGER NOT NULL DEFAULT 0 CHECK (time_estimated IN (0, 1))
         )
@@ -171,6 +172,8 @@ def _ensure_domain_schema(connection: sqlite3.Connection) -> None:
         _create_items(connection)
         return
     if "items_json" not in columns:
+        if "merchant_address" not in columns:
+            connection.execute("ALTER TABLE transactions ADD COLUMN merchant_address TEXT")
         if "time_estimated" not in columns:
             connection.execute("""
                 ALTER TABLE transactions ADD COLUMN time_estimated INTEGER NOT NULL DEFAULT 0

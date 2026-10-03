@@ -22,7 +22,7 @@ def _expected_samples(records: list[dict]) -> dict:
             record["title"], _sample_date_signature(record["date"], record["timeEstimated"]),
             record["type"], record["category"],
             record["amount"], record.get("merchant"), record.get("paymentMethod"),
-            int(record["timeEstimated"]),
+            int(record["timeEstimated"]), record.get("merchantAddress"),
             tuple((position, item["name"], item["amount"])
                   for position, item in enumerate(record.get("items", []))),
         ) for record in records
@@ -37,7 +37,7 @@ def _current_samples(connection: sqlite3.Connection) -> dict:
     """):
         items.setdefault(row[0], []).append(tuple(row[1:]))
     sample_rows = connection.execute("""
-            SELECT id, title, date, type, category, amount, merchant, payment_method, time_estimated
+            SELECT id, title, date, type, category, amount, merchant, payment_method, time_estimated, merchant_address
             FROM transactions WHERE substr(id, 1, 7) = 'sample-'
         """).fetchall()
     return {

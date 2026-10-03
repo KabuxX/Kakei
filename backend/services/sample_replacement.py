@@ -37,6 +37,8 @@ def _load_records(path: Path, *, unique_content: bool) -> list[dict]:
         fields = {"id", "title", "date", "type", "category", "amount"}
         if record.get("type") == "expense":
             fields.update({"merchant", "paymentMethod", "items"})
+            if "merchantAddress" in record:
+                fields.add("merchantAddress")
             if not isinstance(record.get("merchant"), str):
                 raise ValueError(f"{label}: merchant string required")
             if not isinstance(record.get("paymentMethod"), str):

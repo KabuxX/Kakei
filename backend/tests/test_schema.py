@@ -17,6 +17,19 @@ class SchemaTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.path = Path(self.temp.name) / "kakei.sqlite3"
 
+    def test_address_migration_preserves_records(self):
+        for builder in (self.current_database, self.legacy_database):
+            with self.subTest(builder=builder.__name__):
+                if self.path.exists(): self.path.unlink()
+                c=builder()
+                ids=[r[0] for r in c.execute('SELECT id FROM transactions ORDER BY id')]
+                ensure_schema(c); c.commit()
+                first=list(c.execute('SELECT * FROM transactions ORDER BY id'))
+                self.assertEqual([r[0] for r in first],ids)
+                self.assertTrue(all(r[0] is None for r in c.execute('SELECT merchant_address FROM agent_transactions')))
+                ensure_schema(c); c.commit()
+                self.assertEqual(list(c.execute('SELECT * FROM transactions ORDER BY id')),first)
+
     def connect(self):
         connection = sqlite3.connect(self.path)
         connection.execute("PRAGMA foreign_keys = ON")

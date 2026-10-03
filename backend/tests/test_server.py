@@ -355,7 +355,7 @@ class ServerTests(unittest.TestCase):
                   "merchant": "店", "paymentMethod": "cash", "items": items}
         self.assertEqual(self.request("POST", "/api/initialize", {"transactions": [record]}),
                          (201, {"count": 1}))
-        estimated_record = {**record, "date": "2026-09-01T12:00", "timeEstimated": True}
+        estimated_record = {**record, "merchantAddress": None, "date": "2026-09-01T12:00", "timeEstimated": True}
         list_record = self.request("GET", "/api/transactions")[1]["transactions"][0]
         detail_record = self.request("GET", "/api/transactions/old-expense")[1]["transaction"]
         self.assertEqual(list_record, estimated_record)

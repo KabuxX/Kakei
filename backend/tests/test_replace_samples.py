@@ -163,6 +163,8 @@ class ReplaceSamplesTests(unittest.TestCase):
                 actual["date"] = expected["date"]
                 expected_fields = {key: value for key, value in expected.items()
                                    if key != "timeEstimated"}
+                if expected["type"] == "expense":
+                    expected_fields.setdefault("merchantAddress", None)
                 self.assertEqual(actual, expected_fields)
         self.assertEqual(actual_by_id, {})
         for day in self.timeline["days"]:
