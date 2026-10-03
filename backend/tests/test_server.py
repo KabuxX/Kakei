@@ -113,6 +113,18 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(self.request("GET", "/api/transactions"), (200, {"transactions": []}))
         self.assertEqual(self.request("POST", "/api/initialize", {"transactions": records})[0], 409)
         self.assertEqual(self.request("PUT", "/api/transactions")[0], 405)
+
+    def test_update_transaction_http(self):
+        self.request("POST", "/api/initialize", {"transactions": []})
+        draft = {"title": "給与", "date": "2026-10-01T12:00", "type": "income", "category": "収入", "amount": 100}
+        _, created = self.request("POST", "/api/transactions", draft)
+        path = "/api/transactions/" + created["transaction"]["id"]
+        status, updated = self.request("PUT", path, {**draft, "amount": 200})
+        self.assertEqual(status, 200)
+        self.assertEqual(updated["transaction"]["amount"], 200)
+        self.assertEqual(self.request("GET", path)[1], updated)
+        self.assertEqual(self.request("PUT", "/api/transactions/missing", draft)[0], 404)
+        self.assertEqual(self.request("PUT", path, {**draft, "confirmTime": "yes"})[0], 400)
         self.assertEqual(self.request("GET", "/api/unknown")[1]["error"]["code"], "not_found")
 
     def test_create_rejects_date_only_and_returns_time_estimated(self):

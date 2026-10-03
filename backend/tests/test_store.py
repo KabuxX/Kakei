@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from db.store import AlreadyInitialized, NotInitialized, Store
+from db.store import AlreadyInitialized, NotInitialized, Store, TrajectoryConflict
 from services.validation import ValidationError
 
 
@@ -26,6 +26,56 @@ class StoreTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.path = Path(self.temp.name) / "kakei.sqlite3"
         self.store = Store(self.path)
+
+    def test_update_transaction_replaces_items_and_keeps_id(self):
+        self.store.initialize([])
+        draft = {"title": "買い物", "date": "2026-09-02T10:45", "type": "expense",
+                 "category": "食費", "amount": 300, "merchant": "店", "paymentMethod": "cash",
+                 "items": [{"name": "パン", "amount": 300}]}
+        original = self.store.create_transaction(draft)
+        updated = self.store.update_transaction(original["id"], {**draft, "amount": 500,
+            "items": [{"name": "パン", "amount": 200}, {"name": "牛乳", "amount": 300}]})
+        self.assertEqual(updated["id"], original["id"])
+        self.assertEqual(self.store.get_transaction(original["id"])["items"],
+                         [{"name": "パン", "amount": 200}, {"name": "牛乳", "amount": 300}])
+
+    def test_update_estimated_time_requires_confirmation(self):
+        self.store.initialize([income("old")])
+        old = self.store.get_transaction("old")
+        draft = {key: value for key, value in old.items() if key != "id"}
+        self.assertTrue(self.store.update_transaction("old", {**draft, "amount": 200})["timeEstimated"])
+        self.assertFalse(self.store.update_transaction("old", draft, confirm_time=True)["timeEstimated"])
+
+    def test_update_invalid_rolls_back(self):
+        self.store.initialize([income("old")])
+        old = self.store.get_transaction("old")
+        with self.assertRaises(ValidationError):
+            self.store.update_transaction("old", {"title": "bad", "date": old["date"],
+                "type": "expense", "category": "食費", "amount": 100, "merchant": "店",
+                "paymentMethod": "cash", "items": [{"name": "x", "amount": 200}]})
+        self.assertEqual(self.store.get_transaction("old"), old)
+
+    def test_delete_detaches_event_and_train_leg(self):
+        for samples in (False, True):
+            with self.subTest(samples=samples):
+                store = Store(Path(self.temp.name) / f"delete-{samples}.sqlite3")
+                store.initialize([income("sample-fare")])
+                place = {"name": "駅", "address": "東京", "coordinates": [139.7, 35.6],
+                         "sourceUrl": "https://example.com/station"}
+                store.sync_trajectory({"places": {"p": place}, "days": [{"date": "2026-09-01",
+                    "events": [{"id": "a", "time": "10:00", "placeId": "p", "transactionId": "sample-fare"},
+                               {"id": "b", "time": "11:00", "placeId": "p"}],
+                    "legs": [{"fromEventId": "a", "toEventId": "b", "modeHint": "train",
+                              "transportTransactionId": "sample-fare"}]}]})
+                old = store.get_transaction("sample-fare")
+                with self.assertRaises(TrajectoryConflict):
+                    store.update_transaction("sample-fare", {k: ("2026-09-02T12:00" if k == "date" else v)
+                        for k, v in old.items() if k != "id"})
+                store.delete_samples() if samples else store.delete_transaction("sample-fare")
+                day = store.get_trajectory_day("2026-09-01")["days"][0]
+                self.assertNotIn("transactionId", day["events"][0])
+                self.assertNotIn("transportTransactionId", day["legs"][0])
+                self.assertNotIn("modeHint", day["legs"][0])
 
     def test_initialize_empty_survives_reopen(self):
         self.assertFalse(self.store.is_initialized())

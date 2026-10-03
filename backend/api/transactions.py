@@ -48,3 +48,12 @@ def register_transactions(app: FastAPI, store: Store) -> None:
         if not store.delete_transaction(transaction_id):
             raise HTTPFailure(404, "not_found", "取引が見つかりません。")
         return Response(status_code=204)
+
+    @app.put("/api/transactions/{transaction_id:path}")
+    async def update_transaction(transaction_id: str, request: Request):
+        draft = await read_json(request, 64 * 1024)
+        if not isinstance(draft, dict):
+            raise ValidationError(None, "取引はオブジェクトで指定してください。")
+        confirm_time = draft.pop("confirmTime", False)
+        return json_response(200, {"transaction": store.update_transaction(
+            transaction_id, draft, confirm_time=confirm_time)})

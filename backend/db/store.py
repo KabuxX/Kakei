@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from db.schema import ensure_schema
-from db.trajectory_store import read_trajectory_day, read_trajectory_timeline, replace_trajectory
+from db.trajectory_store import detach_trajectory_references, read_trajectory_day, read_trajectory_timeline, replace_trajectory
 from services.trajectory_mutation import TrajectoryCommand
 from services.trajectory_validation import validate_timeline
 from services.validation import ValidationError, normalize_transaction
@@ -341,10 +341,47 @@ class Store:
             self._insert(connection, record)
         return record
 
+    @staticmethod
+    def _update(connection, record):
+        connection.execute("""
+            UPDATE transactions SET title = ?, date = ?, type = ?, category = ?, amount = ?,
+                merchant = ?, payment_method = ?, time_estimated = ? WHERE id = ?
+        """, (record["title"], record["date"], record["type"], record["category"], record["amount"],
+              record.get("merchant"), record.get("paymentMethod"), int(record["timeEstimated"]), record["id"]))
+        connection.execute("DELETE FROM transaction_items WHERE transaction_id = ?", (record["id"],))
+        connection.executemany("INSERT INTO transaction_items VALUES (?, ?, ?, ?)", (
+            (record["id"], position, item["name"], item["amount"])
+            for position, item in enumerate(record.get("items", []))
+        ))
+
+    def update_transaction(self, transaction_id: str, draft: object, *, confirm_time: bool = False) -> dict:
+        if type(confirm_time) is not bool:
+            raise ValidationError("confirmTime", "時刻の確認は true または false で指定してください。")
+        normalized = normalize_transaction(draft)
+        with self._connection() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            self._require_initialized(connection)
+            old = connection.execute("SELECT * FROM transactions WHERE id = ?", (transaction_id,)).fetchone()
+            if old is None:
+                raise TrajectoryNotFound("取引が見つかりません。")
+            if old["date"] == normalized["date"] and not confirm_time:
+                normalized["timeEstimated"] = bool(old["time_estimated"])
+            invalid_reference = connection.execute("""
+                SELECT day_date FROM trajectory_events WHERE transaction_id = ? AND day_date != ?
+                UNION ALL
+                SELECT day_date FROM trajectory_legs WHERE transport_transaction_id = ? AND day_date != ?
+            """, (transaction_id, normalized["date"][:10], transaction_id, normalized["date"][:10])).fetchone()
+            if invalid_reference:
+                raise TrajectoryConflict("取引の日付を変更するには、参照する軌跡も修正してください。")
+            record = {"id": transaction_id, **normalized}
+            self._update(connection, record)
+            return record
+
     def delete_transaction(self, transaction_id: str) -> bool:
         with self._connection() as connection:
             connection.execute("BEGIN IMMEDIATE")
             self._require_initialized(connection)
+            detach_trajectory_references(connection, {transaction_id})
             cursor = connection.execute("DELETE FROM transactions WHERE id = ?", (transaction_id,))
             return cursor.rowcount > 0
 
@@ -352,5 +389,7 @@ class Store:
         with self._connection() as connection:
             connection.execute("BEGIN IMMEDIATE")
             self._require_initialized(connection)
+            ids = {row["id"] for row in connection.execute("SELECT id FROM transactions WHERE substr(id, 1, 7) = 'sample-'")}
+            detach_trajectory_references(connection, ids)
             cursor = connection.execute("DELETE FROM transactions WHERE substr(id, 1, 7) = 'sample-'")
             return cursor.rowcount

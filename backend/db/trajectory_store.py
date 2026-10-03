@@ -3,6 +3,23 @@
 import sqlite3
 
 
+def detach_trajectory_references(connection: sqlite3.Connection, ids: set[str]) -> int:
+    """Detach deleted purchases and fares in the caller's transaction."""
+    affected = 0
+    for transaction_id in ids:
+        affected += connection.execute(
+            "UPDATE trajectory_events SET transaction_id = NULL WHERE transaction_id = ?",
+            (transaction_id,),
+        ).rowcount
+        affected += connection.execute(
+            "UPDATE trajectory_legs SET transport_transaction_id = NULL, mode_hint = NULL "
+            "WHERE transport_transaction_id = ?", (transaction_id,),
+        ).rowcount
+    if affected:
+        connection.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('trajectory_modified', '1')")
+    return affected
+
+
 def replace_trajectory(connection: sqlite3.Connection, timeline: dict) -> None:
     """Replace trajectory rows with a validated timeline in the caller's transaction."""
     for table in (
