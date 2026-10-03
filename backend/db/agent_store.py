@@ -25,6 +25,9 @@ class AgentStore:
     def __init__(self, db_path: Path):
         self.store = Store(db_path)
         self.db_path = self.store.db_path
+        from db.agent_search_store import recover_stale_turns
+        with self.store._connection() as c:
+            recover_stale_turns(c, now=time.time())
 
     @staticmethod
     def _thread(connection, thread_id):
@@ -132,6 +135,8 @@ class AgentStore:
         with self.store._connection() as c:
             c.execute('BEGIN IMMEDIATE')
             self._thread(c, thread_id)
+            from db.agent_search_store import recover_stale_turns
+            recover_stale_turns(c, now=time.time())
             old = c.execute('SELECT * FROM agent_turns WHERE thread_id=? AND client_message_id=?', (thread_id, client_id)).fetchone()
             if old:
                 if old['input_json'] != encoded:
@@ -151,6 +156,8 @@ class AgentStore:
 
     def fail_turn(self, thread_id, client_id, token):
         with self.store._connection() as c:
+            from db.agent_search_store import cancel_searches
+            cancel_searches(c, {'thread_id':thread_id,'client_message_id':client_id,'run_token':token}, now=time.time())
             c.execute("UPDATE agent_turns SET status='failed' WHERE thread_id=? AND client_message_id=? AND token=? AND status='processing'", (thread_id, client_id, token))
 
     def complete_turn(self, thread_id, client_id, lease, result):
