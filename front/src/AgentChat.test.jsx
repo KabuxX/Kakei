@@ -1,7 +1,11 @@
 import React from 'react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import AgentChat from './AgentChat.jsx';
+import AgentChatView from './AgentChat.jsx';
+import {useAgentChat} from './useAgentChat.js';
+import {AgentThreads} from './AgentControls.jsx';
+function AgentChat(props){const session=useAgentChat(true);return <><AgentThreads session={session}/><AgentChatView {...props} session={session}/></>;}
+
 import * as api from './lib/agent-api.js';
 vi.mock('./lib/agent-api.js');
 let proposal;
@@ -17,7 +21,7 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 async function start() {
-  await screen.findByRole('button',{name:'新しい会話'});
+  await vi.waitFor(()=>expect(screen.getByRole('button',{name:'送信'}).closest('form').querySelector('textarea').disabled).toBe(false));
   fireEvent.change(screen.getByRole('textbox',{name:'メッセージ'}),{target:{value:'給与を記録して'}});
   fireEvent.click(screen.getByRole('button',{name:'送信'}));
   await screen.findByText('確認してください');
@@ -52,7 +56,8 @@ it('keeps plain Enter in composer from approving a pending proposal', async () =
 it('uploads a receipt without submitting or approving it',async()=>{
  api.uploadReceipt.mockResolvedValue({id:'r',mimeType:'image/png'});
  render(<AgentChat onCommitted={vi.fn()}/>);
- const input=await screen.findByLabelText('レシートを添付');
+ const input=await screen.findByLabelText('レシートファイル');
+ await vi.waitFor(()=>expect(input.disabled).toBe(false));
  fireEvent.change(input,{target:{files:[new File(['image'],'receipt.png',{type:'image/png'})]}});
  expect(await screen.findByRole('img',{name:'添付レシート'})).toBeTruthy();
  expect(api.sendMessage).not.toHaveBeenCalled();expect(api.approve).not.toHaveBeenCalled();

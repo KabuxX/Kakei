@@ -273,7 +273,7 @@ test('receipt upload corrects discrepancy then saves and opens attached bytes',a
  test.skip(test.info().config.projects[0].use.baseURL!=='http://127.0.0.1:8767','requires isolated fake runner');
  await page.goto('/');await expect(page.locator('#dashboard-view')).toHaveClass(/data-ready/);
  await page.getByRole('link',{name:'Agent Chat'}).click();
- await page.getByLabel('レシートを添付').setInputFiles({name:'receipt.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAE0lEQVR4nGP8//8/AwwwwVl4OQCWbgMF7ZjH1AAAAABJRU5ErkJggg==','base64')});
+ await page.getByLabel('レシートファイル').setInputFiles({name:'receipt.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAE0lEQVR4nGP8//8/AwwwwVl4OQCWbgMF7ZjH1AAAAABJRU5ErkJggg==','base64')});
  await expect(page.getByRole('img',{name:'添付レシート'})).toBeVisible();
  await page.getByRole('button',{name:'送信',exact:true}).click();
  await expect(page.getByText(/品目合計と合計金額が一致しません/)).toBeVisible();

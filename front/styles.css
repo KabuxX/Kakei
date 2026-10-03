@@ -175,3 +175,38 @@
 .agent-place-option label{flex-direction:row;align-items:start;flex:1}.agent-place-option span span,.agent-place-option small{display:block;margin-top:4px}
 .agent-place-choice details{margin-top:16px}.agent-place-choice summary{cursor:pointer;padding:10px 0}.agent-place-choice details button{margin-top:16px}
 .agent-event-edit{padding:16px 0;border-bottom:1px solid #d3dae5}.agent-event-edit .agent-fields{margin:12px 0}
+
+/* Chat workspace: quiet entry, sidebar history, and one composer. */
+.sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+.agent-shell .content-wrap{width:100%;padding-top:24px;padding-bottom:24px}
+.agent-page{width:100%;max-width:900px;min-height:calc(100dvh - 130px - var(--keyboard-inset,0px));display:flex;flex-direction:column}
+.agent-empty{justify-content:center;padding-bottom:8vh}
+.agent-input-region{width:100%;flex:none}
+.agent-greeting{font-size:clamp(28px,3vw,40px);font-weight:600;letter-spacing:-.035em;text-align:center;line-height:1.25;margin:0 0 32px}
+.agent-page .agent-composer{margin:0;padding:18px 18px 12px;border-radius:28px;background:#f7f8fa;border:1px solid #e1e5eb;box-shadow:0 4px 24px -16px rgba(31,32,37,.25);transition:border-color .18s,box-shadow .18s}
+.agent-page .agent-composer:focus-within{border-color:#909ba9;box-shadow:0 0 0 3px rgba(65,94,238,.08)}
+.agent-page .agent-composer textarea{display:block;background:transparent;border:0;border-radius:0;resize:vertical;min-height:88px;max-height:180px;padding:8px 8px 12px;font-size:16px;line-height:1.65;outline:none}
+.agent-composer-tools{display:flex;align-items:center;gap:12px;margin-top:8px}
+.chat-icon-button{display:inline-grid;place-items:center;width:44px;height:44px;min-width:44px;padding:10px;border:0;border-radius:50%;background:transparent;color:var(--ink);cursor:pointer;transition:background .18s,color .18s;flex:none}
+.chat-icon-button svg{width:24px;height:24px}.chat-icon-button:hover:not(:disabled){background:#e7ebf0}.chat-icon-button:disabled{opacity:.4;cursor:default}.chat-icon-button:focus-visible,.agent-thread-link:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.agent-compose-status{flex:1;font-size:12px;color:#595d65}.chat-icon-button.agent-send{background:var(--charcoal);color:white}.chat-icon-button.agent-send:hover:not(:disabled){background:#3c3f47}.chat-icon-button.agent-send:disabled{opacity:.35}
+.agent-input-help{display:flex;justify-content:space-between;align-items:start;gap:12px;padding:12px 8px 0;color:#656a73;font-size:11px;line-height:1.6}.agent-input-help summary{cursor:pointer;white-space:nowrap}.agent-input-help details{text-align:right}.agent-input-help p{max-width:250px;margin:8px 0}
+.agent-active{height:calc(100dvh - 130px - var(--keyboard-inset,0px));min-height:260px;gap:20px}
+.agent-history-content{min-height:0;flex:1;overflow-y:auto;overscroll-behavior:contain;scroll-padding:16px;padding:8px 12px 4px 0}
+.agent-active .agent-composer textarea{min-height:64px;max-height:140px}.agent-active .agent-composer{padding-top:10px}
+.agent-history-content .agent-proposal:last-child{margin-bottom:0}
+.agent-attachment{display:flex;align-items:center;gap:8px;max-width:100%;width:max-content;border:1px solid var(--line);border-radius:16px;background:white;padding:8px;margin-bottom:8px}
+.agent-attachment a{display:flex;align-items:center;gap:12px;min-width:0;font-size:13px}.agent-attachment span{overflow-wrap:anywhere}.agent-attachment img{width:48px;height:56px;object-fit:cover;border-radius:8px}.agent-attachment a>svg{width:32px;height:40px;flex:none}
+.agent-threads{min-width:0;margin:4px 0 18px;padding-left:14px;border-left:1px solid var(--line)}
+.agent-threads-heading{display:flex;align-items:center;justify-content:space-between;color:#656a73;font-size:12px}.agent-threads ul{list-style:none;margin:4px 0 0;padding:0;max-height:calc(100dvh - 410px);overflow-y:auto}.agent-threads li{display:flex;align-items:center;border-radius:12px;min-width:0;margin:4px 0}.agent-threads li.selected{background:var(--cloud)}
+.agent-thread-link{min-height:44px;flex:1;min-width:0;border:0;background:transparent;color:#595d65;text-align:left;padding:10px 8px;font-size:13px;line-height:1.5;border-radius:12px;overflow-wrap:anywhere;cursor:pointer}.agent-thread-link:hover{background:#f4f6f9}.selected .agent-thread-link{font-weight:600;color:var(--ink)}.agent-thread-link:disabled{opacity:.55}.agent-threads .chat-icon-button svg{width:18px;height:18px}.agent-history-empty,.agent-threads>p{color:#656a73;font-size:12px;line-height:1.6}
+.agent-history-dialog{width:min(420px,calc(100% - 32px));max-height:80dvh;border:1px solid var(--line);border-radius:24px;padding:20px;color:var(--ink);background:white}.agent-history-dialog::backdrop{background:rgba(31,32,37,.32)}.agent-history-dialog>header{display:flex;align-items:center;justify-content:space-between;gap:16px}.agent-history-dialog h2{font-size:20px;margin:0}.agent-history-dialog .agent-threads{border:0;padding:0;margin:16px 0 0}.agent-history-dialog .agent-threads ul{max-height:55dvh}
+.agent-error .chat-icon-button{vertical-align:middle;margin-left:8px}.agent-input-region .agent-error{margin:8px 0 0;padding:8px 12px;font-size:13px}
+.agent-spinner{animation:agent-spin 1s linear infinite}@keyframes agent-spin{to{transform:rotate(360deg)}}
+@media(max-width:760px){
+ .agent-shell .content-wrap{padding:20px 16px 16px}.agent-page{min-height:calc(100dvh - 166px - env(safe-area-inset-bottom) - var(--keyboard-inset,0px))}.agent-active{height:calc(100dvh - 166px - env(safe-area-inset-bottom) - var(--keyboard-inset,0px));min-height:180px;gap:12px}.agent-empty{padding-bottom:7vh}.agent-greeting{margin-bottom:24px}.agent-page .agent-composer{padding:12px 12px 8px;border-radius:24px}.agent-input-help{font-size:10px;padding-top:8px;gap:8px;flex-wrap:wrap}.agent-history-content{padding-right:4px}.agent-attachment{width:100%}.agent-attachment a{flex:1}.agent-active .agent-composer textarea{min-height:48px;max-height:96px}.agent-active .agent-input-help>span{display:none}.agent-shell .topbar-actions{gap:8px}
+}
+@media(prefers-reduced-motion:reduce){.chat-icon-button,.agent-page .agent-composer{transition:none}.agent-spinner{animation:none}}
+@media(max-height:500px){
+ .agent-active{gap:8px;min-height:0}.agent-active .agent-composer textarea{height:48px;min-height:48px;padding:4px 8px;resize:none}.agent-active .agent-composer-tools{margin-top:0}.agent-active .agent-input-help{display:none}
+}

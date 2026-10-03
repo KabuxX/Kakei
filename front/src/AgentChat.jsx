@@ -1,42 +1,61 @@
-import React, { useEffect, useRef, useState } from 'react';
-import * as api from './lib/agent-api.js';
+import React, {useEffect, useRef, useState} from 'react';
 import AgentProposal from './AgentProposal.jsx';
 import ReceiptReview from './ReceiptReview.jsx';
+import {ChatButton,ChatIcon} from './AgentControls.jsx';
 
-export default function AgentChat({onCommitted}) {
-  const [status,setStatus]=useState(null), [threads,setThreads]=useState([]), [thread,setThread]=useState(null);
-  const [text,setText]=useState(''), [busy,setBusy]=useState(false), [loading,setLoading]=useState(true), [error,setError]=useState('');
-  const [receipt,setReceipt]=useState(null);
-  const retry=useRef(null), composer=useRef(null);
-  const load=async()=>{setLoading(true);setError('');try{const [s,t]=await Promise.all([api.status(),api.listThreads()]);setStatus(s);setThreads(t);}catch(e){setError(e.message);}finally{setLoading(false);}};
-  useEffect(()=>{load();},[]);
-  const act=async(fn)=>{if(busy)return;setBusy(true);setError('');try{await fn();}catch(e){setError(e.message||'通信できませんでした。再送できます。');}finally{setBusy(false);}};
-  const send=async(e)=>{e.preventDefault();if(!text.trim()||!status?.available)return;await act(async()=>{
-    const current=thread||await api.createThread(); if(!thread)setThread({...current,messages:[],proposals:[]});
-    const body=retry.current?.text===text && retry.current?.receiptId===receipt?.id?retry.current:{clientMessageId:crypto.randomUUID(),text,...(receipt?{receiptId:receipt.id}:{})};retry.current=body;
-    await api.sendMessage(current.id,body);retry.current=null;setText('');setReceipt(null);
-    setThread(await api.getThread(current.id));setThreads(await api.listThreads());composer.current?.focus();
-  });};
-  const select=(id)=>act(async()=>{setThread(id?await api.getThread(id):null);retry.current=null;setText('');setReceipt(null);});
-  const upload=(file)=>{if(!file)return;act(async()=>{
-    const current=thread||await api.createThread();if(!thread)setThread({...current,messages:[],proposals:[]});
-    setReceipt(await api.uploadReceipt(current.id,file));if(!text.trim())setText('このレシートを読み取ってください。');
-  });};
-  const change=(proposal)=>setThread(current=>({...current,proposals:current.proposals.map(p=>p.id===proposal.id?proposal:p)}));
-  return <section className="agent-page" aria-labelledby="agent-heading">
-    <div className="agent-heading"><div><p className="eyebrow">家計のアシスタント</p><h1 id="agent-heading" tabIndex="-1">Agent Chat</h1><p>取引の記録や、一日の軌跡づくりを相談できます。</p></div><span className="agent-status" role="status">{loading?'接続を確認中':status?.available?'利用できます':'設定が必要です'}</span></div>
-    {error&&<div role="alert" className="agent-error">{error}<button type="button" className="secondary-button" onClick={load} disabled={busy}>状態を再読み込み</button></div>}
-    {!loading&&status&&!status.available&&<p className="agent-notice">{status.message}</p>}
-    {status?.available && status.placesAvailable === false && <p className="agent-notice">地点検索にはサーバーで GEOAPIFY_API_KEY の設定が必要です。既存地点や座標指定は利用できます。</p>}
-    {!loading&&<><div className="agent-threadbar"><label>会話<select aria-label="会話" value={thread?.id||''} disabled={busy} onChange={e=>select(e.target.value)}><option value="">新しい会話</option>{threads.map(t=><option value={t.id} key={t.id}>{t.title}</option>)}{thread&&!threads.some(t=>t.id===thread.id)&&<option value={thread.id}>{thread.title}</option>}</select></label><button type="button" className="secondary-button" disabled={busy} onClick={()=>select('')}>新しい会話</button>{thread&&<button type="button" className="secondary-button" disabled={busy} onClick={()=>{if(window.confirm('会話と未保存の変更案を削除しますか？ 保存済みの取引は残ります。'))act(async()=>{await api.deleteThread(thread.id);setThread(null);setThreads(await api.listThreads());});}}>会話を削除</button>}</div>
-    <div className="agent-conversation" aria-label="会話の内容" aria-live="polite">
-      {!thread?.messages?.length&&<div className="agent-welcome"><h2>今日は何を記録しますか？</h2><p>「9月29日の取引から軌跡を作って」のように話しかけてください。</p><p>変更内容は保存前に確認できます。</p></div>}
-      {thread?.messages?.map(m=><article key={m.id} className={`agent-message ${m.role}`}><strong>{m.role==='user'?'あなた':'Agent'}</strong><p>{m.text}</p></article>)}
+function useGreeting(){
+  const get=()=>{const hour=new Date().getHours();return hour>=5&&hour<11?'おはよう':hour>=11&&hour<18?'こんにちは':'こんばんは';};
+  const [greeting,setGreeting]=useState(get);
+  useEffect(()=>{const update=()=>setGreeting(get());const timer=setInterval(update,60000);document.addEventListener('visibilitychange',update);return()=>{clearInterval(timer);document.removeEventListener('visibilitychange',update);};},[]);
+  return greeting;
+}
+
+export default function AgentChat({session,onCommitted}) {
+  const {status,thread,busy,setBusy,loading,error,draft,load,send,upload,change,proposed,setText,removeReceipt}=session;
+  const greeting=useGreeting(), composer=useRef(null), file=useRef(null), conversation=useRef(null);
+  const composing=useRef(false), [viewportInset,setViewportInset]=useState(0);
+  const active=!!thread?.messages?.length;
+  const receipt=draft.receipt;
+  const unavailable=loading||!status?.available;
+  useEffect(()=>{
+    const viewport=window.visualViewport;if(!viewport)return;
+    const update=()=>setViewportInset(Math.max(0,window.innerHeight-viewport.height-viewport.offsetTop));
+    viewport.addEventListener('resize',update);viewport.addEventListener('scroll',update);update();
+    return()=>{viewport.removeEventListener('resize',update);viewport.removeEventListener('scroll',update);};
+  },[]);
+  useEffect(()=>{if(!busy&&active)conversation.current?.scrollTo?.({top:conversation.current.scrollHeight,behavior:'instant'});},[thread?.id,thread?.messages?.length]);
+  const submit=async e=>{e?.preventDefault();if(await send())composer.current?.focus({preventScroll:true});};
+  const shortcut=e=>{if(e.key==='Enter'&&(e.metaKey||e.ctrlKey)&&!e.nativeEvent.isComposing&&!composing.current&&e.keyCode!==229){e.preventDefault();submit();}};
+  const receiptUrl=receipt?`/api/agent/threads/${encodeURIComponent(thread.id)}/receipts/${encodeURIComponent(receipt.id)}`:null;
+  return <section className={`agent-page${active?' agent-active':' agent-empty'}`} aria-label="Agent Chat" style={{'--keyboard-inset':`${viewportInset}px`}}>
+    <h1 id="agent-heading" className="sr-only" tabIndex="-1">Agent Chat</h1>
+    {active&&<div className="agent-history-content" ref={conversation}>
+      <div className="agent-conversation" aria-label="会話の内容" aria-live="polite">
+        {thread.messages.map(m=><article key={m.id} className={`agent-message ${m.role}`}><strong>{m.role==='user'?'あなた':'Agent'}</strong><p>{m.text}</p></article>)}
+      </div>
+      {thread.receiptReviews?.filter(r=>!thread.proposals?.some(p=>p.metadata?.receiptId===r.receiptId)).map(r=><ReceiptReview key={r.receiptId} review={r} threadId={thread.id} busy={busy} setBusy={setBusy} onProposed={proposed}/>)}
+      {thread.proposals?.map(p=><AgentProposal key={p.id} proposal={p} onChange={change} onCommitted={onCommitted} busy={busy} setBusy={setBusy}/>)}
+    </div>}
+    <div className="agent-input-region">
+      {!active&&<h2 className="agent-greeting">{greeting}</h2>}
+      {!loading&&status&&!status.available&&<p className="agent-notice">{status.message}</p>}
+      {status?.available&&status.placesAvailable===false&&<p className="agent-notice">地点検索を利用できません。保存済み地点や座標指定は利用できます。</p>}
+      <form className="agent-composer" aria-label="メッセージを作成" onSubmit={submit}>
+        {receipt&&<div className="agent-attachment">
+          <a href={receiptUrl} target="_blank" rel="noreferrer" aria-label="添付レシートを開く">{receipt.mimeType.startsWith('image/')?<img alt="添付レシート" src={receiptUrl}/>:<ChatIcon name="file"/>}<span>{receipt.name||'添付レシート'}</span></a>
+          <ChatButton label="添付を外す" icon="close" disabled={busy} onClick={removeReceipt}/>
+        </div>}
+        <label className="sr-only" htmlFor="agent-message">メッセージ</label>
+        <textarea id="agent-message" ref={composer} value={draft.text} onChange={e=>setText(e.target.value)} onKeyDown={shortcut} onCompositionStart={()=>{composing.current=true;}} onCompositionEnd={()=>{composing.current=false;}} rows={active?2:3} maxLength="16000" disabled={busy||unavailable} placeholder="記録したいこと、相談したいことを入力" aria-describedby="agent-input-help"/>
+        <div className="agent-composer-tools">
+          <input ref={file} id="agent-receipt" className="sr-only" tabIndex="-1" type="file" aria-label="レシートファイル" accept="image/jpeg,image/png,image/webp,application/pdf" disabled={busy||unavailable} onChange={e=>{upload(e.target.files?.[0]);e.target.value='';}}/>
+          <ChatButton label="レシートを添付" icon="attach" disabled={busy||unavailable} onClick={()=>file.current?.click()}/>
+          <span className="agent-compose-status" role="status">{loading?'接続を確認中…':busy?'処理しています…':''}</span>
+          <ChatButton type="submit" label={draft.retry?'再送':'送信'} icon={busy?'spinner':draft.retry?'retry':'send'} className="agent-send" disabled={busy||unavailable||!draft.text.trim()}/>
+        </div>
+      </form>
+      {error&&<div role="alert" className="agent-error">{error}<ChatButton label="状態を再読み込み" icon="retry" onClick={load} disabled={busy}/></div>}
+      <div className="agent-input-help" id="agent-input-help"><span>AIへの送信に使用します · ⌘ / Ctrl + Enter で送信</span><details><summary>添付できるファイル</summary><p>JPEG・PNG・WebP・PDF / 10 MiBまで、PDFは3ページまで</p></details></div>
     </div>
-    {thread?.receiptReviews?.filter(r=>!thread.proposals?.some(p=>p.metadata?.receiptId===r.receiptId)).map(r=><ReceiptReview key={r.receiptId} review={r} threadId={thread.id} busy={busy} setBusy={setBusy} onProposed={p=>setThread(current=>({...current,proposals:[...current.proposals,p]}))}/>)}
-    {thread?.proposals?.map(p=><AgentProposal key={p.id} proposal={p} onChange={change} onCommitted={onCommitted} busy={busy} setBusy={setBusy}/>)}
-    <div className="agent-upload"><label>レシートを添付<input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" disabled={busy||!status?.available} onChange={e=>{upload(e.target.files?.[0]);e.target.value='';}}/></label><p>JPEG・PNG・WebP・PDF / 10 MiBまで、PDFは3ページまで</p>
-    {receipt&&<div>{receipt.mimeType.startsWith('image/')?<img className="receipt-preview" alt="添付レシート" src={`/api/agent/threads/${thread.id}/receipts/${receipt.id}`}/>:<a href={`/api/agent/threads/${thread.id}/receipts/${receipt.id}`} target="_blank" rel="noreferrer">添付PDFを開く</a>}<button type="button" className="secondary-button" disabled={busy} onClick={()=>setReceipt(null)}>添付を外す</button></div>}</div>
-    <form className="agent-composer" onSubmit={send}><label htmlFor="agent-message">メッセージ</label><textarea id="agent-message" ref={composer} value={text} onChange={e=>setText(e.target.value)} rows="3" maxLength="16000" disabled={busy||!status?.available} placeholder="記録したいこと、修正したいことを入力"/><div className="agent-actions"><span role="status">{busy?'処理しています…':'送信した内容は AI の処理に使われます。'}</span><button type="submit" className="primary-button" disabled={busy||!status?.available||!text.trim()}>{retry.current?'再送':'送信'}</button></div></form></>}
   </section>;
 }
