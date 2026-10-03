@@ -97,3 +97,32 @@ class HistoryPage(TypedDict):
     truncated: bool
 
 END_STATES = frozenset(('found','empty','needs_region','needs_clarification','partial','error','cancelled'))
+
+class Source(TypedDict):
+    id: str
+    title: str
+    url: str
+    kind: str
+    retrievedAt: float
+
+class WebPlace(TypedDict):
+    id: str
+    name: str
+    branch: str
+    address: str
+    country_code: str
+    locality: str
+    sources: list[Source]
+    evidenceText: str
+    unresolved: list[str]
+
+class ResearchReport(TypedDict):
+    text: str
+    sources: list[Source]
+    actions: list[dict]
+    usage: dict
+    retrievedAt: float
+
+class GeocodeResult(TypedDict):
+    candidates: list[dict]
+    unresolved: list[str]

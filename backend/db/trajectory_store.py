@@ -1,6 +1,7 @@
 """Persist and read the trajectory timeline in SQLite."""
 
 import sqlite3
+import json
 
 
 def detach_trajectory_references(connection: sqlite3.Connection, ids: set[str]) -> int:
@@ -29,11 +30,11 @@ def replace_trajectory(connection: sqlite3.Connection, timeline: dict) -> None:
         connection.execute(f"DELETE FROM {table}")
 
     connection.executemany("""
-        INSERT INTO trajectory_places (id, name, address, longitude, latitude, source_url, place_evidence, attribution)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO trajectory_places (id, name, address, longitude, latitude, source_url, place_evidence, attribution, sources_json, geocoding_json)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         (place_id, place["name"], place["address"], place["coordinates"][0],
-         place["coordinates"][1], place["sourceUrl"], place.get("placeEvidence", "legacy"), place.get("attribution"))
+         place["coordinates"][1], place["sourceUrl"], place.get("placeEvidence", "legacy"), place.get("attribution"), json.dumps(place.get("sources", []), ensure_ascii=False), json.dumps(place["geocoding"], ensure_ascii=False) if "geocoding" in place else None)
         for place_id, place in timeline["places"].items()
     ))
 
@@ -113,13 +114,15 @@ def read_trajectory_day(connection: sqlite3.Connection, date: str) -> dict | Non
     places = {}
     if place_ids:
         for row in connection.execute(f"""
-            SELECT id, name, address, longitude, latitude, source_url, place_evidence, attribution
+            SELECT id, name, address, longitude, latitude, source_url, place_evidence, attribution, sources_json, geocoding_json
             FROM trajectory_places WHERE id IN ({placeholders}) ORDER BY rowid
         """, tuple(place_ids)):
             places[row["id"]] = {
                 "name": row["name"], "address": row["address"],
                 "coordinates": [row["longitude"], row["latitude"]],
                 "sourceUrl": row["source_url"], "placeEvidence": row["place_evidence"], "attribution": row["attribution"],
+                **({"sources": json.loads(row["sources_json"])} if json.loads(row["sources_json"]) else {}),
+                **({"geocoding": json.loads(row["geocoding_json"])} if row["geocoding_json"] else {}),
             }
     return {"places": places, "days": [{"date": date, "events": events, "legs": legs}]}
 
@@ -128,13 +131,15 @@ def read_trajectory_timeline(connection: sqlite3.Connection) -> dict:
     """Read every saved place and day, including places not yet used by a day."""
     places = {}
     for row in connection.execute("""
-        SELECT id, name, address, longitude, latitude, source_url, place_evidence, attribution
+        SELECT id, name, address, longitude, latitude, source_url, place_evidence, attribution, sources_json, geocoding_json
         FROM trajectory_places ORDER BY rowid
     """):
         places[row["id"]] = {
             "name": row["name"], "address": row["address"],
             "coordinates": [row["longitude"], row["latitude"]],
             "sourceUrl": row["source_url"], "placeEvidence": row["place_evidence"], "attribution": row["attribution"],
+                **({"sources": json.loads(row["sources_json"])} if json.loads(row["sources_json"]) else {}),
+                **({"geocoding": json.loads(row["geocoding_json"])} if row["geocoding_json"] else {}),
         }
     days = [
         read_trajectory_day(connection, row["date"])["days"][0]

@@ -72,7 +72,7 @@ class AgentStore:
             if row is None:
                 return None
             messages = [{'id': m['id'], 'clientMessageId': m['client_message_id'], 'role': m['role'],
-                         'text': m['text'], 'createdAt': m['created_at']} for m in c.execute(
+                         'text': m['text'], 'createdAt': m['created_at'], 'sources':json.loads(m['metadata_json']).get('sources',[])} for m in c.execute(
                              'SELECT * FROM agent_messages WHERE thread_id = ? ORDER BY created_at, rowid', (thread_id,))]
             proposals = [proposal_record(p) for p in c.execute(
                 'SELECT * FROM agent_proposals WHERE thread_id = ? ORDER BY created_at', (thread_id,))]
@@ -93,7 +93,7 @@ class AgentStore:
                     raise TrajectoryConflict('同じ送信IDで別のメッセージは送信できません。')
                 return {'id': old['id'], 'role': role, 'text': text, 'createdAt': old['created_at']}
             now, identifier = time.time(), str(uuid.uuid4())
-            c.execute('INSERT INTO agent_messages VALUES (?, ?, ?, ?, ?, ?)', (identifier, thread_id, client_message_id, role, text, now))
+            c.execute('INSERT INTO agent_messages (id,thread_id,client_message_id,role,text,created_at) VALUES (?, ?, ?, ?, ?, ?)', (identifier, thread_id, client_message_id, role, text, now))
             if role == 'user':
                 c.execute("UPDATE agent_threads SET title = ? WHERE id = ? AND title = '新しい会話'", (text[:40], thread_id))
             return {'id': identifier, 'role': role, 'text': text, 'createdAt': now}
@@ -147,7 +147,7 @@ class AgentStore:
                 raise TrajectoryConflict('応答を作成中です。少し待って再送してください。')
             token = str(uuid.uuid4())
             c.execute("INSERT OR REPLACE INTO agent_turns VALUES (?, ?, ?, ?, 'processing', ?, NULL)", (thread_id, client_id, encoded, token, time.time()))
-            c.execute('INSERT OR IGNORE INTO agent_messages VALUES (?, ?, ?, ?, ?, ?)', (str(uuid.uuid4()), thread_id, 'user:'+client_id, 'user', text, time.time()))
+            c.execute('INSERT OR IGNORE INTO agent_messages (id,thread_id,client_message_id,role,text,created_at) VALUES (?, ?, ?, ?, ?, ?)', (str(uuid.uuid4()), thread_id, 'user:'+client_id, 'user', text, time.time()))
             c.execute("UPDATE agent_threads SET title=? WHERE id=? AND title='新しい会話'", (text[:40], thread_id))
             from services.agent_changes import canonical, read_state
             import hashlib
@@ -163,6 +163,9 @@ class AgentStore:
     def complete_turn(self, thread_id, client_id, lease, result):
         from services.agent_changes import canonical, read_state
         import hashlib
+        from services.place_evidence import validate_sources
+        sources=result.get('sources',[])
+        validate_sources(sources, maximum=45)
         text = result.get('text')
         if not isinstance(text, str) or not 1 <= len(text) <= 16000:
             raise ValidationError('message', '応答の形式が正しくありません。')
@@ -176,8 +179,9 @@ class AgentStore:
                 if hashlib.sha256(canonical(read_state(c)).encode()).hexdigest() != lease['sourceVersion']:
                     raise TrajectoryConflict('応答中に元データが変更されました。再送してください。')
                 proposal = self._create_proposal(c, thread_id, result['commands'], result.get('placeCandidates'))
-            message = {'id': str(uuid.uuid4()), 'role': 'assistant', 'text': text, 'createdAt': time.time()}
-            c.execute('INSERT INTO agent_messages VALUES (?, ?, ?, ?, ?, ?)', (message['id'], thread_id, 'assistant:'+client_id, 'assistant', text, message['createdAt']))
+            message = {'id': str(uuid.uuid4()), 'role': 'assistant', 'text': text, 'createdAt': time.time(), 'sources':sources}
+            c.execute('INSERT INTO agent_messages (id,thread_id,client_message_id,role,text,created_at) VALUES (?, ?, ?, ?, ?, ?)', (message['id'], thread_id, 'assistant:'+client_id, 'assistant', text, message['createdAt']))
+            c.execute('UPDATE agent_messages SET metadata_json=? WHERE id=?', (dumps({'sources':sources,'searchIds':result.get('searchIds',[])}),message['id']))
             response = {'message': message, 'proposal': proposal}
             if result.get('receiptReview'):
                 response['receiptReview'] = result['receiptReview']

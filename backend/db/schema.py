@@ -118,6 +118,10 @@ def _create_trajectory_tables(connection: sqlite3.Connection) -> None:
         )
     """)
 
+    for name,decl in (('sources_json', "TEXT NOT NULL DEFAULT '[]'"),('geocoding_json','TEXT')):
+        if name not in {r[1] for r in connection.execute('PRAGMA table_info(trajectory_places)')}:
+            connection.execute(f'ALTER TABLE trajectory_places ADD COLUMN {name} {decl}')
+
     for table in tables:
         for row in saved.get(table, []):
             columns = ','.join(row)
@@ -258,3 +262,6 @@ def _create_agent_tables(connection: sqlite3.Connection) -> None:
         'CREATE INDEX IF NOT EXISTS agent_proposals_thread ON agent_proposals(thread_id, created_at)',
     ):
         connection.execute(statement)
+
+    if 'metadata_json' not in {r[1] for r in connection.execute('PRAGMA table_info(agent_messages)')}:
+        connection.execute("ALTER TABLE agent_messages ADD COLUMN metadata_json TEXT NOT NULL DEFAULT '{}'")

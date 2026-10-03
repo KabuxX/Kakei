@@ -58,6 +58,7 @@ def choose(connection,commands,metadata,candidate_id=None,manual=None,place_id=N
             group['selectedPlaceId']=identifier;place=None
         else:
             place={k:candidate[k] for k in ('name','address','coordinates','sourceUrl','attribution')};place['placeEvidence']='provider'
+            place.update({k:candidate[k] for k in ('sources','geocoding') if k in candidate})
     # Remove this group's previously staged place only; preserve edits to the
     # day and all other selections. Rebase new:<index> links after removal.
     retained=[(i,c) for i,c in enumerate(commands) if not (c['kind'].startswith('trajectory.') and c['identity'].get('kind')=='place' and c['identity'].get('id')==group['placeId'])]
