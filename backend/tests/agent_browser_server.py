@@ -17,6 +17,9 @@ class BrowserRunner:
             from db.receipt_store import ReceiptStore
             asset=ReceiptStore(self.store.db_path).get_asset(receipt_id)
             candidate=ReceiptCandidate(merchant='レシート店舗',date='2026-09-30',time='12:00',total=90,currency='JPY',payment_method='cash',items=[{'name':'商品','amount':100}],discount=10)
+            if '税込' in messages[-1]['text']:
+                from test_receipt_amounts import SAMPLE
+                candidate=ReceiptCandidate.model_validate(SAMPLE)
             with self.store._connection() as c:matches=find_receipt_matches(c,candidate,asset['sha256'])
             return {'text':'品目と合計金額を確認してください。','commands':[],'receiptReview':{**receipt_review(candidate,matches,receipt_id),'mimeType':asset['mime_type']}}
         return {'text':'給与の追加案を作成しました。内容を確認してください。', 'commands':[{

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import * as api from './lib/agent-api.js';
 import AgentPlaces from './AgentPlaces.jsx';
 import TrajectoryFields from './TrajectoryFields.jsx';
+import ReceiptCalculation from './ReceiptCalculation.jsx';
 const labels={title:'内容',date:'日時',type:'区分',category:'カテゴリ',amount:'金額',merchant:'店舗',paymentMethod:'支払方法',items:'品目',name:'名前',timeEstimated:'時刻は推定',events:'訪問',legs:'移動',placeId:'地点',time:'時刻',id:'識別子',transactionId:'関連取引',modeHint:'移動手段',from:'出発',to:'到着',coordinates:'座標',address:'住所',transportTransactionId:'交通費',viaPlaceIds:'経由地',timeEvidence:'時刻の根拠',timeEvidenceNote:'時刻の補足',modeEvidence:'移動手段の根拠',modeEvidenceNote:'移動の補足',placeEvidence:'地点の根拠',attribution:'出典',sourceUrl:'出典',receiptIds:'添付レシート',fromEventId:'出発する訪問',toEventId:'到着する訪問'};
 const values={income:'収入',expense:'支出',cash:'現金',credit_card:'クレジットカード',e_money:'電子マネー',bank_account:'銀行口座',exact:'確定',estimated:'推定',unknown:'不明',legacy:'既存記録',inferred:'推定',fare:'交通費',user:'ユーザー指定',provider:'地点検索'};
 export function RecordView({value,referenceLabels={}}) {
@@ -47,6 +48,7 @@ export default function AgentProposal({proposal,onChange,onCommitted,busy,setBus
       {receipt.mimeType?.startsWith('image/')&&<img className="receipt-preview" alt="確認するレシート" src={receiptUrl}/>}
       <p><a href={receiptUrl} target="_blank" rel="noreferrer">レシート原本を開く</a></p>
       <p>保存先: {target?`${target.date} ${target.title} ${target.amount}円 を編集`:'新しい取引として追加'}</p>
+      <ReceiptCalculation review={receipt} current={editing?draft[0]?.data:proposal.after[0]}/>
       {matches.length>0&&<details><summary>重複の可能性がある取引</summary><ul>{matches.map(m=><li key={m.transaction.id}>{m.reason==='hash'?'同じレシート':'近い取引'}: {m.transaction.date} {m.transaction.title} {m.transaction.amount}円</li>)}</ul></details>}
     </section>}
     {proposal.commands.map((command,i)=><section className="agent-change" key={i}><h3>{command.kind.startsWith('transaction')?'取引':'軌跡'}の{command.kind.endsWith('create')?'追加':'変更'}</h3><div className="agent-diff"><div><h4>変更前</h4><RecordView value={proposal.before[i]} referenceLabels={referenceLabels}/></div><div><h4>変更後</h4><RecordView value={proposal.after[i]} referenceLabels={referenceLabels}/></div></div></section>)}

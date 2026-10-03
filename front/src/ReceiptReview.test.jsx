@@ -14,3 +14,20 @@ it('requires explicit duplicate selection and preserves missing fields and discr
  expect(api.proposeReceipt).not.toHaveBeenCalled();
  expect(screen.getByLabelText('日時 1').value).toBe('');
 });
+it('uses calculated net amounts and keeps original evidence visible after manual edits',()=>{
+ const review={receiptId:'r',candidate:{merchant:'店',date:'2026-10-01',time:'08:45',total:1161,paid_total:1139,currency:'JPY',items:[{name:'商品',amount:130}]},missingFields:[],matches:[],preparedDraft:{amount:1139,items:[{name:'商品',amount:1139}]},calculation:{issues:[],grossTotal:1161,discountTotal:22,paidTotal:1139,rows:[{name:'商品',printed:130,basis:'exclusive',rate:8,addedTax:10,gross:140,discount:3,net:137}]}};
+ render(<ReceiptReview review={review} threadId="thread" busy={false} setBusy={vi.fn()} onProposed={vi.fn()}/>);
+ expect(screen.getByLabelText('金額 1').value).toBe('1139');
+ expect(screen.getByLabelText('品目金額 1').value).toBe('1139');
+ expect(screen.getByRole('region',{name:'税込金額の計算根拠'})).toBeTruthy();
+ fireEvent.change(screen.getByLabelText('金額 1'),{target:{value:'1200'}});
+ expect(screen.getByText(/自動計算後に変更されています/)).toBeTruthy();
+});
+it('requires explicit manual verification when tax evidence is inconsistent',()=>{
+ const review={receiptId:'r',candidate:{total:100,currency:'JPY',items:[{name:'商品',amount:100}]},missingFields:[],matches:[],calculation:{rows:[],issues:['税区分を確認してください。']},preparedDraft:null};
+ render(<ReceiptReview review={review} threadId="thread" busy={false} setBusy={vi.fn()} onProposed={vi.fn()}/>);
+ fireEvent.change(screen.getByRole('combobox',{name:'保存先'}),{target:{value:'new'}});
+ expect(screen.getByRole('button',{name:'変更案を確認'}).disabled).toBe(true);
+ fireEvent.click(screen.getByLabelText('原本と照合し、金額・品目を確認しました'));
+ expect(screen.getByRole('button',{name:'変更案を確認'}).disabled).toBe(false);
+});

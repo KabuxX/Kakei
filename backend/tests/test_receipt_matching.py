@@ -9,3 +9,9 @@ class MatchingTests(ReceiptUploadTests):
         self.assertEqual(matches[0]['transaction']['id'],tx['id']);self.assertEqual(matches[0]['reason'],'near')
         with self.app.state.store._connection() as c:
             self.assertEqual(find_receipt_matches(c,ReceiptCandidate(merchant='abc shop',date='2026-09-01',total=100),'x'),[])
+    def test_matches_real_payment_after_reduction(self):
+        tx=self.app.state.store.create_transaction({'title':'食材','date':'2026-10-01T08:45','type':'expense','category':'食費','merchant':'セブンイレブン 千代田店','amount':1139,'paymentMethod':'e_money'})
+        from test_receipt_amounts import SAMPLE
+        with self.app.state.store._connection() as c:
+            matches=find_receipt_matches(c,ReceiptCandidate.model_validate(SAMPLE),'x')
+        self.assertEqual([m['transaction']['id'] for m in matches], [tx['id']])
