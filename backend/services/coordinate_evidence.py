@@ -52,6 +52,8 @@ def validate_coordinate_evidence(place: dict) -> None:
         if not any(o['coordinates']==basis['anchorCoordinates'] and (o['kind'] in PUBLISHED_METHODS or method=='area_anchor' and o['kind']=='map_viewport') for o in observations):invalid()
         if method=='relative_offset':
             if type(basis['distanceMeters'])!=int or not 1<=basis['distanceMeters']<=5000 or type(basis['bearingDegrees'])!=int or basis['bearingDegrees'] not in range(0,360,45):invalid()
+            from services.coordinate_math import destination, meters_between
+            if meters_between(place['coordinates'],destination(basis['anchorCoordinates'],basis['distanceMeters'],basis['bearingDegrees']))>1:invalid()
         elif place['coordinates']!=basis['anchorCoordinates']:invalid()
     else:invalid()
 
