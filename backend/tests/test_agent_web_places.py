@@ -11,7 +11,7 @@ REPORT=f'{NAME} | {ADDRESS} | jp | 福岡市 [1]'
 def payload(text=REPORT):
     return {'status':'completed','output':[{'type':'web_search_call','status':'completed','action':{'type':'search','queries':['shop'],'sources':[{'url':SOURCE['url'],'type':'url'}]}},{'type':'message','content':[{'type':'output_text','text':text,'annotations':[{'type':'url_citation','url':SOURCE['url'],'title':'店舗情報','start_index':text.index('[1]'),'end_index':text.index('[1]')+3}]}]}],'usage':{'input_tokens':5}}
 def extraction(sid,**patches):
-    row={'name':NAME,'branch':'西鉄福岡駅店','address':ADDRESS,'country_code':'jp','locality':'福岡市','sourceIds':[sid],'evidenceText':REPORT.split(' [1]')[0],'unresolved':[]}
+    row={'name':NAME,'branch':'西鉄福岡駅店','address':ADDRESS,'country_code':'jp','locality':'福岡市','sourceIds':[sid],'evidenceText':REPORT.split(' [1]')[0],'unresolved':[],'role':'store','urls':[SOURCE['url']],'hints':[]}
     row.update(patches)
     return {'status':'completed','output':[{'type':'message','content':[{'type':'output_text','text':json.dumps({'places':[row]})}]}]}
 
@@ -23,7 +23,7 @@ class WebTests(unittest.IsolatedAsyncioTestCase):
         async def handle(req):sent.append(json.loads(req.content));return httpx.Response(200,json=payload())
         async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as c:
             p=WebPlaceProvider(c);report=await p.research({'query':NAME,'receipt':'private','amount':999},timeout=1)
-        self.assertEqual(sent[0]['tools'],[{'type':'web_search'}]);self.assertEqual(sent[0]['tool_choice'],'required');self.assertEqual(sent[0]['max_tool_calls'],2)
+        self.assertEqual(sent[0]['tools'],[{'type':'web_search'}]);self.assertEqual(sent[0]['tool_choice'],'required');self.assertEqual(sent[0]['max_tool_calls'],3)
         self.assertFalse(sent[0]['store']);self.assertEqual(sent[0]['max_output_tokens'],6000)
         self.assertNotIn('private',json.dumps(sent));self.assertEqual(report['sources'][0]['url'],SOURCE['url']);self.assertEqual(report['usage']['input_tokens'],5)
     async def test_extraction_rejects_unbound_address_and_url(self):
@@ -101,3 +101,17 @@ class WebTests(unittest.IsolatedAsyncioTestCase):
             async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as c:
                 p=WebPlaceProvider(c);report=await p.research({'query':NAME},timeout=1)
                 self.assertEqual(await p.extract(report,timeout=1),[])
+
+    async def test_strategies_and_discovered_urls(self):
+        sent=[]
+        async def handle(req):sent.append(json.loads(req.content));return httpx.Response(200,json=payload())
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as c:
+            for strategy in ('store','maps','address','anchor'):
+                report=await WebPlaceProvider(c).research({'query':NAME,'amount':999},strategy=strategy,prior={'secret':'ignore','hints':[]},timeout=1)
+                self.assertIn(SOURCE['url'],report['discoveredUrls'])
+        self.assertNotIn('filters',sent[0]['tools'][0]);self.assertNotIn('secret',str(sent))
+    async def test_invented_url_and_unbound_hint_are_rejected(self):
+        for overrides in ({'urls':['https://invented.example/map']},{'hints':[{'method':'same_building','anchorName':'別施設','anchorAddress':ADDRESS,'relationSourceIds':[SOURCE['id']],'relationExcerpt':'未掲載の関係','distanceMeters':None,'bearingDegrees':None,'areaScope':None}]}):
+            async with httpx.AsyncClient(transport=httpx.MockTransport(lambda req:httpx.Response(200,json=extraction(SOURCE['id'],**overrides)))) as c:
+                rows=await WebPlaceProvider(c).extract({'text':REPORT,'sources':[SOURCE],'supports':{SOURCE['id']:REPORT},'discoveredUrls':[SOURCE['url']]},timeout=1)
+            self.assertEqual(rows,[])
