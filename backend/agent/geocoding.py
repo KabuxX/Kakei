@@ -5,28 +5,7 @@ from agent.place_http import request_json,PlaceProviderError
 from services.place_evidence import validate_place_evidence
 from services.validation import ValidationError
 
-def normalize_address(value):
-    value=unicodedata.normalize('NFKC',value).casefold()
-    digits={c:i for i,c in enumerate('〇一二三四五六七八九')}
-    def number(m):
-        raw=m[1]
-        if '十' in raw:
-            a,_,b=raw.partition('十');n=(digits.get(a,1)*10)+digits.get(b,0)
-        else:n=int(''.join(str(digits[c]) for c in raw))
-        return str(n)+'丁目'
-    value=re.sub(r'([〇一二三四五六七八九十]+)丁目',number,value)
-    value=re.sub(r'[‐‑‒–—−ー]', '-',value)
-    value=re.sub(r'(?<=\d)(丁目|番地|番|号)', '-',value)
-    value=re.sub(r'(?<=\d)の(?=\d)', '-',value)
-    return re.sub(r'[\s,、]+','',value).strip('-')
-
-def japanese_parts(value):
-    value=unicodedata.normalize('NFKC',value).strip()
-    value=re.sub(r'^(?:日本|Japan)(?:\s*[,、]\s*|\s+)', '',value,flags=re.IGNORECASE)
-    match=re.match(r'^〒?\s*(\d{3})[-−‐]?(\d{4})(?:\s+|(?=[^\d])|$)',value)
-    postal=''.join(match.groups()) if match else None
-    return postal,value[match.end():].strip() if match else value
-
+from services.merchant_address import normalize_address, japanese_parts, addresses_match
 
 def query_address(place):
     address=place['address'];fmt=place.get('address_format','original')

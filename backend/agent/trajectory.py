@@ -4,6 +4,7 @@ from services.trajectory_mutation import _date
 from services.validation import ValidationError
 from db.store import Store
 from db.trajectory_store import read_trajectory_day
+from services.transaction_addresses import annotate_location_status
 
 def build_trajectory_context(connection, day):
     day=_date(day)
@@ -13,7 +14,7 @@ def build_trajectory_context(connection, day):
     for row in rows:
         items=[{'name':i['name'],'amount':i['amount']} for i in connection.execute('SELECT name,amount FROM transaction_items WHERE transaction_id=? ORDER BY position',(row['id'],))]
         records.append(Store._record(row,items))
-    value={'date':day,'transactions':records,'savedDay':read_trajectory_day(connection,day)}
+    value={'date':day,'transactions':records,'savedDay':annotate_location_status(connection,read_trajectory_day(connection,day))}
     if len(json.dumps(value,ensure_ascii=False).encode())>65536:raise ValidationError('date','この日のデータが大きすぎます。対象を絞ってください。')
     return value
 

@@ -258,6 +258,42 @@ class Store:
             connection.execute("BEGIN")
             return read_trajectory_day(connection, date)
 
+    def get_trajectory_day_context(self, date: str):
+        from services.transaction_addresses import annotate_location_status
+        with self._connection() as connection:
+            connection.execute("BEGIN")
+            return annotate_location_status(connection, read_trajectory_day(connection, date))
+
+    def get_transaction_addresses(self, transaction_id=None):
+        from services.transaction_addresses import read_transaction_addresses
+        with self._connection() as connection:
+            connection.execute("BEGIN")
+            self._require_initialized(connection)
+            return read_transaction_addresses(connection, transaction_id)
+
+    def update_merchant_address(self, transaction_id: str, payload: dict) -> dict:
+        from services.merchant_address import normalize_merchant_address
+        if not isinstance(payload, dict) or set(payload) != {'merchantAddress', 'expected'}:
+            raise ValidationError('merchantAddress', '住所と変更前の値を指定してください。')
+        expected = payload['expected']
+        if not isinstance(expected, dict) or set(expected) != {'merchant', 'merchantAddress'}:
+            raise ValidationError('expected', '変更前の店名と住所を指定してください。')
+        address = normalize_merchant_address(payload['merchantAddress'])
+        with self._connection() as connection:
+            connection.execute('BEGIN IMMEDIATE')
+            self._require_initialized(connection)
+            row = connection.execute('SELECT * FROM transactions WHERE id=?', (transaction_id,)).fetchone()
+            if row is None:
+                raise TrajectoryNotFound('取引が見つかりません。')
+            if row['type'] != 'expense':
+                raise ValidationError('merchantAddress', '支出の住所だけを編集できます。')
+            if expected != {'merchant': row['merchant'], 'merchantAddress': row['merchant_address']}:
+                raise TrajectoryConflict('取引が変更されました。再読み込みして確認してください。')
+            connection.execute('UPDATE transactions SET merchant_address=? WHERE id=?', (address, transaction_id))
+            row = connection.execute('SELECT * FROM transactions WHERE id=?', (transaction_id,)).fetchone()
+            items = [dict(r) for r in connection.execute('SELECT name,amount FROM transaction_items WHERE transaction_id=? ORDER BY position',(transaction_id,))]
+            return self._record(row, items)
+
     def list_trajectory_dates(self) -> list[str]:
         with self._connection() as connection:
             return [row["date"] for row in connection.execute("SELECT date FROM trajectory_days ORDER BY date")]

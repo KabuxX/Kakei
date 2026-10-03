@@ -44,7 +44,7 @@ def register_trajectory(app: FastAPI, store: Store) -> None:
             calendar_date.fromisoformat(requested_date)
         except ValueError as error:
             raise HTTPFailure(400, "invalid_date", "存在する日付を指定してください。") from error
-        payload = store.get_trajectory_day(requested_date)
+        payload = store.get_trajectory_day_context(requested_date)
         if payload is None:
             raise HTTPFailure(404, "not_found", "指定日の軌跡が見つかりません。")
         return json_response(200, payload)

@@ -174,7 +174,7 @@ class ServerTests(unittest.TestCase):
                 self.assertEqual(day_status, 200)
                 self.assertEqual(day_payload, {
                     "places": {place_id: place for place_id, place in timeline["places"].items() if place_id in used_places},
-                    "days": [source_day],
+                    "days": [{**source_day, "events": [{**event, "locationStatus": "trajectory_only"} for event in source_day["events"]]}],
                 })
         status, payload = self.request("GET", "/api/trajectory/2026-09-29")
         self.assertEqual(status, 200)
@@ -184,7 +184,7 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(day["date"], "2026-09-29")
         self.assertEqual(day["events"][0], {
             "id": "2026-09-29-1", "time": "08:45", "placeId": "shibuyaStarbucks",
-            "transactionId": "sample-20260929-a", "timeEvidence": "legacy", "timeEvidenceNote": None,
+            "locationStatus": "trajectory_only", "transactionId": "sample-20260929-a", "timeEvidence": "legacy", "timeEvidenceNote": None,
         })
         self.assertEqual(day["legs"][1], {
             "fromEventId": "2026-09-29-2", "toEventId": "2026-09-29-3",
@@ -208,7 +208,7 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(payload["places"]["shibuyaStarbucks"]["name"], "DB-edited")
 
     def test_trajectory_database_error_response(self):
-        with patch.object(self.app.state.store, "get_trajectory_day", side_effect=sqlite3.OperationalError("private details")):
+        with patch.object(self.app.state.store, "get_trajectory_day_context", side_effect=sqlite3.OperationalError("private details")):
             status, payload = self.request("GET", "/api/trajectory/2026-09-19")
         self.assertEqual((status, payload["error"]["code"]), (500, "database_error"))
         self.assertNotIn("private details", payload["error"]["message"])
@@ -292,7 +292,7 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(updated_event["kind"], "event")
         self.assertEqual(self.request("GET", f"/api/trajectory/{date}")[1]["days"][0]["events"],
-                         [{"id": "visit", "time": "10:00", "placeId": "shibuyaStarbucks", "timeEvidence": "legacy", "timeEvidenceNote": None}])
+                         [{"locationStatus": "trajectory_only", "id": "visit", "time": "10:00", "placeId": "shibuyaStarbucks", "timeEvidence": "legacy", "timeEvidenceNote": None}])
         response = self.client.request("DELETE", "/api/trajectory", json={"kind": "event", "date": date, "id": "visit"},
                                        headers={"Host": "localhost:8765", "Origin": "http://localhost:8765"})
         self.assertEqual(response.status_code, 204)

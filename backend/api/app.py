@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 
 from api.http import HTTPFailure, error_response, json_response
 from api.transactions import register_transactions
+from api.transaction_addresses import register_transaction_addresses
 from api.agent import register_agent
 from api.receipts import register_receipts
 from config.paths import TIMELINE_PATH
@@ -75,6 +76,7 @@ def create_app(db_path: Path, front_dir: Path, *, port: int = 8765,
     register_receipts(app, store)
     register_agent(app, store, runner_factory)
     register_transactions(app, store)
+    register_transaction_addresses(app, store)
 
     @app.get("/api/map-config")
     def map_config():
