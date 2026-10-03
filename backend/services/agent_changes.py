@@ -116,7 +116,9 @@ def prepare_changes(connection, commands):
             if identifier in used:
                 raise ValidationError('trajectory', '同じ取引を複数の訪問へ割り当てることはできません。')
             used.add(identifier)
-            _check_transaction_reference(state, identifier, date)
+            record = _check_transaction_reference(state, identifier, date)
+            if event.get('timeEvidence') == 'exact' and record.get('timeEstimated'):
+                raise ValidationError('timeEvidence', '仮設定の取引時刻は確定時刻として扱えません。')
             if not identifier.startswith('new:'):
                 keys.add('transaction:' + identifier)
         for leg in day['legs']:

@@ -1,3 +1,4 @@
+from trajectory_evidence_fixture import legacy_evidence
 import json
 import copy
 import os
@@ -164,7 +165,7 @@ class ServerTests(unittest.TestCase):
                          (200, {"transaction": transaction}))
 
     def test_trajectory_day_returns_one_fixed_sample_without_database_initialization(self):
-        timeline = json.loads(TIMELINE_PATH.read_text(encoding="utf-8"))
+        timeline = legacy_evidence(json.loads(TIMELINE_PATH.read_text(encoding="utf-8")))
         for source_day in timeline["days"]:
             with self.subTest(date=source_day["date"]):
                 day_status, day_payload = self.request("GET", f'/api/trajectory/{source_day["date"]}')
@@ -183,11 +184,11 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(day["date"], "2026-09-29")
         self.assertEqual(day["events"][0], {
             "id": "2026-09-29-1", "time": "08:45", "placeId": "shibuyaStarbucks",
-            "transactionId": "sample-20260929-a",
+            "transactionId": "sample-20260929-a", "timeEvidence": "legacy", "timeEvidenceNote": None,
         })
         self.assertEqual(day["legs"][1], {
             "fromEventId": "2026-09-29-2", "toEventId": "2026-09-29-3",
-            "modeHint": "train", "transportTransactionId": "sample-20260929-train",
+            "modeHint": "train", "transportTransactionId": "sample-20260929-train", "modeEvidence": "legacy", "modeEvidenceNote": None,
         })
         used_places = {event["placeId"] for event in day["events"]}
         used_places.update(place_id for leg in day["legs"] for place_id in leg.get("viaPlaceIds", []))
@@ -213,7 +214,7 @@ class ServerTests(unittest.TestCase):
         self.assertNotIn("private details", payload["error"]["message"])
 
     def test_app_creation_preserves_seeded_trajectory(self):
-        timeline = json.loads(TIMELINE_PATH.read_text(encoding="utf-8"))
+        timeline = legacy_evidence(json.loads(TIMELINE_PATH.read_text(encoding="utf-8")))
         fixture_path = Path(self.temp.name) / "timeline.json"
         database = Path(self.temp.name) / "seed-once.sqlite3"
         first = {"places": timeline["places"], "days": [timeline["days"][0], timeline["days"][-2]]}
@@ -233,7 +234,7 @@ class ServerTests(unittest.TestCase):
             self.assertEqual(client.get("/api/trajectory/2026-09-29", headers={"Host": "localhost:8765"}).status_code, 200)
 
     def test_invalid_fixture_fails_fresh_seed_but_is_skipped_after_seed(self):
-        timeline = json.loads(TIMELINE_PATH.read_text(encoding="utf-8"))
+        timeline = legacy_evidence(json.loads(TIMELINE_PATH.read_text(encoding="utf-8")))
         fixture_path = Path(self.temp.name) / "timeline.json"
         database = Path(self.temp.name) / "seed-then-invalid.sqlite3"
         fixture_path.write_text(json.dumps({"places": timeline["places"], "days": timeline["days"][:1]}, ensure_ascii=False), encoding="utf-8")
@@ -248,7 +249,7 @@ class ServerTests(unittest.TestCase):
 
     def test_existing_unmarked_trajectory_is_preserved(self):
         database = Path(self.temp.name) / "unmarked.sqlite3"
-        timeline = json.loads(TIMELINE_PATH.read_text(encoding="utf-8"))
+        timeline = legacy_evidence(json.loads(TIMELINE_PATH.read_text(encoding="utf-8")))
         timeline["places"]["shibuyaStarbucks"]["name"] = "DB saved"
         Store(database).sync_trajectory(timeline)
         server.create_app(database, self.front)
@@ -291,7 +292,7 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(updated_event["kind"], "event")
         self.assertEqual(self.request("GET", f"/api/trajectory/{date}")[1]["days"][0]["events"],
-                         [{"id": "visit", "time": "10:00", "placeId": "shibuyaStarbucks"}])
+                         [{"id": "visit", "time": "10:00", "placeId": "shibuyaStarbucks", "timeEvidence": "legacy", "timeEvidenceNote": None}])
         response = self.client.request("DELETE", "/api/trajectory", json={"kind": "event", "date": date, "id": "visit"},
                                        headers={"Host": "localhost:8765", "Origin": "http://localhost:8765"})
         self.assertEqual(response.status_code, 204)

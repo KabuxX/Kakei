@@ -12,7 +12,7 @@ def detach_trajectory_references(connection: sqlite3.Connection, ids: set[str]) 
             (transaction_id,),
         ).rowcount
         affected += connection.execute(
-            "UPDATE trajectory_legs SET transport_transaction_id = NULL, mode_hint = NULL "
+            "UPDATE trajectory_legs SET transport_transaction_id = NULL, mode_hint = NULL, mode_evidence = 'inferred', mode_evidence_note = '交通費の取引が削除されたため推定' "
             "WHERE transport_transaction_id = ?", (transaction_id,),
         ).rowcount
     if affected:
@@ -29,11 +29,11 @@ def replace_trajectory(connection: sqlite3.Connection, timeline: dict) -> None:
         connection.execute(f"DELETE FROM {table}")
 
     connection.executemany("""
-        INSERT INTO trajectory_places (id, name, address, longitude, latitude, source_url)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO trajectory_places (id, name, address, longitude, latitude, source_url, place_evidence, attribution)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         (place_id, place["name"], place["address"], place["coordinates"][0],
-         place["coordinates"][1], place["sourceUrl"])
+         place["coordinates"][1], place["sourceUrl"], place.get("placeEvidence", "legacy"), place.get("attribution"))
         for place_id, place in timeline["places"].items()
     ))
 
@@ -41,11 +41,11 @@ def replace_trajectory(connection: sqlite3.Connection, timeline: dict) -> None:
         day_date = day["date"]
         connection.execute("INSERT INTO trajectory_days (date) VALUES (?)", (day_date,))
         connection.executemany("""
-            INSERT INTO trajectory_events (id, day_date, position, time, place_id, transaction_id)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO trajectory_events (id, day_date, position, time, place_id, transaction_id, time_evidence, time_evidence_note)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             (event["id"], day_date, position, event["time"], event["placeId"],
-             event.get("transactionId"))
+             event.get("transactionId"), event.get("timeEvidence", "legacy"), event.get("timeEvidenceNote"))
             for position, event in enumerate(day["events"])
         ))
         event_positions = {event["id"]: position for position, event in enumerate(day["events"])}
@@ -54,12 +54,12 @@ def replace_trajectory(connection: sqlite3.Connection, timeline: dict) -> None:
             connection.execute("""
                 INSERT INTO trajectory_legs
                     (day_date, position, from_event_id, to_event_id, mode_hint,
-                     transport_transaction_id, has_via_places)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                     transport_transaction_id, has_via_places, mode_evidence, mode_evidence_note)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 day_date, position, leg["fromEventId"], leg["toEventId"],
                 leg.get("modeHint"), leg.get("transportTransactionId"),
-                int("viaPlaceIds" in leg),
+                int("viaPlaceIds" in leg), leg.get("modeEvidence", "legacy"), leg.get("modeEvidenceNote"),
             ))
             connection.executemany("""
                 INSERT INTO trajectory_leg_via_places
@@ -80,10 +80,10 @@ def read_trajectory_day(connection: sqlite3.Connection, date: str) -> dict | Non
     events = []
     place_ids = set()
     for row in connection.execute("""
-        SELECT id, time, place_id, transaction_id
+        SELECT id, time, place_id, transaction_id, time_evidence, time_evidence_note
         FROM trajectory_events WHERE day_date = ? ORDER BY position
     """, (date,)):
-        event = {"id": row["id"], "time": row["time"], "placeId": row["place_id"]}
+        event = {"id": row["id"], "time": row["time"], "placeId": row["place_id"], "timeEvidence": row["time_evidence"], "timeEvidenceNote": row["time_evidence_note"]}
         if row["transaction_id"] is not None:
             event["transactionId"] = row["transaction_id"]
         events.append(event)
@@ -92,10 +92,10 @@ def read_trajectory_day(connection: sqlite3.Connection, date: str) -> dict | Non
     legs = []
     for row in connection.execute("""
         SELECT position, from_event_id, to_event_id, mode_hint,
-               transport_transaction_id, has_via_places
+               transport_transaction_id, has_via_places, mode_evidence, mode_evidence_note
         FROM trajectory_legs WHERE day_date = ? ORDER BY position
     """, (date,)):
-        leg = {"fromEventId": row["from_event_id"], "toEventId": row["to_event_id"]}
+        leg = {"fromEventId": row["from_event_id"], "toEventId": row["to_event_id"], "modeEvidence": row["mode_evidence"], "modeEvidenceNote": row["mode_evidence_note"]}
         if row["mode_hint"] is not None:
             leg["modeHint"] = row["mode_hint"]
         if row["transport_transaction_id"] is not None:
@@ -113,13 +113,13 @@ def read_trajectory_day(connection: sqlite3.Connection, date: str) -> dict | Non
     places = {}
     if place_ids:
         for row in connection.execute(f"""
-            SELECT id, name, address, longitude, latitude, source_url
+            SELECT id, name, address, longitude, latitude, source_url, place_evidence, attribution
             FROM trajectory_places WHERE id IN ({placeholders}) ORDER BY rowid
         """, tuple(place_ids)):
             places[row["id"]] = {
                 "name": row["name"], "address": row["address"],
                 "coordinates": [row["longitude"], row["latitude"]],
-                "sourceUrl": row["source_url"],
+                "sourceUrl": row["source_url"], "placeEvidence": row["place_evidence"], "attribution": row["attribution"],
             }
     return {"places": places, "days": [{"date": date, "events": events, "legs": legs}]}
 
@@ -128,13 +128,13 @@ def read_trajectory_timeline(connection: sqlite3.Connection) -> dict:
     """Read every saved place and day, including places not yet used by a day."""
     places = {}
     for row in connection.execute("""
-        SELECT id, name, address, longitude, latitude, source_url
+        SELECT id, name, address, longitude, latitude, source_url, place_evidence, attribution
         FROM trajectory_places ORDER BY rowid
     """):
         places[row["id"]] = {
             "name": row["name"], "address": row["address"],
             "coordinates": [row["longitude"], row["latitude"]],
-            "sourceUrl": row["source_url"],
+            "sourceUrl": row["source_url"], "placeEvidence": row["place_evidence"], "attribution": row["attribution"],
         }
     days = [
         read_trajectory_day(connection, row["date"])["days"][0]

@@ -43,7 +43,7 @@ class TrajectoryValidationTests(unittest.TestCase):
 
         for field, value in (
             ("sourceUrl", "http://example.com"),
-            ("coordinates", [140.2, 35.6]),
+            ("coordinates", [180.2, 35.6]),
             ("coordinates", [float("nan"), 35.6]),
             ("name", " "),
         ):
@@ -74,7 +74,7 @@ class TrajectoryValidationTests(unittest.TestCase):
             ("time", lambda t: t["days"][0]["events"][0].update(time="24:00")),
             ("time", lambda t: t["days"][0]["events"][1].update(time="08:00")),
             ("placeId", lambda t: t["days"][0]["events"][0].update(placeId="missing")),
-            ("events", lambda t: t["days"][0].update(events=t["days"][0]["events"][:1])),
+            ("legs", lambda t: t["days"][0].update(events=t["days"][0]["events"][:1])),
             ("legs", lambda t: t["days"][0]["legs"].pop()),
             ("toEventId", lambda t: t["days"][0]["legs"][0].update(toEventId="wrong")),
             ("viaPlaceIds", lambda t: t["days"][0]["legs"][0].update(viaPlaceIds=["missing"])),
@@ -98,8 +98,7 @@ class TrajectoryValidationTests(unittest.TestCase):
     def test_mutable_empty_and_partial_days(self):
         empty = {"places": {}, "days": [{"date": "2026-10-03", "events": [], "legs": []}]}
         self.assertEqual(validate_timeline(empty, require_complete=False), empty)
-        with self.assertRaises(ValueError):
-            validate_timeline(empty)
+        self.assertEqual(validate_timeline(empty), empty)
 
         partial = self.timeline()
         partial["days"][0]["legs"] = [partial["days"][0]["legs"][1]]

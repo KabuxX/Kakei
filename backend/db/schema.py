@@ -50,14 +50,28 @@ def _create_items(connection: sqlite3.Connection) -> None:
 
 
 def _create_trajectory_tables(connection: sqlite3.Connection) -> None:
+    tables = ('trajectory_places','trajectory_days','trajectory_events','trajectory_legs','trajectory_leg_via_places')
+    columns = {r[1] for r in connection.execute('PRAGMA table_info(trajectory_places)')}
+    saved = {}
+    if columns and 'place_evidence' not in columns:
+        for table in tables:
+            cursor = connection.execute(f'SELECT * FROM {table}')
+            names = [d[0] for d in cursor.description]
+            saved[table] = [dict(zip(names, row)) for row in cursor]
+        for name in ('trajectory_places','trajectory_days','trajectory_events','trajectory_legs'):
+            connection.execute(f'DROP VIEW IF EXISTS agent_{name}')
+        for table in reversed(tables):
+            connection.execute(f'DROP TABLE {table}')
     connection.execute("""
         CREATE TABLE IF NOT EXISTS trajectory_places (
             id TEXT PRIMARY KEY,
             name TEXT NOT NULL,
-            address TEXT NOT NULL,
-            longitude REAL NOT NULL CHECK (longitude BETWEEN 139.4 AND 140.1),
-            latitude REAL NOT NULL CHECK (latitude BETWEEN 35.4 AND 35.9),
-            source_url TEXT NOT NULL
+            address TEXT,
+            longitude REAL NOT NULL CHECK (longitude BETWEEN -180 AND 180),
+            latitude REAL NOT NULL CHECK (latitude BETWEEN -90 AND 90),
+            source_url TEXT,
+            place_evidence TEXT NOT NULL DEFAULT 'legacy',
+            attribution TEXT
         )
     """)
     connection.execute("""
@@ -70,7 +84,9 @@ def _create_trajectory_tables(connection: sqlite3.Connection) -> None:
             id TEXT PRIMARY KEY,
             day_date TEXT NOT NULL REFERENCES trajectory_days(date) ON DELETE CASCADE,
             position INTEGER NOT NULL CHECK (position >= 0),
-            time TEXT NOT NULL,
+            time TEXT,
+            time_evidence TEXT NOT NULL DEFAULT 'legacy',
+            time_evidence_note TEXT,
             place_id TEXT NOT NULL REFERENCES trajectory_places(id),
             transaction_id TEXT,
             UNIQUE (day_date, position)
@@ -83,6 +99,8 @@ def _create_trajectory_tables(connection: sqlite3.Connection) -> None:
             from_event_id TEXT NOT NULL REFERENCES trajectory_events(id),
             to_event_id TEXT NOT NULL REFERENCES trajectory_events(id),
             mode_hint TEXT,
+            mode_evidence TEXT NOT NULL DEFAULT 'legacy',
+            mode_evidence_note TEXT,
             transport_transaction_id TEXT,
             has_via_places INTEGER NOT NULL CHECK (has_via_places IN (0, 1)),
             PRIMARY KEY (day_date, position)
@@ -99,6 +117,12 @@ def _create_trajectory_tables(connection: sqlite3.Connection) -> None:
                 REFERENCES trajectory_legs(day_date, position) ON DELETE CASCADE
         )
     """)
+
+    for table in tables:
+        for row in saved.get(table, []):
+            columns = ','.join(row)
+            placeholders = ','.join('?' for _ in row)
+            connection.execute(f'INSERT INTO {table} ({columns}) VALUES ({placeholders})', tuple(row.values()))
 
 
 def _legacy_items(row: tuple) -> list[tuple[str, int, str, int]]:

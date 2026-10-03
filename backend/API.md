@@ -277,3 +277,8 @@ curl http://localhost:8765/api/trajectory/2026-09-19
 `GET /api/transactions/{id}/receipts` → `{receipts:[{id,mimeType,sha256,pageCount,createdAt}]}`。取引操作の変更案は `data.receiptIds` に同じ会話の未保存レシートIDを持てます。取引と添付は同じトランザクションで保存され、再承認でも増えません。却下・期限切れ・会話削除で未保存バイトを削除し、取引削除ではその添付も削除します。
 
 レシートを添付したメッセージの結果は `receiptReview`（candidate, missingFields, itemMismatch, matches, receiptId, mimeType）を含みます。会話取得時は `receiptReviews` に戻ります。`POST /api/agent/threads/{id}/receipt-proposals` に `{receiptId,target:"new"|候補の取引ID,draft,currency:"JPY"}` を送ると確認用変更案を作成します。同じレシートの未保存・適用済み案があればその案を返し、内容変更は既存のPUTで行います。この時点では取引は保存しません。
+
+### 軌跡の根拠
+
+地点は世界座標（経度±180、緯度±90）に対応し、`placeEvidence: provider|user|legacy` と `attribution` を返します。ユーザー座標は住所・sourceUrlをnullにできます。訪問は `timeEvidence: exact|estimated|unknown|legacy`、`timeEvidenceNote` を持ち、unknown時だけtimeがnullです。推定には説明を付けます。取引の仮時刻をexactへ昇格する案は拒否します。
+区間は `modeEvidence: fare|user|inferred|legacy` と `modeEvidenceNote` を持ちます。fareは交通費参照が必須、inferredは説明が必須です。交通費削除時は参照を外し推定へ変更します。新しい根拠付きイベントは送信した順序を保存し、既知の時刻が逆順なら拒否します。既存形式だけの操作では従来の時刻順整列を維持します。0・1地点の日も保存できます。

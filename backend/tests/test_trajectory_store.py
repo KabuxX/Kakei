@@ -1,3 +1,4 @@
+from trajectory_evidence_fixture import legacy_evidence
 import copy
 import json
 import sqlite3
@@ -25,7 +26,7 @@ class TrajectoryStoreTests(unittest.TestCase):
         self.store = Store(self.db)
 
     def timeline(self):
-        return json.loads(FIXTURE.read_text(encoding="utf-8"))
+        return legacy_evidence(json.loads(FIXTURE.read_text(encoding="utf-8")))
 
     def expected_day_payload(self, timeline, day):
         place_ids = {event["placeId"] for event in day["events"]}
@@ -55,7 +56,7 @@ class TrajectoryStoreTests(unittest.TestCase):
                                  "data": {"time": time, "placeId": "new-place"}})
         self.mutate("POST", {"kind": "leg", "date": date, "fromEventId": "visit-1", "toEventId": "visit-2", "data": {}})
         self.assertEqual(self.store.get_trajectory_day(date)["days"][0]["legs"],
-                         [{"fromEventId": "visit-1", "toEventId": "visit-2"}])
+                         [{"fromEventId": "visit-1", "toEventId": "visit-2", "modeEvidence": "legacy", "modeEvidenceNote": None}])
         self.mutate("PUT", {"kind": "place", "id": "new-place", "data": self.place_data("更新した場所")})
         self.mutate("PUT", {"kind": "event", "date": date, "id": "visit-2", "data": {"time": "11:00", "placeId": "new-place"}})
         self.mutate("PUT", {"kind": "leg", "date": date, "fromEventId": "visit-1", "toEventId": "visit-2", "data": {"modeHint": "walk"}})

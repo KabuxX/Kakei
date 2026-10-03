@@ -1,3 +1,4 @@
+from trajectory_evidence_fixture import legacy_evidence
 import copy
 import json
 import sqlite3
@@ -32,7 +33,7 @@ class ReplaceSamplesTests(unittest.TestCase):
         self.old_bytes = OLD.read_bytes()
         self.old = json.loads(self.old_bytes)
         self.new = json.loads(NEW.read_text(encoding="utf-8"))
-        self.timeline = json.loads(TIMELINE.read_text(encoding="utf-8"))
+        self.timeline = legacy_evidence(json.loads(TIMELINE.read_text(encoding="utf-8")))
         self.store = Store(self.db)
         self.store.initialize(self.old)
         self.user = self.store.create_transaction({

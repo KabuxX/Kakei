@@ -40,7 +40,8 @@ def _trajectory_event(day: dict, event_id: str) -> dict | None:
 
 
 def _sort_trajectory_day(day: dict) -> None:
-    day["events"].sort(key=lambda event: event.get("time", "") if isinstance(event, dict) and isinstance(event.get("time", ""), str) else "")
+    if all(event.get("timeEvidence", "legacy") == "legacy" for event in day["events"] if isinstance(event, dict)):
+        day["events"].sort(key=lambda event: event.get("time", "") if isinstance(event, dict) and isinstance(event.get("time", ""), str) else "")
     positions = {event["id"]: index for index, event in enumerate(day["events"])
                  if isinstance(event, dict) and isinstance(event.get("id"), str)}
     day["legs"].sort(key=lambda leg: positions.get(leg.get("fromEventId"), -1)
@@ -272,6 +273,12 @@ class Store:
                 validate_timeline(timeline, require_complete=False)
             except ValueError as error:
                 raise ValidationError("trajectory", str(error)) from error
+            for day in timeline['days']:
+                for event in day['events']:
+                    if event.get('timeEvidence') == 'exact' and event.get('transactionId'):
+                        row = connection.execute('SELECT time_estimated FROM transactions WHERE id=?', (event['transactionId'],)).fetchone()
+                        if row and row[0]:
+                            raise ValidationError('timeEvidence', '仮設定の取引時刻は確定時刻として扱えません。')
             replace_trajectory(connection, timeline)
             connection.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('trajectory_seeded', '1')")
             connection.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('trajectory_modified', '1')")

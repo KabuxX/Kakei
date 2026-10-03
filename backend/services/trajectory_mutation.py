@@ -26,9 +26,9 @@ _IDENTITY = {
 
 _DATA_FIELDS = {
     "day": ({"events", "legs"}, set()),
-    "event": ({"time", "placeId"}, {"transactionId"}),
-    "leg": (set(), {"modeHint", "transportTransactionId", "viaPlaceIds"}),
-    "place": ({"name", "address", "coordinates", "sourceUrl"}, set()),
+    "event": ({"time", "placeId"}, {"transactionId", "timeEvidence", "timeEvidenceNote"}),
+    "leg": (set(), {"modeHint", "transportTransactionId", "viaPlaceIds", "modeEvidence", "modeEvidenceNote"}),
+    "place": ({"name", "address", "coordinates", "sourceUrl"}, {"placeEvidence", "attribution"}),
 }
 
 
