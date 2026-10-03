@@ -3,7 +3,19 @@ import {afterEach,expect,it,vi} from 'vitest';
 import {cleanup,fireEvent,render,screen} from '@testing-library/react';
 import ReceiptReview from './ReceiptReview.jsx';
 import * as api from './lib/agent-api.js';
-vi.mock('./lib/agent-api.js');afterEach(cleanup);
+vi.mock('./lib/agent-api.js');afterEach(()=>{cleanup();vi.clearAllMocks();});
+it('preserves the existing address for an unedited whitespace receipt address',async()=>{
+ const review={receiptId:'r',candidate:{merchant:'店',merchant_address:' \r\n ',total:100,currency:'JPY'},missingFields:[],matches:[{reason:'near',transaction:{id:'A',title:'店',merchantAddress:'住所A'}}]};
+ api.proposeReceipt.mockResolvedValue({});
+ render(<ReceiptReview review={review} threadId="t" busy={false} setBusy={vi.fn()} onProposed={vi.fn()}/>);
+ fireEvent.change(screen.getByLabelText('保存先'),{target:{value:'A'}});
+ expect(screen.getByLabelText('住所（任意）').value).toBe('住所A');
+ fireEvent.submit(screen.getByRole('button',{name:'変更案を確認'}).closest('form'));
+ expect(api.proposeReceipt.mock.lastCall[1].draft).not.toHaveProperty('merchantAddress');
+ fireEvent.change(screen.getByLabelText('住所（任意）'),{target:{value:''}});
+ fireEvent.submit(screen.getByRole('button',{name:'変更案を確認'}).closest('form'));
+ expect(api.proposeReceipt.mock.lastCall[1].draft.merchantAddress).toBe(null);
+});
 it('requires explicit duplicate selection and preserves missing fields and discrepancy',async()=>{
  const review={receiptId:'r',mimeType:'image/png',candidate:{merchant:'店',date:null,time:null,total:90,currency:'JPY',payment_method:null,items:[{name:'品目',amount:100}]},missingFields:['date','time','payment_method'],itemMismatch:true,matches:[{reason:'near',transaction:{id:'t',title:'食材',date:'2026-10-03T12:00',amount:90}}]};
  render(<ReceiptReview review={review} threadId="thread" busy={false} setBusy={vi.fn()} onProposed={vi.fn()}/>);

@@ -5,6 +5,7 @@ import {normalizeMerchantAddress} from './lib/transaction-data.js';
 import ReceiptCalculation from './ReceiptCalculation.jsx';
 export default function ReceiptReview({review,threadId,busy,setBusy,onProposed}){
  const candidate=review.candidate;
+ const candidateAddress=normalizeMerchantAddress(candidate.merchant_address);
  const prepared=review.preparedDraft;
  const [verified,setVerified]=useState(false);
  const needsVerification=!!review.calculation?.issues?.length;
@@ -12,7 +13,7 @@ export default function ReceiptReview({review,threadId,busy,setBusy,onProposed})
  const [command,setCommand]=useState({kind:'transaction.create',identity:{},data:{title:candidate.merchant||'',merchant:candidate.merchant||'',date:candidate.date&&candidate.time?`${candidate.date}T${candidate.time}`:'',amount:prepared?.amount??candidate.paid_total??candidate.total??'',type:'expense',category:'その他',paymentMethod:candidate.payment_method||'',items:prepared?.items||(candidate.items||[]).map(({name,amount})=>({name,amount}))}});
  const addressEdits=useRef({});
  const targetAddress=review.matches.find(m=>m.transaction.id===target)?.transaction.merchantAddress;
- const displayAddress=Object.hasOwn(addressEdits.current,target)?addressEdits.current[target]:candidate.merchant_address??targetAddress??'';
+ const displayAddress=Object.hasOwn(addressEdits.current,target)?addressEdits.current[target]:candidateAddress??targetAddress??'';
  const displayCommand={...command,data:{...command.data,merchantAddress:displayAddress}};
  const changeCommand=next=>{
    if(next.data.merchantAddress!==displayAddress)addressEdits.current[target]=next.data.merchantAddress;
@@ -20,7 +21,7 @@ export default function ReceiptReview({review,threadId,busy,setBusy,onProposed})
  };
  const mismatch=command.data.items?.length && (command.data.items.reduce((s,i)=>s+Number(i.amount),0)!==Number(command.data.amount)||command.data.items.some(i=>i.amount<=0));
  const url=`/api/agent/threads/${encodeURIComponent(threadId)}/receipts/${encodeURIComponent(review.receiptId)}`;
- const submit=async(e)=>{e.preventDefault();if(busy||(needsVerification&&!verified))return;setBusy(true);setError('');try{onProposed(await api.proposeReceipt(threadId,{receiptId:review.receiptId,target,currency,draft:{...command.data,...(Object.hasOwn(addressEdits.current,target)||candidate.merchant_address?{merchantAddress:normalizeMerchantAddress(displayAddress)}:{})}}));}catch(e){setError(e.message);}finally{setBusy(false);}};
+ const submit=async(e)=>{e.preventDefault();if(busy||(needsVerification&&!verified))return;setBusy(true);setError('');try{onProposed(await api.proposeReceipt(threadId,{receiptId:review.receiptId,target,currency,draft:{...command.data,...(Object.hasOwn(addressEdits.current,target)||candidateAddress?{merchantAddress:normalizeMerchantAddress(displayAddress)}:{})}}));}catch(e){setError(e.message);}finally{setBusy(false);}};
  return <article className="agent-proposal receipt-review" aria-label="レシートの確認"><h2>レシートを確認</h2>
  {review.mimeType?.startsWith('image/')&&<img className="receipt-preview" alt="レシートのプレビュー" src={url}/>}
  <p><a href={url} target="_blank" rel="noreferrer">レシート原本を開く</a></p>

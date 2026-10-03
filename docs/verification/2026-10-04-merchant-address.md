@@ -4,8 +4,8 @@
 
 ## 固定テスト
 
-- Backend: `/Users/spco/Kakei/backend/.venv/bin/python -m unittest discover -s backend/tests`。旧DB移行、省略維持と明示消去、旧提案の競合互換、住所専用PATCH、共有地点、検索条件と履歴、レシート原本の紐づきを確認。
-- Front: `npm --prefix front test`。116件成功。住所入力の500コードポイント境界、保存失敗時の入力保持、保存先別のレシート編集状態、差分、地図の中間訪問除外、CSVエスケープ・取得失敗を確認。
+- Backend: `/Users/spco/Kakei/backend/.venv/bin/python -m unittest discover -s backend/tests`。260件成功。旧DB移行、省略維持と明示消去、旧提案の競合互換、住所専用PATCH、共有地点、検索条件と履歴、レシート原本の紐づきを確認。
+- Front: `npm --prefix front test`。117件成功。住所入力の500コードポイント境界、保存失敗時の入力保持、保存先別のレシート編集状態、差分、地図の中間訪問除外、CSVエスケープ・取得失敗を確認。
 - Browser: `KAKEI_TEST_PYTHON=/Users/spco/Kakei/backend/.venv/bin/python npm --prefix front run test:e2e -- --config playwright.agent-search.config.cjs`。20件成功。一時DBを使用。住所保存→再読込→消去→参照住所のコピー→住所変更→位置要確認→agent提案の地点選択・保存→matchedへの復帰まで操作。
 - `npm --prefix front run build` 成功。既存のバンドルサイズ警告あり。
 - `git diff --check` 成功。
@@ -38,4 +38,13 @@
 - 軌跡住所のコピーは入力欄へ表示してから保存する。確認のため操作が1回増える。
 - UIテストは既存ファイルとMerchantAddress.test.jsxへまとめ、同じ振る舞いを重複検証しない。
 
-全体レビューとmainへの反映結果は作業完了時に追記する。
+## 最終レビュー
+
+独立したレビュアーが 1f88174..b74dc0d を確認。Criticalなし、Important 1件、Minor 1件。
+
+- Important: レシート住所を長さ検証前に共通正規化。保存済みreviewの空白住所も未読取として扱い、未編集時は住所キーを送信しない。既存住所の保持と明示消去、CRLF正規化後500文字を回帰検証。Backend / Frontで失敗を確認後に修正し、全体260 / 117件、Browser20件成功。
+- Minor（保留）: mockの住所照合はNFKCと空白除去のみで、本番が同じ住所と認める「丁目・番・号」等を要確認と判定する場合がある。実API利用には影響しない。
+- 判断: distはレビュー対象外だったため、修正後の生成物をブラウザ20件で検証し、main統合後にも再生成する。誤りがあれば配信画面がソースとずれる。
+- 判断: 稼働環境への反映はレビュー後の工程として、DBバックアップ・再起動・読取検証を行う。誤りがあれば実アプリに未反映となる。
+
+mainへの反映結果は作業完了時に追記する。

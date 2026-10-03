@@ -2,7 +2,8 @@
 import base64
 from typing import Literal
 from services.receipt_amounts import calculate_receipt
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+from services.merchant_address import normalize_merchant_address
 from langsmith import tracing_context
 
 class ReceiptItem(BaseModel):
@@ -34,6 +35,11 @@ class ReceiptCandidate(BaseModel):
     tax:int|None=None
     discount:int|None=None
     unreadable_fields:list[str]=Field(default_factory=list)
+
+    @field_validator('merchant_address', mode='before')
+    @classmethod
+    def normalize_address(cls, value):
+        return normalize_merchant_address(value)
 
 async def extract_receipt(file,model):
     encoded=base64.b64encode(file.data).decode()

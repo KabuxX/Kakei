@@ -9,6 +9,10 @@ class Model:
     def with_structured_output(self, schema):self.schema=schema;return self
     async def ainvoke(self,messages):self.messages=messages;return self.schema.model_validate(self.result)
 class ExtractionTests(unittest.IsolatedAsyncioTestCase):
+    async def test_address_normalizes_before_length_validation(self):
+        self.assertIsNone(ReceiptCandidate(merchant_address=' \r\n ').merchant_address)
+        value='𠮷'*498+'\r\n'+'町'
+        self.assertEqual(ReceiptCandidate(merchant_address=value).merchant_address,'𠮷'*498+'\n町')
     async def test_image_and_pdf_model_blocks(self):
         for data,name,kind in [(png(),'a.png','image_url'),(pdf(),'a.pdf','file')]:
             model=Model({'merchant':'店','total':100})
