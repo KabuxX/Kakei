@@ -53,7 +53,7 @@ def verify_page(row,page,source):
                 if isinstance(geo,dict):
                     try:coords=[float(geo['longitude']),float(geo['latitude'])]
                     except (KeyError,ValueError,TypeError):coords=None
-                    if valid_coordinates(coords):emit(out,row,source,'structured_geo',json.dumps(value,ensure_ascii=False),coords)
+                    if valid_coordinates(coords):emit(out,row,source,'structured_geo',json.dumps({k:value[k] for k in ('name','address','geo') if k in value},ensure_ascii=False),coords)
             if '@graph' in value:structured(value['@graph'])
     if page['content_type'] in ('application/json','application/ld+json','application/geo+json'):
         try:structured(json.loads(body))
@@ -90,6 +90,9 @@ class WebCoordinateVerifier:
     def __init__(self,pages,budget):self.pages=pages;self.budget=budget;self.cache={}
     async def verify(self,row,*,timeout):
         result=empty();queue=[(s['url'],s,None) for s in row['sources']];seen=set()
+        for url in row.get('urls',[]):
+            if url in row.get('discoveredUrls',[]) and url not in {s['url'] for s in row['sources']}:
+                queue.append((url,{'id':str(uuid.uuid4()),'title':'Web検索で取得した公開ページ','url':url,'kind':'unknown','retrievedAt':row['sources'][0]['retrievedAt']},None))
         while queue and len(seen)<16:
             url,source,context=queue.pop(0)
             if url in seen:continue
@@ -105,6 +108,9 @@ class WebCoordinateVerifier:
                     # The original page proves which store this outgoing map link belongs to.
                     obs_source={**source,'url':page['final_url'],'retrievedAt':page['retrieved_at']}
                     emit(verified,row,obs_source,parsed['kind'],page['final_url'],parsed['coordinates'])
+                    for candidate in verified['candidates']:
+                        candidate['sources'].append(copy.deepcopy(context));candidate['coordinateEvidence']['sourceIds'].append(context['id'])
+                    for anchor in verified['anchors']:anchor['sources'].append(copy.deepcopy(context))
             for key in ('candidates','anchors','unresolved','verifiedHints'):result[key].extend(verified[key])
             result['identityVerified']|=verified['identityVerified']
             for link in verified['links']:

@@ -301,15 +301,24 @@ curl http://localhost:8765/api/trajectory/2026-09-19
 
 assistantメッセージに `sources: [{id,title,url,kind,retrievedAt}]` を追加します。送信直後・再送・会話読込で同じ出典を返し、旧メッセージは空配列です。本文の `[source:<id>]` は当該メッセージの出典だけに解決します。
 
-候補グループには `pipelineVersion: "web-mapbox-v1"`、`unlocatedCandidates`、`sources` が加わります。位置未確認の候補IDは `/places/selection` に使えません。旧候補IDの選択は維持します。地点には任意の `sources` と `geocoding`（Mapboxの住所・精度・永久保存情報）が追加され、軌跡読込と更新で保持します。
+## Web座標検索（web-coordinates-v1）
 
-Agent処理期限120秒、processingリース130秒。検索停止でも保存済み検索履歴を参照できます。設定不足時も会話や既存地点の利用は可能で、追加の検索設定は `placesMissing` に返します。HTTP応答で資格情報を返しません。
+候補グループは `pipelineVersion: "web-coordinates-v1"`、`unlocatedCandidates`、`sources` を返します。位置未確認の候補IDは選択できません。`address_format` は旧入力互換として受理し、検索の同一条件判定から除きます。旧方式の履歴は再利用せず再検索を案内します。
 
-### 住所表記の再検索と利用者による位置確認
+新候補には任意の `coordinateEvidence` を付与します。既存の `geocoding` と併存させません。
 
-`search_place.address_format` は `original`（省略時）、`without_postcode`、`japanese`。日本の同じ住所の表記を変えてMapboxへ再照会する。同一turn・同一店舗条件のWeb調査と抽出は共有し、座標照会は形式別に予算内で実施。海外住所は元の表記を維持する。`reuse_search_id` は結果のコピーで、再照会ではない。
+- `version:1`, `status:published|estimated`, `method`, `precision`, `note`（500文字以内）。
+- 掲載method: `page_text`, `structured_geo`, `map_pin_url`、precision=`point`。
+- 推定method/precision: `same_building/building`, `relative_offset/nearby`, `area_anchor/area`。
+- `sourceIds`（最大6）、`retrievedAt`、`verification:needs_confirmation|user_confirmed`。
+- `observations` は1〜4件、各 `{sourceId,kind,excerpt,coordinates}`。excerpt2048文字以内。relationshipのcoordinatesはnull。
+- 推定には `basis:{anchorName,anchorAddress,anchorCoordinates,relationSourceIds}`。relative_offsetには整数 `distanceMeters:1..5000` と8方位の `bearingDegrees` も必要。球面計算結果を1m以内で検証します。
 
-日本の住所点が国・地域・番地と一致し一意でも、Mapboxの照合情報だけが未確認の場合、候補の `geocoding.verification` は `needs_confirmation`。選択APIで `{revision,candidateId,confirmed:true}` が必要で、未確認・文字列・数値は拒否する。選択後は `user_confirmed` として保存し、元の `matchCode` を変更しない。旧候補の選択には追加属性不要。別番地・郵便番号矛盾・国不一致・街区中心・複数の住所点は引き続き選択不可。
+選択要求は `{revision,candidateId,confirmed:true}`。サーバーが保持する候補の根拠をコピーし、verificationだけuser_confirmedへ変更します。推定のstatusはestimatedのまま。モデルは根拠付き地点の編集権限を持ちません。既存Mapboxの確認必須候補もconfirmed=trueを継続使用し、手動入力・既存候補の互換処理を維持します。
+
+検索はWeb6/抽出6/公開ページ16要求、35/15/5秒、ページ同時3、検索145秒・turn180秒・終了15秒留保、リース190秒。段階20件まで、段階全体200KiB、候補8KiB、結果40KiB、会話要約8KiB。新形式の出典・根拠は候補単位で保持し、大きすぎる候補全体を明示省略します。出典IDを再発行する際は観測と推定基準のIDも一緒に更新します。
+
+公開ページは引用されたURL・APIが返したURL・検証したページの公開マップリンクのみから取得します。非公開IP、地理API、内部RPC、認証付きURLを拒否。座標は`[経度,緯度]`。有限値と範囲を検証し、モデル回答だけの数値を採用しません。表示中心は地区基準の場合を除いて店舗座標へ昇格しません。新検索にMapbox Geocodingキーは不要、地図描画はMapboxを継続します。保存済みlegacy sources/geocodingは変更・削除しません。
 
 ## 取引先住所
 

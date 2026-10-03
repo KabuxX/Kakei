@@ -129,6 +129,7 @@ class ResearchReport(TypedDict):
     actions: list[dict]
     usage: dict
     retrievedAt: float
+    discoveredUrls: list[str]
 
 class GeocodeResult(TypedDict):
     candidates: list[dict]

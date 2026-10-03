@@ -1,0 +1,342 @@
+[
+  {
+    "timestamp": "2026-10-04T03:20:13+0900",
+    "model": "gpt-6-luna",
+    "seconds": 64.78,
+    "counts": {
+      "web": 3,
+      "extract": 3,
+      "page": 0
+    },
+    "configurationWithoutMapbox": true,
+    "geographicApiRequests": 0,
+    "status": "partial",
+    "unresolved": [
+      "request_limit"
+    ],
+    "candidates": [],
+    "research": [
+      {
+        "strategy": "store",
+        "actions": [
+          {
+            "type": "search",
+            "queries": [
+              "ドトールコーヒーショップ 西鉄福岡駅店 住所",
+              "site:doutor.co.jp 西鉄福岡駅店 ドトール",
+              "\"ドトールコーヒーショップ 西鉄福岡駅店\""
+            ]
+          },
+          {
+            "type": "search",
+            "queries": [
+              "\"西鉄福岡駅店\" ドトール \"2階\"",
+              "\"ドトール\" \"西鉄福岡駅店\" \"ソラリアステージ\"",
+              "西鉄福岡駅 ドトール 西鉄公式 店舗案内"
+            ]
+          },
+          {
+            "type": "open_page",
+            "queries": [],
+            "url": "https://nishitetsu-store.jp/food-list/"
+          }
+        ],
+        "sourceUrls": [
+          "https://shop.doutor.co.jp/doutor/spot/detail?code=2010774",
+          "https://map.yahoo.co.jp/v3/place/EdBuirplQco",
+          "https://nishitetsu-store.jp/food-list/"
+        ]
+      },
+      {
+        "strategy": "store",
+        "actions": [
+          {
+            "type": "search",
+            "queries": [
+              "ドトールコーヒーショップ 西鉄福岡駅店 住所",
+              "site:doutor.co.jp 西鉄福岡駅店 ドトール",
+              "\"西鉄福岡駅店\" ドトール 住所"
+            ]
+          },
+          {
+            "type": "search",
+            "queries": [
+              "site:solariastage.com ドトール 西鉄福岡駅店",
+              "\"ドトールコーヒーショップ 西鉄福岡駅店\" \"ソラリアステージ\"",
+              "\"西鉄福岡駅店\" \"2F\" ドトール ソラリア"
+            ]
+          }
+        ],
+        "sourceUrls": [
+          "https://shop.doutor.co.jp/doutor/spot/detail?code=2010774&utm_source=openai",
+          "https://mb.jorudan.co.jp/os/norikae.cgi?c=100&e=S-T40133075043&incs=utf8&utm_source=openai",
+          "https://www.visa.co.jp/content/dam/VCOM/regional/ap/japan/about-visa/documents/visapromo26feb-excluded-merchant-list.pdf?utm_source=openai"
+        ]
+      },
+      {
+        "strategy": "store",
+        "actions": [
+          {
+            "type": "search",
+            "queries": [
+              "site:doutor.co.jp \"西鉄福岡駅店\"",
+              "ドトールコーヒーショップ 西鉄福岡駅店 住所",
+              "\"ドトール\" \"西鉄福岡駅店\" 住所 天神"
+            ]
+          },
+          {
+            "type": "search",
+            "queries": [
+              "\"西鉄福岡駅店\" \"ソラリアステージ\" ドトール",
+              "ドトール 西鉄福岡駅店 ソラリアステージ 2F",
+              "site:solariaplaza.com ドトール 西鉄福岡駅店"
+            ]
+          },
+          {
+            "type": "open_page",
+            "queries": [],
+            "url": "https://www.solariastage.com/shops/doutor_2f/"
+          }
+        ],
+        "sourceUrls": [
+          "https://shop.doutor.co.jp/doutor/spot/detail?code=2010774",
+          "https://www.solariastage.com/shops/2f/",
+          "https://map.yahoo.co.jp/v3/place/EdBuirplQco",
+          "https://shop.doutor.co.jp/doutor/spot/detail?code=2010774"
+        ]
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-10-04T03:23:02+0900",
+    "model": "gpt-6-luna",
+    "seconds": 59.72,
+    "counts": {
+      "web": 3,
+      "extract": 3,
+      "page": 0
+    },
+    "configurationWithoutMapbox": true,
+    "geographicApiRequests": 0,
+    "status": "partial",
+    "unresolved": [
+      "request_limit"
+    ],
+    "candidates": [],
+    "research": [
+      {
+        "strategy": "store",
+        "actions": [
+          {
+            "type": "search",
+            "queries": [
+              "ドトールコーヒーショップ 西鉄福岡駅店 住所",
+              "\"西鉄福岡駅店\" ドトール",
+              "ドトール 西鉄福岡駅店 福岡市 天神 住所"
+            ]
+          },
+          {
+            "type": "open_page",
+            "queries": [],
+            "url": "https://shop.doutor.co.jp/doutor/spot/detail?code=2010774"
+          },
+          {
+            "type": "search",
+            "queries": [
+              "site:solariastage.com \"西鉄福岡駅店\" ドトール",
+              "\"ドトールコーヒーショップ 西鉄福岡駅店\" \"2F\"",
+              "\"西鉄福岡駅店\" \"ソラリアステージビル2F\" ドトール 地図",
+              "ドトール 西鉄福岡駅店 天神TOIRO 2F 西鉄福岡駅"
+            ]
+          }
+        ],
+        "sourceUrls": [
+          "https://shop.doutor.co.jp/doutor/spot/detail?code=2010774",
+          "https://www.solariastage.com/shops/doutor_2f/?utm_source=openai",
+          "https://www.solariastage.com/shops/doutor_2f/?utm_source=openai",
+          "https://map.yahoo.co.jp/v3/place/EdBuirplQco",
+          "https://shop.doutor.co.jp/doutor/station/spot/list?node=00007420&radius=5&utm_source=openai"
+        ]
+      },
+      {
+        "strategy": "store",
+        "actions": [
+          {
+            "type": "search",
+            "queries": [
+              "site:doutor.co.jp 西鉄福岡駅店 ドトール",
+              "ドトールコーヒーショップ 西鉄福岡駅店 住所",
+              "\"ドトール\" \"西鉄福岡駅店\""
+            ]
+          },
+          {
+            "type": "search",
+            "queries": [
+              "\"西鉄福岡駅店\" \"ソラリアステージ\" ドトール",
+              "\"ドトールコーヒーショップ 西鉄福岡駅店\" 駅構内",
+              "\"ドトール 西鉄福岡駅店\" 施設 2-11-3"
+            ]
+          }
+        ],
+        "sourceUrls": [
+          "https://shop.doutor.co.jp/doutor/spot/detail?code=2010774&utm_source=openai",
+          "https://map.yahoo.co.jp/v3/place/EdBuirplQco?utm_source=openai",
+          "https://www.visa.co.jp/content/dam/VCOM/regional/ap/japan/about-visa/documents/visapromo26feb-excluded-merchant-list.pdf?utm_source=openai"
+        ]
+      },
+      {
+        "strategy": "store",
+        "actions": [
+          {
+            "type": "search",
+            "queries": [
+              "site:doutor.co.jp 西鉄福岡駅店 ドトール",
+              "ドトールコーヒーショップ 西鉄福岡駅店 住所",
+              "\"西鉄福岡駅店\" ドトール 住所"
+            ]
+          },
+          {
+            "type": "search",
+            "queries": [
+              "site:solariastage.com ドトール 西鉄福岡駅店",
+              "\"ドトールコーヒーショップ 西鉄福岡駅店\" \"ソラリアステージ\"",
+              "ドトール 西鉄福岡駅店 2F ソラリアステージ"
+            ]
+          },
+          {
+            "type": "open_page",
+            "queries": [],
+            "url": "https://shop.doutor.co.jp/doutor/spot/detail?code=2010774"
+          }
+        ],
+        "sourceUrls": [
+          "https://shop.doutor.co.jp/doutor/spot/detail?code=2010774",
+          "https://www.solariastage.com/shops/doutor_2f/",
+          "https://shop.doutor.co.jp/doutor/spot/detail?code=2011723&utm_source=openai",
+          "https://map.yahoo.co.jp/v3/place/EdBuirplQco"
+        ]
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-10-04T03:26:35+0900",
+    "model": "gpt-6-luna",
+    "seconds": 66.13,
+    "counts": {
+      "web": 3,
+      "extract": 3,
+      "page": 6
+    },
+    "configurationWithoutMapbox": true,
+    "geographicApiRequests": 0,
+    "status": "partial",
+    "unresolved": [
+      "page_too_large"
+    ],
+    "candidates": [
+      {
+        "name": "ドトールコーヒーショップ 西鉄福岡駅店",
+        "address": "〒810-0001 福岡県福岡市中央区天神2-11-3",
+        "coordinates": [
+          130.39893258983207,
+          33.590460407060675
+        ],
+        "sourceUrl": "https://tabelog.com/fukuoka/A4001/A400103/40034161/",
+        "status": "published",
+        "method": "structured_geo",
+        "verification": "needs_confirmation"
+      }
+    ],
+    "research": [
+      {
+        "strategy": "store",
+        "actions": [
+          {
+            "type": "search",
+            "queries": [
+              "ドトールコーヒーショップ 西鉄福岡駅店 住所",
+              "\"西鉄福岡駅店\" ドトール",
+              "site:doutor.co.jp \"西鉄福岡駅\" ドトール"
+            ]
+          },
+          {
+            "type": "search",
+            "queries": [
+              "\"ドトールコーヒーショップ 西鉄福岡駅店\" \"ソラリアステージ\"",
+              "\"西鉄福岡駅店\" ドトール 2階 西鉄",
+              "site:solariastage.com ドトール 西鉄福岡駅店"
+            ]
+          }
+        ],
+        "sourceUrls": [
+          "https://shop.doutor.co.jp/doutor/spot/detail?code=2010774&utm_source=openai",
+          "https://mb.jorudan.co.jp/os/norikae.cgi?c=100&e=S-T40133075043&incs=utf8&utm_source=openai",
+          "https://shop.doutor.co.jp/doutor/station/spot/list?node=00004888&radius=5&utm_source=openai",
+          "https://map.yahoo.co.jp/v3/place/EdBuirplQco?utm_source=openai"
+        ]
+      },
+      {
+        "strategy": "maps",
+        "actions": [
+          {
+            "type": "search",
+            "queries": [
+              "\"ドトールコーヒーショップ 西鉄福岡駅店\" 座標",
+              "\"ドトールコーヒーショップ 西鉄福岡駅店\" 住所 地図",
+              "\"西鉄福岡駅店\" ドトール 地図緯度経度",
+              "\"天神2-11-3\" ドトール 西鉄福岡駅店"
+            ]
+          },
+          {
+            "type": "search",
+            "queries": [
+              "\"ドトールコーヒーショップ 西鉄福岡駅店\" \"緯度\"",
+              "\"ドトールコーヒーショップ 西鉄福岡駅店\" \"経度\"",
+              "\"ドトールコーヒーショップ 西鉄福岡駅店\" mapcode",
+              "site:nishitetsu.co.jp \"西鉄福岡（天神）駅北口改札外\" ドトール"
+            ]
+          }
+        ],
+        "sourceUrls": [
+          "https://shop.doutor.co.jp/doutor/spot/detail?code=2010774&utm_source=openai",
+          "https://mb.jorudan.co.jp/os/norikae.cgi?c=100&e=S-T40133075043&incs=utf8&utm_source=openai",
+          "https://map.yahoo.co.jp/v3/place/EdBuirplQco?utm_source=openai",
+          "https://shop.doutor.co.jp/doutor/station/spot/list?node=00004888&radius=5&utm_source=openai"
+        ]
+      },
+      {
+        "strategy": "address",
+        "actions": [
+          {
+            "type": "search",
+            "queries": [
+              "ドトールコーヒーショップ 西鉄福岡駅店 住所 座標",
+              "\"西鉄福岡駅店\" ドトール",
+              "site:doutor.co.jp 西鉄福岡駅店"
+            ]
+          },
+          {
+            "type": "search",
+            "queries": [
+              "\"ドトールコーヒーショップ 西鉄福岡駅店\" \"33.\"",
+              "\"ドトールコーヒーショップ 西鉄福岡駅店\" 緯度 経度",
+              "西鉄福岡駅店 ドトール Google Maps"
+            ]
+          },
+          {
+            "type": "find_in_page",
+            "queries": [],
+            "url": "https://map.yahoo.co.jp/v3/place/EdBuirplQco",
+            "pattern": "latitude"
+          }
+        ],
+        "sourceUrls": [
+          "https://shop.doutor.co.jp/doutor/spot/detail?code=2010774",
+          "https://map.yahoo.co.jp/v3/place/EdBuirplQco?utm_source=openai",
+          "https://map.yahoo.co.jp/v3/place/EdBuirplQco?utm_source=openai",
+          "https://shop.doutor.co.jp/doutor/spot/detail?code=2010774"
+        ]
+      }
+    ]
+  }
+]

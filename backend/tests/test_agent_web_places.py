@@ -114,4 +114,22 @@ class WebTests(unittest.IsolatedAsyncioTestCase):
         for overrides in ({'urls':['https://invented.example/map']},{'hints':[{'method':'same_building','anchorName':'別施設','anchorAddress':ADDRESS,'relationSourceIds':[SOURCE['id']],'relationExcerpt':'未掲載の関係','distanceMeters':None,'bearingDegrees':None,'areaScope':None}]}):
             async with httpx.AsyncClient(transport=httpx.MockTransport(lambda req:httpx.Response(200,json=extraction(SOURCE['id'],**overrides)))) as c:
                 rows=await WebPlaceProvider(c).extract({'text':REPORT,'sources':[SOURCE],'supports':{SOURCE['id']:REPORT},'discoveredUrls':[SOURCE['url']]},timeout=1)
-            self.assertEqual(rows,[])
+            if 'urls' in overrides:self.assertEqual(rows,[])
+            else:self.assertEqual(len(rows),1);self.assertEqual(rows[0]['hints'],[])
+    async def test_cited_name_address_pair_accepts_postal_country_and_markdown(self):
+        text=f'**{NAME}** — 〒810-0001 **日本（JP）・{ADDRESS}**。福岡市。掲載座標は未確認。 [1]'
+        async def handle(req):
+            data=json.loads(req.content)
+            if data.get('tools'):return httpx.Response(200,json=payload(text))
+            sid=json.loads(data['input'])['sources'][0]['id']
+            return httpx.Response(200,json=extraction(sid,evidenceText=text.split(' [1]')[0]))
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as c:
+            p=WebPlaceProvider(c);report=await p.research({'query':NAME},timeout=1)
+            rows=await p.extract(report,timeout=1)
+        self.assertEqual(len(rows),1);self.assertEqual(rows[0]['address'],ADDRESS)
+
+    async def test_incomplete_facility_hint_does_not_discard_verified_store_address(self):
+        hint={'method':'same_building','anchorName':'施設','anchorAddress':'','relationSourceIds':[SOURCE['id']],'relationExcerpt':NAME+' は施設内にあります。','distanceMeters':None,'bearingDegrees':None,'areaScope':None}
+        async with httpx.AsyncClient(transport=httpx.MockTransport(lambda req:httpx.Response(200,json=extraction(SOURCE['id'],hints=[hint])))) as c:
+            rows=await WebPlaceProvider(c).extract({'sources':[SOURCE],'supports':{SOURCE['id']:REPORT},'text':REPORT},timeout=1)
+        self.assertEqual(len(rows),1);self.assertEqual(rows[0]['hints'],[])

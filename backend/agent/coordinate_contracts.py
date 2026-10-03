@@ -24,6 +24,8 @@ class DiscoveryRow(WebPlace):
     role: str
     urls: list[str]
     hints: list[EstimationHint]
+    verifiedHints: NotRequired[list[EstimationHint]]
+    discoveredUrls: NotRequired[list[str]]
 
 class CoordinateCandidate(TypedDict):
     id: str

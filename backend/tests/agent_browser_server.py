@@ -8,7 +8,12 @@ from api.app import create_app
 class BrowserRunner:
     def __init__(self,store):self.store=store
     async def run_turn(self, thread_id, messages, receipt_id=None, *, turn_context=None):
-        if '住所の位置を修正' in messages[-1]['text']:
+        if any(term in messages[-1]['text'] for term in ('Web座標の確認','推定位置の確認')):
+            import copy
+            from coordinate_fixtures import PUBLISHED_PLACE,ESTIMATED_PLACE
+            candidates=[{**copy.deepcopy(PUBLISHED_PLACE),'id':'published'},{**copy.deepcopy(ESTIMATED_PLACE),'id':'estimated'}]
+            return {'text':'掲載座標と推定位置の根拠を確認してください。','commands':[{'kind':'trajectory.create','identity':{'kind':'day','date':'2027-01-06'},'data':{'events':[{'id':'estimated-visit','placeId':'estimated-shop','time':'12:00','timeEvidence':'exact'},{'id':'estimated-visit-2','placeId':'estimated-shop','time':'13:00','timeEvidence':'exact'}],'legs':[{'fromEventId':'estimated-visit','toEventId':'estimated-visit-2','modeEvidence':'inferred','modeEvidenceNote':'地点間を結んだ概算。'}]}}],'placeCandidates':[{'placeId':'estimated-shop','query':'店舗','candidates':candidates}]}
+        if '住所の位置を修正'  in messages[-1]['text']:
             tx=next(t for t in self.store.list_transactions() if t['title']=='住所の統合確認')
             return {'text':'新しい住所と地点を確認してください。','commands':[{'kind':'trajectory.update','identity':{'kind':'day','date':'2026-10-04'},'data':{'events':[{'id':'address-visit','placeId':'corrected-address','time':'12:00','timeEvidence':'exact','transactionId':tx['id']}],'legs':[]}}], 'placeCandidates':[{'placeId':'corrected-address','query':tx['merchant'],'candidates':[{'id':'corrected-candidate','name':tx['merchant'],'address':tx['merchantAddress'],'coordinates':[130.401,33.591],'sourceUrl':'https://example.com/corrected','attribution':'ブラウザ検証データ'}]}]}
         if 'Web出典'  in messages[-1]['text']:
