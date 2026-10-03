@@ -5,3 +5,5 @@ langchain-openai==1.6.7
 Pillow==12.3.0
 pypdf==6.19.0
 python-dotenv==1.2.4
+httpx==0.28.1
+httpcore==1.0.9
