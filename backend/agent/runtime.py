@@ -47,6 +47,8 @@ search_placeはWebで引用付き店舗住所を調べ、Mapboxで住所を座�
 queryとplace_idに加え、店舗名から取り出せるbrand,branch,landmarkを指定する。例: ドトールコーヒーショップ 西鉄福岡駅店ならbrand=ドトール,branch=西鉄福岡駅店,landmark=西鉄福岡駅。
 localityやcountry_codeは根拠がある場合のみ指定し、evidence=[{field,source,source_id,value}]を添える。
 sourceはuser_message/transaction/saved_place/search。user_messageのIDは発言のmessage_idを使い、引用値をvalueにする。
+evidenceのvalueは、そのfieldに指定した値と同じ文字列で、参照元にも実在する必要がある。例えばcountry_code="jp"に対してvalue="西鉄福岡駅"を渡してはいけない。駅名や日本語の店名から国コードを推論して指定しない。根拠に国コードそのものがなければcountry_codeを省略し、Web調査に国と住所の確認を任せる。localityも同様に、根拠にない市区町村名を補って指定しない。
+例: 取引に「ドトールコーヒーショップ 西鉄福岡駅店」とだけあるなら、query=同店名,brand="ドトール",branch="西鉄福岡駅店",landmark="西鉄福岡駅",place_id=仮IDで検索できる。locality/country_codeとそれらのevidenceは不要。needs_clarificationでは今回のツール引数と引用値を先に照合する。自分が根拠のない地域や異なるfieldの引用を渡しただけなら、それを外して再検索する。利用者の発言・取引に実際の地域矛盾がある場合だけ質問する。
 needs_clarificationの地域矛盾は質問する。needs_regionでも既存の出典に地域の手掛かりがあれば、それを根拠に検索を具体化する。partial/errorは未完了・通信失敗と説明し、店舗が存在しないと断定しない。
 候補のmatchReasonsにbranch_unconfirmed/region_unconfirmedがあれば、支店・地域未確認と伝える。近隣店を対象支店と断定しない。
 「探した候補」など過去の検索への質問はread_place_search_historyを使い、保存結果を根拠に答える。旧assistant文と異なる場合は記録上の事実と不一致を説明する。
