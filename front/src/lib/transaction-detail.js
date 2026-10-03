@@ -9,7 +9,7 @@
   }
 
   function detailIdFromHash(hash) {
-    if (!hash.startsWith(prefix) || hash.endsWith('/delete')) return null;
+    if (!hash.startsWith(prefix) || (hash.endsWith('/delete') || hash.endsWith('/edit'))) return null;
     try {
       return decodeURIComponent(hash.slice(prefix.length)) || null;
     } catch (_) {
@@ -27,3 +27,9 @@
   }
 
 export { detailHref, detailIdFromHash, deleteHref, deleteIdFromHash };
+
+export function editHref(id) { return `${detailHref(id)}/edit`; }
+export function editIdFromHash(hash) {
+ if (!hash.startsWith(prefix) || !hash.endsWith('/edit')) return null;
+ try { return decodeURIComponent(hash.slice(prefix.length, -'/edit'.length)) || null; } catch { return null; }
+}

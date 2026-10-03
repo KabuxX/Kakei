@@ -9,27 +9,26 @@ test('address editing persists, invalidates only related locations, and exports 
  const created=await page.request.post('/api/transactions',{headers,data:{title:'住所の統合確認',date:'2026-10-04T12:00',type:'expense',category:'食費',amount:800,merchant:'住所テスト店',paymentMethod:'cash',items:[]}});
  expect(created.ok()).toBe(true);const tx=(await created.json()).transaction;
  await page.goto('/#transaction/'+tx.id);await page.reload();
- await page.getByRole('button',{name:'住所を追加'}).click();await page.getByRole('textbox',{name:'住所（任意）',exact:true}).fill(address);
- await page.getByRole('button',{name:'住所を保存'}).click();await expect(page.getByText(address,{exact:true})).toBeVisible();
+ await page.getByRole('link',{name:'編集',exact:true}).click();await page.getByRole('textbox',{name:'住所（任意）',exact:true}).fill(address);
+ await page.getByRole('button',{name:'保存する'}).click();await expect(page.getByRole('heading',{name:'取引詳細',exact:true})).toBeVisible();await expect(page.getByText(address,{exact:true})).toBeVisible();
  await page.reload();await expect(page.getByText(address,{exact:true})).toBeVisible();
  for(const [name,width,height] of [['desktop',1440,1000],['phone',375,812]]){
-  await page.setViewportSize({width,height});await page.getByRole('button',{name:'住所を編集'}).click();
-  await page.getByRole('textbox',{name:'住所（任意）',exact:true}).fill('𠮷'.repeat(501));await page.getByRole('button',{name:'住所を保存'}).click();
+  await page.setViewportSize({width,height});await page.getByRole('link',{name:'編集',exact:true}).click();
+  await page.getByRole('textbox',{name:'住所（任意）',exact:true}).fill('𠮷'.repeat(501));await page.getByRole('button',{name:'保存する'}).click();
   await expect(page.getByText('住所は500文字以内で入力してください。')).toBeVisible();
   await page.getByRole('textbox',{name:'住所（任意）',exact:true}).fill(address);await page.getByRole('textbox',{name:'住所（任意）',exact:true}).focus();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:`${shots}/address-edit-${name}.png`,fullPage:name==='desktop'});
-  await page.getByRole('button',{name:'キャンセル',exact:true}).click();
+  await page.getByRole('button',{name:'キャンセル',exact:true}).click();await expect(page.getByRole('heading',{name:'取引詳細',exact:true})).toBeVisible();
  }
- await page.getByRole('button',{name:'住所を編集'}).click();await page.getByRole('textbox',{name:'住所（任意）',exact:true}).fill('');await page.getByRole('button',{name:'住所を保存'}).click();await expect(page.getByRole('button',{name:'住所を追加'})).toBeVisible();
+ await page.getByRole('link',{name:'編集',exact:true}).click();await page.getByRole('textbox',{name:'住所（任意）',exact:true}).fill('');await page.getByRole('button',{name:'保存する'}).click();await expect(page.getByRole('heading',{name:'取引詳細',exact:true})).toBeVisible();await expect(page.getByText(address,{exact:true})).toHaveCount(0);
  const placeId='merchant-address-place';
  expect((await page.request.post('/api/trajectory',{headers,data:{kind:'place',id:placeId,data:{name:tx.merchant,address,coordinates:[130.399,33.590],sourceUrl:'https://example.com/shop',placeEvidence:'user'}}})).ok()).toBe(true);
  expect((await page.request.post('/api/trajectory',{headers,data:{kind:'day',date:'2026-10-04',data:{events:[{id:'address-visit',placeId,time:'12:00',timeEvidence:'exact',transactionId:tx.id}],legs:[]}}})).ok()).toBe(true);
- await page.reload();await page.getByRole('button',{name:'この住所を取引に保存'}).click();await expect(page.getByRole('textbox',{name:'住所（任意）',exact:true})).toHaveValue(address);await page.getByRole('button',{name:'住所を保存'}).click();
- await expect(page.getByRole('link',{name:/地図で見る/})).toBeVisible();
- await page.getByRole('button',{name:'住所を編集'}).click();await page.getByRole('textbox',{name:'住所（任意）',exact:true}).fill('福岡市中央区天神2-11-30');await page.getByRole('button',{name:'住所を保存'}).click();
- await expect(page.getByText('住所が変わったため、位置の再確認が必要です')).toBeVisible();await expect(page.getByRole('link',{name:/地図で見る/})).toHaveCount(0);
- await page.getByRole('button',{name:'Agentで位置を再確認'}).click();await expect(page.getByRole('textbox',{name:'メッセージ',exact:true})).toHaveValue(new RegExp(tx.id));
+ await page.reload();await expect(page.getByText(address,{exact:true})).toBeVisible();await page.getByRole('link',{name:'編集',exact:true}).click();await page.getByRole('textbox',{name:'住所（任意）',exact:true}).fill(address);await page.getByRole('button',{name:'保存する'}).click();await expect(page.getByRole('heading',{name:'取引詳細',exact:true})).toBeVisible();
+ await expect(page.getByText(address,{exact:true})).toBeVisible();await expect(page.getByRole('link',{name:/地図で見る/})).toHaveCount(0);
+ await page.getByRole('link',{name:'編集',exact:true}).click();await page.getByRole('textbox',{name:'住所（任意）',exact:true}).fill('福岡市中央区天神2-11-30');await page.getByRole('button',{name:'保存する'}).click();await expect(page.getByRole('heading',{name:'取引詳細',exact:true})).toBeVisible();
+ await expect(page.getByText('福岡市中央区天神2-11-30',{exact:true})).toBeVisible();await expect(page.getByRole('link',{name:/地図で見る/})).toHaveCount(0);
  const outgoing=[];page.on('request',r=>{if(r.method()==='POST')outgoing.push(r.url());});
  await page.goto('/#trajectory');await page.locator('#trajectory-date').selectOption('2026-10-04');await expect(page.getByText('住所と位置の再確認が必要')).toBeVisible();
  await expect(page.getByText('地図に表示する地点はありません。')).toBeVisible();
@@ -45,6 +44,6 @@ test('address editing persists, invalidates only related locations, and exports 
  await page.getByRole('button',{name:'確認して保存',exact:true}).click();await expect(page.getByText('保存済み',{exact:true})).toBeVisible();
  await page.goto('/#trajectory');await page.locator('#trajectory-date').selectOption('2026-10-04');await expect(page.getByText('住所と位置の再確認が必要')).toHaveCount(0);
  const fixed=await page.request.get('/api/trajectory/2026-10-04');expect((await fixed.json()).days[0].events[0].locationStatus).toBe('matched');
- await page.goto('/#transaction/'+tx.id);await expect(page.getByRole('link',{name:/地図で見る/})).toHaveAttribute('href',/130.401/);
+ await page.goto('/#transaction/'+tx.id);await expect(page.getByText('福岡市中央区天神2-11-30',{exact:true})).toBeVisible();
 
 });

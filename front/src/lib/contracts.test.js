@@ -159,3 +159,12 @@ it('ignores non-detail and malformed hash values', () => {
   expect(detailIdFromHash('#transaction/%ZZ')).toBeNull();
   expect(detailIdFromHash('#transaction/')).toBeNull();
 });
+
+it('distinguishes encoded detail, edit and delete destinations',async()=>{
+ const {detailIdFromHash,deleteIdFromHash,editIdFromHash}=await import('./transaction-detail.js');
+ expect(editIdFromHash('#transaction/a%2Fb/edit')).toBe('a/b');
+ expect(detailIdFromHash('#transaction/a%2Fb/edit')).toBeNull();
+ expect(deleteIdFromHash('#transaction/a%2Fb/edit')).toBeNull();
+ expect(deleteIdFromHash('#transaction/purchase/edit')).toBeNull();
+ expect(editIdFromHash('#transaction/%broken/edit')).toBeNull();
+});

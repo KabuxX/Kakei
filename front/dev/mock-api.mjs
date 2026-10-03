@@ -1,4 +1,4 @@
-import { normalizeMerchantAddress } from '../src/lib/transaction-data.js';
+import { normalizeMerchantAddress,parseExpenseDraft } from '../src/lib/transaction-data.js';
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { assignEstimatedTransactionDatetimes, isValidTransactionDateTime } from '../src/lib/transaction-datetime.js';
@@ -77,6 +77,20 @@ export function mockApi() {
           } catch {
             return send(response, 400, { error: { code: 'validation_error', message: '取引データを確認してください。' } });
           }
+        }
+        if (path.startsWith('/api/transactions/') && request.method === 'PUT') {
+          try {
+            const id=decodeURIComponent(path.slice('/api/transactions/'.length));
+            const index=transactions.findIndex(record=>record.id===id);
+            if(index<0)return send(response,404,{error:{message:'取引が見つかりません。'}});
+            let raw='';for await(const chunk of request)raw+=chunk;
+            const draft=JSON.parse(raw),old=transactions[index];
+            if(!draft||Array.isArray(draft)||!isValidTransactionDateTime(draft.date)||!['expense','income'].includes(draft.type)||typeof draft.title!=='string'||!draft.title.trim())throw new Error('取引データを確認してください。');
+            const details=draft.type==='expense'?parseExpenseDraft({merchant:draft.merchant,merchantAddress:Object.hasOwn(draft,'merchantAddress')?draft.merchantAddress:old.merchantAddress,paymentMethod:draft.paymentMethod,itemRows:draft.items||[],manualAmount:draft.amount}):{};
+            if(!Number.isInteger(draft.amount)||draft.amount<1||draft.amount>999999999)throw new Error('金額を確認してください。');
+            const transaction={id,title:draft.title.trim(),type:draft.type,date:draft.date,category:draft.category,amount:draft.amount,...details,timeEstimated:old.date===draft.date&&!draft.confirmTime?old.timeEstimated:false};
+            transactions[index]=transaction;return send(response,200,{transaction});
+          }catch(error){return send(response,400,{error:{code:'validation_error',message:error.message,field:error.field}});}
         }
         if (path === '/api/samples' && request.method === 'DELETE') {
           const remaining = transactions.filter((item) => !item.id.startsWith('sample-'));

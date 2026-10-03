@@ -6,13 +6,14 @@ import {useAgentChat} from './useAgentChat.js';
 import Dashboard from './Dashboard.jsx';
 import Trajectory from './Trajectory.jsx';
 import TransactionDetail from './TransactionDetail.jsx';
+import TransactionEdit from './TransactionEdit.jsx';
 import TransactionDelete from './TransactionDelete.jsx';
 import TransactionDialog from './TransactionDialog.jsx';
 import { useTransactions } from './useTransactions.js';
 import { dashboardForMonth, monthKey } from './lib/dashboard.js';
 import { serializeTransactionsCsv } from './lib/transaction-data.js';
 import { transactionMonthKey } from './lib/transaction-datetime.js';
-import { detailIdFromHash, deleteIdFromHash } from './lib/transaction-detail.js';
+import { detailHref, detailIdFromHash, deleteIdFromHash, editIdFromHash } from './lib/transaction-detail.js';
 
 export default function App() {
   const now = new Date();
@@ -34,7 +35,8 @@ export default function App() {
   const isTrajectory = route === '#trajectory';
   const isDetail = ['ready', 'stale'].includes(data.status) && (route === '#transaction' || route.startsWith('#transaction/'));
   const isDelete = isDetail && route.endsWith('/delete');
-  const detailId = isDetail ? (isDelete ? deleteIdFromHash(route) : detailIdFromHash(route)) : null;
+  const isEdit = isDetail && route.endsWith('/edit');
+  const detailId = isDetail ? (isDelete ? deleteIdFromHash(route) : isEdit ? editIdFromHash(route) : detailIdFromHash(route)) : null;
   const detailRecord = isDetail ? data.transactions.find((item) => item.id === detailId) : null;
   useEffect(() => {
     const onHash = () => setRoute(window.location.hash || '#overview');
@@ -51,9 +53,9 @@ export default function App() {
       previousTrajectory.current = false;
       previousDetail.current = detailId;
       document.body.classList.add('detail-route');
-      document.title = detailRecord ? `${isDelete ? '削除確認' : detailRecord.title} | Kakei` : '取引が見つかりません | Kakei';
+      document.title = detailRecord ? `${isDelete ? '削除確認' : isEdit ? '取引を編集' : detailRecord.title} | Kakei` : '取引が見つかりません | Kakei';
       window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-      document.getElementById(isDelete ? 'delete-heading' : 'detail-heading')?.focus({ preventScroll: true });
+      document.getElementById(isDelete ? 'delete-heading' : isEdit ? 'edit-heading' : 'detail-heading')?.focus({ preventScroll: true });
     } else {
       document.body.classList.remove('detail-route');
       document.title = isAgent ? 'Agent Chat | Kakei' : isTrajectory ? '軌跡 | Kakei' : '家計の概要 | Kakei';
@@ -84,7 +86,7 @@ export default function App() {
       }
     }
     return () => document.body.classList.remove('detail-route');
-  }, [isDetail, isDelete, isTrajectory, isAgent, detailId, detailRecord, route, data.status]);
+  }, [isDetail, isDelete, isEdit, isTrajectory, isAgent, detailId, detailRecord, route, data.status]);
   useEffect(() => { setDeleteError(''); }, [route]);
 
   const changeMonth = (step) => setMonth((previous) => new Date(previous.getFullYear(), previous.getMonth() + step, 1));
@@ -103,6 +105,18 @@ export default function App() {
     setMonth(new Date(year, monthNumber - 1, 1));
     setToast(refreshed ? '取引を追加しました。' : '取引を保存しました。表示を更新してください。');
     return refreshed;
+  };
+  const updateTransaction = async (draft) => {
+    const refreshed = await data.updateTransaction(detailRecord.id, draft);
+    const [year, monthNumber] = transactionMonthKey(draft.date).split('-').map(Number);
+    setMonth(new Date(year, monthNumber - 1, 1));
+    setTrajectoryRevision(v=>v+1);
+    setToast(refreshed ? '取引を更新しました。' : '取引を保存しました。表示を更新してください。');
+    return refreshed;
+  };
+  const cancelEdit = () => {
+    const target = detailRecord ? detailHref(detailRecord.id) : '#transactions';
+    window.location.hash=target;setRoute(target);
   };
   const deleteTransaction = async (record) => {
     if (data.status !== 'ready' || data.writePending || data.refreshing || deletePending) return;
@@ -158,7 +172,8 @@ export default function App() {
       {isAgent && (['ready','stale'].includes(data.status) ? <AgentChat session={agent} onCommitted={async () => { setTrajectoryRevision(v => v + 1); return await data.refresh(true); }} /> : <section><h1 id="agent-heading" tabIndex="-1">Agent Chat</h1>{data.status === 'loading' ? <p role="status">家計データを準備しています…</p> : <div role="alert"><p>家計データを読み込めませんでした。</p><button type="button" className="secondary-button" onClick={data.load}>再試行</button></div>}</section>)}
       {isDetail && (isDelete
         ? <TransactionDelete record={detailRecord} onConfirm={deleteTransaction} error={deleteError} busy={deletePending || data.writePending || data.refreshing || data.status !== 'ready'} />
-        : <TransactionDetail onReviewAddress={reviewAddress} record={detailRecord} onSaveAddress={async (address, expected) => { const refreshed = await data.updateMerchantAddress(detailRecord.id, address, expected); setTrajectoryRevision(v => v + 1); return refreshed; }} busy={data.writePending || data.refreshing || data.status !== 'ready'} />)}
+        : isEdit ? <TransactionEdit record={detailRecord} onSubmit={updateTransaction} onCancel={cancelEdit} busy={data.writePending || data.refreshing || data.status !== 'ready'}/>
+        : <TransactionDetail record={detailRecord} busy={data.writePending || data.refreshing || data.status !== 'ready'} />)}
     </AppShell>
     <TransactionDialog open={dialogOpen} selectedMonth={month} busy={data.writePending || data.refreshing} onClose={closeDialog} onSubmit={submitTransaction} />
     <div id="toast" className={`toast${toast ? ' show' : ''}`} role="status" aria-live="polite">{toast}</div>

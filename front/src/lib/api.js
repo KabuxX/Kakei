@@ -94,3 +94,9 @@ export async function updateMerchantAddress(id, merchantAddress, expected, fetch
   if (!result?.transaction?.id) throw new ApiError(200, {message:'保存結果を確認できませんでした。'});
   return result.transaction;
 }
+
+export async function updateTransaction(id, draft, fetchImpl = fetch) {
+ const result = await request('PUT', `/api/transactions/${encodeURIComponent(id)}`, draft, fetchImpl);
+ if (!result?.transaction || result.transaction.id !== id) throw new ApiError(200, {message:'保存結果を確認できませんでした。'});
+ return result.transaction;
+}

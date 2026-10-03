@@ -75,3 +75,15 @@ it('forwards API requests to the configured backend in api mode', async () => {
     host: new URL(process.env.KAKEI_API_TARGET).host,
   });
 });
+
+it('updates a mock transaction and preserves estimated time until the datetime changes',async()=>{
+ const base=await startVite('mock');
+ const initial=(await (await fetch(base+'/api/transactions')).json()).transactions[0];
+ const {id,timeEstimated,...draft}=initial;
+ const update=await fetch(base+'/api/transactions/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({...draft,title:'編集した取引'})});
+ expect(update.status).toBe(200);
+ expect((await update.json()).transaction).toMatchObject({id,title:'編集した取引',timeEstimated:true});
+ expect((await (await fetch(base+'/api/transactions')).json()).transactions[0].title).toBe('編集した取引');
+ const moved=await fetch(base+'/api/transactions/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({...draft,date:'2026-10-04T10:00'})});
+ expect((await moved.json()).transaction.timeEstimated).toBe(false);
+});

@@ -18,7 +18,7 @@ it('shows the full address linked by transaction ID once, underneath the merchan
   expect(await screen.findByText(address)).toBeTruthy();
   expect(screen.getAllByText(address)).toHaveLength(1);
   expect(screen.queryByText('別支店の住所')).toBeNull();
-  expect(screen.getByRole('link', { name: /地図で見る/ }).getAttribute('href')).toBe('https://www.openstreetmap.org/?mlat=33.5900778&mlon=130.3990083#map=18/33.5900778/130.3990083');
+  expect(screen.queryByRole('link', { name: /地図で見る/ })).toBeNull();
   expect(document.querySelector('#detail-merchant').parentElement.textContent).toContain(address);
   expect(fetch).toHaveBeenCalledWith('/api/transaction-addresses/purchase', expect.anything());
 });
@@ -41,7 +41,7 @@ it('shows an address without a map link when coordinates are unavailable, and su
   render(<TransactionDetail record={record} />);
   expect(await screen.findByText('住所を読み込めませんでした。')).toBeTruthy();
   fail = false;
-  fireEvent.click(screen.getByRole('button', { name: '住所を再読み込み' }));
+  fireEvent.click(screen.getByRole('button', { name: '再読み込み' }));
   expect(await screen.findByText(address)).toBeTruthy();
   expect(screen.queryByRole('link', { name: /地図で見る/ })).toBeNull();
 });
@@ -58,4 +58,15 @@ it('does not display a previous transaction address after switching records', as
   });
   await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/transaction-addresses/different', expect.anything()));
   expect(screen.queryByText(address)).toBeNull();
+});
+
+it('shows only the direct address without address actions or linked-address labels',async()=>{
+ mockFetch(async()=>response(timeline));
+ render(<TransactionDetail record={{...record,merchantAddress:'取引住所'}} onSaveAddress={vi.fn()} onReviewAddress={vi.fn()}/>);
+ expect(screen.getByText('取引住所')).toBeTruthy();
+ expect(screen.queryByText(address)).toBeNull();
+ expect(screen.queryByText('軌跡に保存された住所')).toBeNull();
+ expect(screen.queryByRole('link',{name:/地図で見る/})).toBeNull();
+ expect(screen.queryByRole('button',{name:/住所/})).toBeNull();
+ expect(screen.getByRole('link',{name:'編集'}).getAttribute('href')).toBe('#transaction/purchase/edit');
 });
