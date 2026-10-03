@@ -1,3 +1,4 @@
+import PlaceSources from './PlaceSources.jsx';
 import MerchantAddressField from './MerchantAddressField.jsx';
 import React, { useState } from 'react';
 import * as api from './lib/agent-api.js';
@@ -9,6 +10,7 @@ const values={income:'収入',expense:'支出',cash:'現金',credit_card:'クレ
 export function RecordView({value,referenceLabels={}}) {
   if(value===null || value===undefined) return <span>なし</span>;
   if(Array.isArray(value)) return value.length ? <ol>{value.map((v,i)=><li key={i}><RecordView value={v} referenceLabels={referenceLabels}/></li>)}</ol> : <span>なし</span>;
+  if(typeof value==='object'&&value.coordinateEvidence)return <><RecordView value={Object.fromEntries(Object.entries(value).filter(([k])=>!['coordinateEvidence','sources'].includes(k)))} referenceLabels={referenceLabels}/><PlaceSources {...value}/></>;
   if(typeof value==='object') return <dl className="agent-record">{Object.entries(value).filter(([key])=>key!=='id').map(([key,v])=><div key={key}><dt>{labels[key]||key}</dt><dd><RecordView value={v} referenceLabels={referenceLabels}/></dd></div>)}</dl>;
   return <span>{typeof value==='boolean'?(value?'はい':'いいえ'):referenceLabels[value]||values[value]||String(value)}</span>;
 }

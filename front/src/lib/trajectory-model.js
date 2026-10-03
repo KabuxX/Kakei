@@ -106,6 +106,7 @@ function buildTrajectoryDays(transactions, timeline) {
       stopCount: events.length,
       unconfirmedLocationCount: events.filter(e=>e.locationStatus==='needs_review').length,
       distanceIncomplete: segments.some(s=>!s.coordinates),
+      hasEstimatedCoordinates: events.some(e=>e.coordinates&&e.place.coordinateEvidence?.status==='estimated')||day.legs.some(l=>(l.viaPlaceIds||[]).some(id=>timeline.places[id]?.coordinateEvidence?.status==='estimated')),
       modes: [...new Set(segments.map((segment) => segment.mode))],
       distanceKm: segments.reduce((sum, segment) => sum + segment.distanceKm, 0),
       bounds: features.length ? bbox(featureCollection(features)) : null,

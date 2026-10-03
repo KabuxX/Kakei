@@ -55,3 +55,8 @@ it('trajectory_shows_store_and_coordinate_evidence',async()=>{
  expect((await screen.findByRole('link',{name:/店舗情報/})).getAttribute('href')).toBe('https://example.com/store');
  expect(screen.getByText(/座標.*Mapbox.*補間/)).toBeTruthy();
 });
+it('retains saved estimate labels, basis, sources and distance caveat',async()=>{
+ const place={name:'推定の店舗',address:'福岡市',sourceUrl:'https://example.com/store',coordinates:[130,33],sources:[{id:'s',title:'店舗案内',url:'https://example.com/store'}],coordinateEvidence:{status:'estimated',method:'same_building',precision:'building',verification:'user_confirmed',note:'誤差範囲は未確認。',basis:{anchorName:'施設',anchorAddress:'福岡市'}}};
+ vi.stubGlobal('fetch',vi.fn(async url=>({ok:true,status:200,json:async()=>url==='/api/trajectory'?{dates:['2027-01-04']}:{places:{p:place},days:[{date:'2027-01-04',events:[{id:'e',placeId:'p',time:null,timeEvidence:'unknown'}],legs:[]}]}})));
+ render(<Trajectory/>);expect(await screen.findByText('推定の店舗')).toBeTruthy();expect(screen.getByText('推定位置を含む概算')).toBeTruthy();expect(screen.getByText('位置は推定')).toBeTruthy();expect(screen.getAllByText('推定位置')).toHaveLength(2);expect(screen.getByText(/誤差範囲/)).toBeTruthy();expect(screen.getByRole('link',{name:/店舗情報/}).getAttribute('href')).toBe(place.sourceUrl);
+});

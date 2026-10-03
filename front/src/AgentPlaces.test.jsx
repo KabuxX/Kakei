@@ -50,3 +50,15 @@ it('requires address and map confirmation for an uncertain provider match',async
  fireEvent.click(screen.getByRole('button',{name:'この地点を選ぶ'}));
  await vi.waitFor(()=>expect(api.selectPlaceCandidate).toHaveBeenCalledWith('p',1,'review',true));
 });
+it('resets confirmation when switching published and estimated candidates',async()=>{
+ const base={name:'店舗',address:'福岡市',coordinates:[130.4,33.59],sources:[],coordinateEvidence:{status:'published',method:'page_text',verification:'needs_confirmation',note:'誤差未確認'}};
+ const candidates=[{...base,id:'published'},{...base,id:'estimated',address:'福岡市（施設）',coordinateEvidence:{...base.coordinateEvidence,status:'estimated',method:'same_building',precision:'building',basis:{anchorName:'施設',anchorAddress:'福岡市'}}}];
+ const proposal={id:'p',revision:1,status:'pending',expiresAt:Date.now()/1000+86400,commands:[],before:[],after:[],metadata:{placeCandidates:[{placeId:'x',query:'店舗',candidates}]}};
+ api.selectPlaceCandidate.mockResolvedValue({...proposal,revision:2});
+ render(<AgentProposal proposal={proposal} onChange={vi.fn()} onCommitted={vi.fn()} busy={false} setBusy={vi.fn()}/>);
+ fireEvent.click(screen.getAllByRole('radio')[0]);fireEvent.click(screen.getByRole('checkbox',{name:'住所・出典と地図の位置を確認しました'}));
+ expect(screen.getByRole('button',{name:'この地点を選ぶ'}).disabled).toBe(false);
+ fireEvent.click(screen.getAllByRole('radio')[1]);expect(screen.getByRole('button',{name:'この地点を選ぶ'}).disabled).toBe(true);
+ const checkbox=screen.getByRole('checkbox',{name:'この推定位置を確認しました'});expect(checkbox.checked).toBe(false);fireEvent.click(checkbox);fireEvent.click(screen.getByRole('button',{name:'この地点を選ぶ'}));
+ await vi.waitFor(()=>expect(api.selectPlaceCandidate).toHaveBeenCalledWith('p',1,'estimated',true));
+});

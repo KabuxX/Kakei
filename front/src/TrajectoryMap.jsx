@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import { PathLayer, ScatterplotLayer } from '@deck.gl/layers';
+import {attachEstimatedMarkers} from './lib/trajectory-estimates.js';
 import { stageColor } from './lib/trajectory-display.js';
 import { request } from './lib/api.js';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -103,6 +104,7 @@ export default function TrajectoryMap({ day, selectedEventId, onSelectEvent }) {
   useEffect(() => {
     const map = mapRef.current;
     if (!map || issue || !day.bounds) return undefined;
+    const releaseEstimates=attachEstimatedMarkers(map,day.events);
     const markers = [];
     day.events.forEach((event, index) => {
       if (!event.coordinates) return;
@@ -114,6 +116,7 @@ export default function TrajectoryMap({ day, selectedEventId, onSelectEvent }) {
     });
     return () => {
       markers.forEach((marker) => marker.remove());
+      releaseEstimates();
     };
   }, [day, issue, token]);
 
