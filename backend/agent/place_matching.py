@@ -1,0 +1,149 @@
+"""Location evidence and conservative branch matching; no inferred coordinates."""
+import math
+import re
+import unicodedata
+import uuid
+from services.validation import ValidationError
+from services.agent_changes import read_state
+from db.store import TrajectoryNotFound
+
+ISO_COUNTRIES=frozenset('ad ae af ag ai al am ao aq ar as at au aw ax az ba bb bd be bf bg bh bi bj bl bm bn bo bq br bs bt bv bw by bz ca cc cd cf cg ch ci ck cl cm cn co cr cu cv cw cx cy cz de dj dk dm do dz ec ee eg eh er es et fi fj fk fm fo fr ga gb gd ge gf gg gh gi gl gm gn gp gq gr gs gt gu gw gy hk hm hn hr ht hu id ie il im in io iq ir is it je jm jo jp ke kg kh ki km kn kp kr kw ky kz la lb lc li lk lr ls lt lu lv ly ma mc md me mf mg mh mk ml mm mn mo mp mq mr ms mt mu mv mw mx my mz na nc ne nf ng ni nl no np nr nu nz om pa pe pf pg ph pk pl pm pn pr ps pt pw py qa re ro rs ru rw sa sb sc sd se sg sh si sj sk sl sm sn so sr ss st sv sx sy sz tc td tf tg th tj tk tl tm tn to tr tt tv tw tz ua ug um us uy uz va vc ve vg vi vn vu wf ws ye yt za zm zw'.split())
+
+
+def normalize_text(value):
+    return ' '.join(unicodedata.normalize('NFKC',value).casefold().split())
+
+
+def compact(value): return normalize_text(value or '').replace(' ','')
+
+
+def coordinates_valid(coords):
+    return isinstance(coords,(list,tuple)) and len(coords)==2 and all(type(v) in (int,float) and math.isfinite(v) for v in coords) and -180<=coords[0]<=180 and -90<=coords[1]<=90
+
+
+def distance(a,b):
+    lon1,lat1,lon2,lat2=map(math.radians,(*a,*b))
+    h=math.sin((lat2-lat1)/2)**2+math.cos(lat1)*math.cos(lat2)*math.sin((lon2-lon1)/2)**2
+    return 6371000*2*math.asin(min(1,math.sqrt(h)))
+
+
+class EvidenceResolver:
+    def __init__(self,store,searches,thread_id,messages):
+        self.store,self.searches,self.thread_id,self.messages=store,searches,thread_id,messages
+
+    def resolve(self,request):
+        request={k:v for k,v in request.items() if v is not None}
+        for key in ('query','brand','branch','locality','landmark','country_code'):
+            if key not in request: continue
+            val=request[key]
+            if not isinstance(val,str) or not 1<=len(val.strip())<=200: raise ValidationError(key,'店舗名・地域は200文字以内で指定してください。')
+            request[key]=normalize_text(val)
+        if not isinstance(request.get('query'),str): raise ValidationError('query','検索語が必要です。')
+        if not isinstance(request.get('place_id'),str) or not 1<=len(request['place_id'])<=100: raise ValidationError('placeId','仮地点IDが必要です。')
+        if request.get('country_code') and request['country_code'] not in ISO_COUNTRIES: raise ValidationError('country_code','国コードが不正です。')
+        evidence=request.get('evidence',[])
+        if not isinstance(evidence,list) or len(evidence)>12: raise ValidationError('evidence','検索の根拠を確認してください。')
+        with self.store._connection() as c: state=read_state(c)
+        users={m.get('id'):m.get('text','') for m in self.messages if m.get('role')=='user'}
+        values={}; region=None
+        for e in evidence:
+            if not isinstance(e,dict) or set(e)!={'field','source','source_id','value'} or e['field'] not in ('brand','branch','locality','landmark','country_code') or not all(isinstance(v,str) for v in e.values()):
+                raise ValidationError('evidence','根拠の形式が不正です。')
+            source=e['source']; sid=e['source_id']; value=normalize_text(e['value'])
+            if not value or len(value)>200: raise ValidationError('evidence','根拠が空か長すぎます。')
+            if source=='user_message': data=users.get(sid)
+            elif source=='transaction': data=state['transactions'].get(sid)
+            elif source=='saved_place': data=state['timeline']['places'].get(sid)
+            elif source=='search':
+                try: data=self.searches.get(self.thread_id,sid)
+                except TrajectoryNotFound: raise ValidationError('evidence','この会話の検索記録がありません。') from None
+            else: data=None
+            if data is None: raise ValidationError('evidence','参照先がありません。')
+            def strings(d):
+                if isinstance(d,str): return [d]
+                if isinstance(d,dict): return [s for v in d.values() for s in strings(v)]
+                if isinstance(d,list): return [s for v in d for s in strings(v)]
+                return []
+            if not any(compact(value) in compact(s) for s in strings(data)): raise ValidationError('evidence','引用された根拠が一致しません。')
+            values.setdefault(e['field'],set()).add(value)
+            if source=='saved_place' and coordinates_valid(data.get('coordinates')):
+                region={'kind':'point','coordinates':data['coordinates'],'source_id':sid}
+        conflicts=[key for key,items in values.items() if len(items)>1 or request.get(key) not in items]
+        if conflicts:
+            return {'request':request,'saved_places':[],'region':None,'category':None,'clarification':{'status':'needs_clarification','message':'地域や店舗の指定と過去の根拠が異なります。今回の店舗・地域を確認してください。'}}
+        for key in ('brand','branch','landmark'):
+            if request.get(key) and key not in values and compact(request[key]) not in compact(request['query']): raise ValidationError(key,'店舗名から確認できる名称か、その根拠を指定してください。')
+        for key in ('locality','country_code'):
+            if request.get(key) and key not in values: raise ValidationError(key,'地域の根拠を指定してください。')
+        saved=[{**p,'id':str(uuid.uuid4()),'savedPlaceId':sid} for sid,p in state['timeline']['places'].items()]
+        name=request['query']+' '+request.get('brand','')
+        category='catering.cafe' if any(word in name for word in ('コーヒー','カフェ','coffee','cafe','café')) else None
+        return {'request':request,'saved_places':saved,'region':region,'clarification':None,'category':category}
+
+
+def resolve_region(places,request):
+    target=compact(request.get('landmark') or request.get('locality') or '')
+    stem=target.removesuffix('駅')
+    matches=[]; seen=set()
+    for p in places:
+        if not coordinates_valid(p.get('coordinates')): continue
+        if request.get('country_code') and p.get('country_code')!=request['country_code']: continue
+        name=compact(p.get('name',''))
+        if not name or not target: continue
+        if request.get('landmark'):
+            if name.removesuffix('駅')!=stem and not name.startswith(stem+'('): continue
+        elif target not in compact(' '.join(str(p.get(k) or '') for k in ('name','city','district'))): continue
+        identity=p.get('providerId') or (name,tuple(p['coordinates']))
+        if identity in seen: continue
+        seen.add(identity);matches.append(p)
+    if len(matches)!=1:
+        return {'region':None,'clarification':{'status':'needs_clarification' if matches else 'needs_region','message':'駅・地域を一つに特定できません。市区町村や住所を教えてください。'}}
+    p=matches[0]
+    region={k:p.get(k,'') for k in ('country_code','city','district')}
+    region['source_id']=p.get('providerId') or p['id']
+    if p.get('boundary_id') and not request.get('landmark'): region.update(kind='boundary',provider_id=p['boundary_id'])
+    else:
+        if not request.get('landmark') and p.get('result_type') in ('city','suburb','district','state','county','country'):
+            return {'region':None,'clarification':{'status':'needs_region','message':'地域の境界が取得できません。駅名や住所を教えてください。'}}
+        region.update(kind='point',coordinates=p['coordinates'])
+    if not region['district'] and request.get('landmark'):
+        suffix=re.search(r'[（(]([^()（）]+)[)）]',p.get('name',''))
+        if suffix: region['district']=suffix.group(1)
+    return {'region':region,'clarification':None}
+
+
+def short_query(request,region):
+    parts=[request.get('brand') or request['query'],region.get('city'),region.get('district')]
+    return ' '.join(dict.fromkeys(p for p in parts if p))[:200]
+
+
+def match_candidates(places,request,region):
+    accepted=[];excluded=[];seen=set()
+    brand=compact(request.get('brand') or request['query']); branch=compact(request.get('branch',''))
+    for order,p in enumerate(places):
+        reasons=[];notes=[];coords=p.get('coordinates')
+        if not coordinates_valid(coords): reasons.append('invalid_coordinates')
+        name=compact(p.get('name','')); address=compact(p.get('address',''))
+        if not name or brand not in name: reasons.append('name_mismatch')
+        if branch and branch not in name and name.endswith('店'): reasons.append('different_branch')
+        if region:
+            for key in ('country_code','city'):
+                if region.get(key) and p.get(key) and compact(region[key])!=compact(p[key]): reasons.append(key+'_mismatch')
+            if region['kind']=='point' and coordinates_valid(coords) and distance(coords,region['coordinates'])>1000: reasons.append('outside_region')
+        if reasons:
+            excluded.append({'candidate':p,'reasons':reasons});continue
+        identity=p.get('providerId') or (name,address,tuple(coords))
+        if identity in seen: continue
+        seen.add(identity)
+        region_match=bool(region and address and (region['kind']=='point' or (region.get('city') and compact(region['city'])==compact(p.get('city','')))))
+        if not region_match: notes.append('region_unconfirmed')
+        if branch and branch not in name: notes.append('branch_unconfirmed')
+        exact=(branch in name if branch else compact(request['query'])==name) and region_match
+        candidate={k:p.get(k) for k in ('id','providerId','name','address','coordinates','sourceUrl','attribution','savedPlaceId') if p.get(k) is not None}
+        candidate.setdefault('sourceUrl','https://www.geoapify.com/');candidate.setdefault('attribution','Powered by Geoapify')
+        candidate['matchReasons']=notes or ['name_and_region_match']
+        rank=0 if exact else 2 if notes else 1
+        meters=distance(coords,region['coordinates']) if region and region.get('coordinates') else 0
+        accepted.append((rank,meters,order,candidate,exact))
+    accepted.sort(key=lambda row:row[:3])
+    return {'candidates':[row[3] for row in accepted[:5]],'excluded':excluded,'exact_match':any(row[4] for row in accepted),'truncated':len(accepted)>5}
