@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 
 from api.http import HTTPFailure, error_response
 from api.transactions import register_transactions
+from api.agent import register_agent
 from config.paths import TIMELINE_PATH
 from db.store import AlreadyInitialized, NotInitialized, Store, TrajectoryConflict, TrajectoryNotFound
 from services.trajectory_validation import load_timeline
@@ -15,7 +16,7 @@ from services.validation import ValidationError
 
 
 def create_app(db_path: Path, front_dir: Path, *, port: int = 8765,
-               timeline_path: Path = TIMELINE_PATH) -> FastAPI:
+               timeline_path: Path = TIMELINE_PATH, runner_factory=None) -> FastAPI:
     """Build an app with an isolated store for tests or local execution."""
     store = Store(db_path)
     store.seed_trajectory_once(lambda: load_timeline(timeline_path))
@@ -32,7 +33,7 @@ def create_app(db_path: Path, front_dir: Path, *, port: int = 8765,
             if request.headers.get("origin") != f"http://{host}":
                 return error_response(403, "forbidden_origin", "同じアドレスの画面から操作してください。")
         path = request.url.path
-        if (path.startswith("/api/") and path not in ("/api/status", "/api/initialize", "/api/trajectory")
+        if (path.startswith("/api/") and path not in ("/api/status", "/api/initialize", "/api/trajectory", "/api/agent/status")
                 and not path.startswith("/api/trajectory/")):
             try:
                 if not store.is_initialized():
@@ -69,6 +70,7 @@ def create_app(db_path: Path, front_dir: Path, *, port: int = 8765,
     async def handle_database_error(_request: Request, _error_value: sqlite3.Error):
         return error_response(500, "database_error", "データベースにアクセスできませんでした。")
 
+    register_agent(app, store, runner_factory)
     register_transactions(app, store)
 
     @app.api_route("/api/{remaining:path}", methods=["GET", "POST", "DELETE", "PUT", "PATCH", "OPTIONS", "HEAD"])

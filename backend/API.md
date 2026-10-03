@@ -253,3 +253,18 @@ curl http://localhost:8765/api/trajectory/2026-09-19
 `PUT /api/transactions/{id}` replaces a transaction's editable fields and items while preserving its ID. The request uses the creation fields, plus optional boolean `confirmTime`. An unchanged estimated timestamp remains estimated unless explicitly confirmed. Referenced transactions cannot move to another day without a corresponding trajectory update.
 
 `GET /api/trajectory` returns `{ "dates": ["YYYY-MM-DD", ...] }` in ascending order, including before transaction initialization. It reflects SQLite changes immediately and returns `Cache-Control: no-store`.
+
+## Agent
+
+すべて同じローカル Host / Origin 制約、JSONエラー形式、`Cache-Control: no-store` を使用します。
+
+- `GET /api/agent/status` → `{available, missing, message}`。モデル未設定でも取得可能。
+- `GET /api/agent/threads` → `{threads}`。`POST` に `{}` → `201 {thread}`。
+- `GET /api/agent/threads/{id}` → `{thread}`（messages, proposals含む）。`DELETE` → `204`。適用済み監査記録と取引は残ります。
+- `POST /api/agent/threads/{id}/messages` に `{clientMessageId,text,receiptId?}` → `{message,proposal}`。再送時は同じIDと本文を使います。会話内の同時送信は409。
+- `GET /api/agent/proposals/{id}` → `{proposal}`。
+- `PUT /api/agent/proposals/{id}` に `{revision,commands}` → `{proposal}`。版が増え、再確認が必要。
+- `POST /api/agent/proposals/{id}/approve` に `{revision}` → `{result}`。一括保存、同じ版の再送は同じ結果。
+- `POST /api/agent/proposals/{id}/reject` に `{revision}` → `{proposal}`。
+
+未設定503、モデル通信失敗502、時間切れ504、回数超過422。元データ・版・状態の競合は409です。生成中に家計データが変わった場合も409として再送を案内します。モデルは書き込み接続を持ちません。

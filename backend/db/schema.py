@@ -213,6 +213,11 @@ def _create_agent_tables(connection: sqlite3.Connection) -> None:
             created_at REAL NOT NULL, expires_at REAL NOT NULL, applied_at REAL,
             result_json TEXT, before_json TEXT NOT NULL DEFAULT '[]', after_json TEXT NOT NULL DEFAULT '[]',
             metadata_json TEXT NOT NULL DEFAULT '{}')''',
+        '''CREATE TABLE IF NOT EXISTS agent_turns (
+            thread_id TEXT NOT NULL REFERENCES agent_threads(id) ON DELETE CASCADE,
+            client_message_id TEXT NOT NULL, input_json TEXT NOT NULL, token TEXT NOT NULL,
+            status TEXT NOT NULL, started_at REAL NOT NULL, result_json TEXT,
+            PRIMARY KEY(thread_id, client_message_id))''',
         'CREATE INDEX IF NOT EXISTS agent_messages_thread ON agent_messages(thread_id, created_at)',
         'CREATE INDEX IF NOT EXISTS agent_proposals_thread ON agent_proposals(thread_id, created_at)',
     ):

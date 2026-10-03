@@ -69,3 +69,9 @@ backend/.venv/bin/python backend/replace_samples.py \
 - `config/`: Python実行環境の検査と、作業ディレクトリに依存しない既定パス。
 
 上記のサーバー起動・サンプル置換コマンドは引き続き利用できます。テストでは実DBを避けるため、`KAKEI_DB_PATH=/private/tmp/kakei-backend-layout-tests.sqlite3 backend/.venv/bin/python -m unittest discover -s backend/tests -v` を使ってください。
+
+## Agent Chat
+
+サーバー環境に `OPENAI_API_KEY` と `KAKEI_AGENT_MODEL`（利用可能な OpenAI の画像入力対応モデル名）を設定して起動します。キーをフロントの環境変数に入れないでください。未設定でも既存機能と承認済みデータは利用できます。LangChain 1.4.3 / langchain-openai 1.6.7 を使用します。
+
+1ターンは60秒・8ツール呼び出しまで。外部 LangSmith tracing は各ターンで無効にしています。会話の直近20件と必要な公開SQLの結果をモデルに送ります。取引・軌跡は変更案の承認時だけ保存されます。変更案は24時間で期限切れになります。同じ送信IDや承認IDの再送は保存済み結果を返します。

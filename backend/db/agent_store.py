@@ -91,21 +91,76 @@ class AgentStore:
                 c.execute("UPDATE agent_threads SET title = ? WHERE id = ? AND title = '新しい会話'", (text[:40], thread_id))
             return {'id': identifier, 'role': role, 'text': text, 'createdAt': now}
 
-    def create_proposal(self, thread_id, commands, baselines):
+    def create_proposal(self, thread_id, commands, baselines=None):
+        with self.store._connection() as c:
+            c.execute('BEGIN IMMEDIATE')
+            return self._create_proposal(c, thread_id, commands)
+
+    def _create_proposal(self, c, thread_id, commands):
         from services.agent_changes import prepare_changes
         commands = command_dicts(commands)
         identifier, now = str(uuid.uuid4()), time.time()
+        self._thread(c, thread_id)
+        self._expire(c)
+        preview = prepare_changes(c, commands)
+        c.execute("""INSERT INTO agent_proposals
+            (id, thread_id, revision, status, commands_json, baselines_json, created_at, expires_at, before_json, after_json)
+            VALUES (?, ?, 1, 'pending', ?, ?, ?, ?, ?, ?)""",
+            (identifier, thread_id, dumps(commands), dumps(preview['baselines']), now, now + 86400,
+             dumps(preview['before']), dumps(preview['after'])))
+        return proposal_record(c.execute('SELECT * FROM agent_proposals WHERE id = ?', (identifier,)).fetchone())
+
+    def begin_turn(self, thread_id, client_id, text, receipt_id=None):
+        if (not isinstance(client_id, str) or not 1 <= len(client_id) <= 200
+                or not isinstance(text, str) or not text.strip() or len(text) > 16000
+                or (receipt_id is not None and not isinstance(receipt_id, str))):
+            raise ValidationError('message', 'メッセージの形式を確認してください。')
+        encoded = dumps({'text': text, 'receiptId': receipt_id})
         with self.store._connection() as c:
             c.execute('BEGIN IMMEDIATE')
             self._thread(c, thread_id)
-            self._expire(c)
-            preview = prepare_changes(c, commands)
-            c.execute('''INSERT INTO agent_proposals
-                (id, thread_id, revision, status, commands_json, baselines_json, created_at, expires_at, before_json, after_json)
-                VALUES (?, ?, 1, 'pending', ?, ?, ?, ?, ?, ?)''',
-                      (identifier, thread_id, dumps(commands), dumps(preview['baselines']), now, now + 86400,
-                       dumps(preview['before']), dumps(preview['after'])))
-            return proposal_record(c.execute('SELECT * FROM agent_proposals WHERE id = ?', (identifier,)).fetchone())
+            old = c.execute('SELECT * FROM agent_turns WHERE thread_id=? AND client_message_id=?', (thread_id, client_id)).fetchone()
+            if old:
+                if old['input_json'] != encoded:
+                    raise TrajectoryConflict('同じ送信IDで内容を変更できません。')
+                if old['status'] == 'complete':
+                    return {'cached': json.loads(old['result_json'])}
+            if c.execute("SELECT 1 FROM agent_turns WHERE thread_id=? AND status='processing' AND started_at>?", (thread_id, time.time()-70)).fetchone():
+                raise TrajectoryConflict('応答を作成中です。少し待って再送してください。')
+            token = str(uuid.uuid4())
+            c.execute("INSERT OR REPLACE INTO agent_turns VALUES (?, ?, ?, ?, 'processing', ?, NULL)", (thread_id, client_id, encoded, token, time.time()))
+            c.execute('INSERT OR IGNORE INTO agent_messages VALUES (?, ?, ?, ?, ?, ?)', (str(uuid.uuid4()), thread_id, 'user:'+client_id, 'user', text, time.time()))
+            c.execute("UPDATE agent_threads SET title=? WHERE id=? AND title='新しい会話'", (text[:40], thread_id))
+            from services.agent_changes import canonical, read_state
+            import hashlib
+            version = hashlib.sha256(canonical(read_state(c)).encode()).hexdigest()
+            return {'token': token, 'sourceVersion': version}
+
+    def fail_turn(self, thread_id, client_id, token):
+        with self.store._connection() as c:
+            c.execute("UPDATE agent_turns SET status='failed' WHERE thread_id=? AND client_message_id=? AND token=? AND status='processing'", (thread_id, client_id, token))
+
+    def complete_turn(self, thread_id, client_id, lease, result):
+        from services.agent_changes import canonical, read_state
+        import hashlib
+        text = result.get('text')
+        if not isinstance(text, str) or not 1 <= len(text) <= 16000:
+            raise ValidationError('message', '応答の形式が正しくありません。')
+        with self.store._connection() as c:
+            c.execute('BEGIN IMMEDIATE')
+            row = c.execute('SELECT * FROM agent_turns WHERE thread_id=? AND client_message_id=?', (thread_id, client_id)).fetchone()
+            if not row or row['token'] != lease['token'] or row['status'] != 'processing':
+                raise TrajectoryConflict('この応答は無効になりました。再送してください。')
+            proposal = None
+            if result.get('commands'):
+                if hashlib.sha256(canonical(read_state(c)).encode()).hexdigest() != lease['sourceVersion']:
+                    raise TrajectoryConflict('応答中に元データが変更されました。再送してください。')
+                proposal = self._create_proposal(c, thread_id, result['commands'])
+            message = {'id': str(uuid.uuid4()), 'role': 'assistant', 'text': text, 'createdAt': time.time()}
+            c.execute('INSERT INTO agent_messages VALUES (?, ?, ?, ?, ?, ?)', (message['id'], thread_id, 'assistant:'+client_id, 'assistant', text, message['createdAt']))
+            response = {'message': message, 'proposal': proposal}
+            c.execute("UPDATE agent_turns SET status='complete', result_json=? WHERE thread_id=? AND client_message_id=?", (dumps(response), thread_id, client_id))
+            return response
 
     def get_proposal(self, proposal_id):
         with self.store._connection() as c:
@@ -118,6 +173,8 @@ class AgentStore:
     def revise_proposal(self, proposal_id, expected_revision, commands):
         from services.agent_changes import prepare_changes
         commands = command_dicts(commands)
+        if type(expected_revision) is not int:
+            raise ValidationError('revision', '確認した版を指定してください。')
         with self.store._connection() as c:
             c.execute('BEGIN IMMEDIATE')
             self._expire(c)
