@@ -60,6 +60,9 @@ def prepare_changes(connection, commands):
             old = state['transactions'].get(identifier)
             if action == 'update' and old is None:
                 raise TrajectoryNotFound('取引が見つかりません。')
+            receipt_ids = draft.pop('receiptIds', [])
+            if not isinstance(receipt_ids, list) or len(receipt_ids) > 8 or any(not isinstance(i, str) for i in receipt_ids):
+                raise ValidationError('receiptIds', 'レシートの指定を確認してください。')
             confirm = draft.pop('confirmTime', False)
             if type(confirm) is not bool:
                 raise ValidationError('confirmTime', '時刻の確認を選択してください。')
@@ -67,6 +70,8 @@ def prepare_changes(connection, commands):
             if old and old['date'] == record['date'] and not confirm:
                 record['timeEstimated'] = old['timeEstimated']
             before.append(copy.deepcopy(old))
+            if receipt_ids:
+                record['receiptIds'] = receipt_ids
             after.append(record)
             state['transactions'][identifier] = record
             changed_transactions.add(identifier)
@@ -172,6 +177,8 @@ def apply_proposal(connection, proposal_id, revision):
                 Store._insert(connection, record)
             else:
                 Store._update(connection, record)
+            from db.receipt_store import ReceiptStore
+            ReceiptStore.attach(connection, command['data'].get('receiptIds', []), record['id'], row['thread_id'])
             changed.append(record)
     if any(c['kind'].startswith('trajectory.') for c in preview['commands']):
         replace_trajectory(connection, resolve_ids(preview['state']['timeline'], mapping))

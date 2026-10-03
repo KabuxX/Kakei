@@ -273,3 +273,5 @@ curl http://localhost:8765/api/trajectory/2026-09-19
 
 `POST /api/agent/threads/{id}/receipts` は multipart の `file` 一つを受け取り、`201 {id,mimeType,sha256,pageCount,createdAt,duplicateReceiptIds}` を返します。JPEG/PNG/WebP/PDF、10 MiB以内、PDFは暗号化なし・3ページまで。拡張子と実内容が違うもの、破損、画像末尾への付加データを拒否します。
 `GET /api/agent/threads/{id}/receipts/{receiptId}` は同じ会話のプレビュー、`GET /api/receipts/{id}` は取引に保存済みのファイルだけを返します。未保存ファイルは24時間で削除されます。
+
+`GET /api/transactions/{id}/receipts` → `{receipts:[{id,mimeType,sha256,pageCount,createdAt}]}`。取引操作の変更案は `data.receiptIds` に同じ会話の未保存レシートIDを持てます。取引と添付は同じトランザクションで保存され、再承認でも増えません。却下・期限切れ・会話削除で未保存バイトを削除し、取引削除ではその添付も削除します。

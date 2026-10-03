@@ -105,6 +105,8 @@ class AgentStore:
         identifier, now = str(uuid.uuid4()), time.time()
         self._thread(c, thread_id)
         self._expire(c)
+        from db.receipt_store import ReceiptStore
+        ReceiptStore.validate_commands(c, commands, thread_id)
         preview = prepare_changes(c, commands)
         c.execute("""INSERT INTO agent_proposals
             (id, thread_id, revision, status, commands_json, baselines_json, created_at, expires_at, before_json, after_json)
@@ -183,7 +185,9 @@ class AgentStore:
         with self.store._connection() as c:
             c.execute('BEGIN IMMEDIATE')
             self._expire(c)
-            self._pending(c, proposal_id, expected_revision)
+            row = self._pending(c, proposal_id, expected_revision)
+            from db.receipt_store import ReceiptStore
+            ReceiptStore.validate_commands(c, commands, row['thread_id'])
             preview = prepare_changes(c, commands)
             c.execute('''UPDATE agent_proposals SET commands_json = ?, revision = revision + 1,
                 baselines_json = ?, before_json = ?, after_json = ? WHERE id = ?''',
@@ -199,6 +203,8 @@ class AgentStore:
                 raise TrajectoryNotFound('変更案が見つかりません。')
             if row['status'] != 'rejected':
                 self._pending(c, proposal_id, revision)
+                from db.receipt_store import ReceiptStore
+                ReceiptStore.discard_proposal(c, json.loads(row['commands_json']))
                 c.execute("UPDATE agent_proposals SET status = 'rejected' WHERE id = ?", (proposal_id,))
             return proposal_record(c.execute('SELECT * FROM agent_proposals WHERE id = ?', (proposal_id,)).fetchone())
 

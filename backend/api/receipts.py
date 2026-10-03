@@ -41,6 +41,10 @@ def register_receipts(app,store):
         if not asset or asset['thread_id']!=thread_id:raise TrajectoryNotFound('レシートが見つかりません。')
         return file_response(asset)
 
+    @app.get('/api/transactions/{transaction_id}/receipts')
+    def list_receipts(transaction_id:str):
+        return json_response(200,{'receipts':receipts.list_for_transaction(transaction_id)})
+
     @app.get('/api/receipts/{receipt_id}')
     def approved(receipt_id:str):
         asset=receipts.get_asset(receipt_id)

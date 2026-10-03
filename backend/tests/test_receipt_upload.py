@@ -49,3 +49,35 @@ class ReceiptUploadTests(unittest.TestCase):
         self.assertIsNone(self.receipts.get_asset(identifier))
         identifier=self.upload().json()['id'];self.agent.delete_thread(self.thread)
         self.assertIsNone(self.receipts.get_asset(identifier))
+
+    def receipt_proposal(self, receipt_id, thread=None, target=None):
+        draft={'title':'食材','date':'2026-10-03T12:00','type':'expense','category':'食費','merchant':'店','amount':100,'paymentMethod':'cash','receiptIds':[receipt_id]}
+        return self.agent.create_proposal(thread or self.thread,[{'kind':'transaction.update' if target else 'transaction.create','identity':{'id':target} if target else {},'data':draft}])
+    def test_approval_attaches_receipt_once_and_delete_cleans_asset(self):
+        identifier=self.upload().json()['id'];proposal=self.receipt_proposal(identifier)
+        first=self.app.state.store.apply_agent_proposal(proposal['id'],1)
+        self.assertEqual(first,self.app.state.store.apply_agent_proposal(proposal['id'],1))
+        tx=first['transactions'][0]['id']
+        self.assertEqual(self.receipts.list_for_transaction(tx)[0]['id'],identifier)
+        self.assertEqual(self.client.get('/api/receipts/'+identifier).content,png())
+        self.assertEqual(self.client.get('/api/transactions/'+tx+'/receipts').json()['receipts'][0]['id'],identifier)
+        self.app.state.store.delete_transaction(tx);self.assertIsNone(self.receipts.get_asset(identifier))
+    def test_reject_discards_pending_and_wrong_thread_fails(self):
+        identifier=self.upload().json()['id'];other=self.agent.create_thread()['id']
+        with self.assertRaises((ValidationError,ValueError)):
+            self.receipt_proposal(identifier,thread=other)
+        proposal=self.receipt_proposal(identifier);self.agent.reject_proposal(proposal['id'],1)
+        self.assertIsNone(self.receipts.get_asset(identifier))
+    def test_rollback_keeps_pending_receipt(self):
+        from unittest.mock import patch
+        identifier=self.upload().json()['id'];proposal=self.receipt_proposal(identifier)
+        with patch.object(ReceiptStore,'attach',side_effect=ValidationError('receipt','forced')),self.assertRaises(ValidationError):
+            self.app.state.store.apply_agent_proposal(proposal['id'],1)
+        self.assertEqual(self.app.state.store.list_transactions(),[])
+        self.assertIsNone(self.receipts.get_asset(identifier)['transaction_id'])
+    def test_edit_attaches_to_selected_existing_transaction(self):
+        tx=self.app.state.store.create_transaction({'title':'給与','date':'2026-10-03T12:00','type':'income','category':'収入','amount':100})
+        identifier=self.upload().json()['id'];proposal=self.receipt_proposal(identifier,target=tx['id'])
+        self.app.state.store.apply_agent_proposal(proposal['id'],1)
+        self.assertEqual(self.receipts.list_for_transaction(tx['id'])[0]['id'],identifier)
+        self.assertEqual(len(self.app.state.store.list_transactions()),1)
