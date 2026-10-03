@@ -304,3 +304,9 @@ assistantメッセージに `sources: [{id,title,url,kind,retrievedAt}]` を追�
 候補グループには `pipelineVersion: "web-mapbox-v1"`、`unlocatedCandidates`、`sources` が加わります。位置未確認の候補IDは `/places/selection` に使えません。旧候補IDの選択は維持します。地点には任意の `sources` と `geocoding`（Mapboxの住所・精度・永久保存情報）が追加され、軌跡読込と更新で保持します。
 
 Agent処理期限120秒、processingリース130秒。検索停止でも保存済み検索履歴を参照できます。設定不足時も会話や既存地点の利用は可能で、追加の検索設定は `placesMissing` に返します。HTTP応答で資格情報を返しません。
+
+### 住所表記の再検索と利用者による位置確認
+
+`search_place.address_format` は `original`（省略時）、`without_postcode`、`japanese`。日本の同じ住所の表記を変えてMapboxへ再照会する。同一turn・同一店舗条件のWeb調査と抽出は共有し、座標照会は形式別に予算内で実施。海外住所は元の表記を維持する。`reuse_search_id` は結果のコピーで、再照会ではない。
+
+日本の住所点が国・地域・番地と一致し一意でも、Mapboxの照合情報だけが未確認の場合、候補の `geocoding.verification` は `needs_confirmation`。選択APIで `{revision,candidateId,confirmed:true}` が必要で、未確認・文字列・数値は拒否する。選択後は `user_confirmed` として保存し、元の `matchCode` を変更しない。旧候補の選択には追加属性不要。別番地・郵便番号矛盾・国不一致・街区中心・複数の住所点は引き続き選択不可。

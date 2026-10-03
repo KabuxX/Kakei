@@ -43,3 +43,17 @@ class PlacesTests(unittest.TestCase):
    day=store.get_trajectory_day('2027-01-04')
    self.assertEqual(day['days'][0]['events'][0]['placeId'],'saved')
    self.assertNotIn('unknown-store',day['places'])
+ def test_review_candidate_requires_confirmation_and_keeps_provenance(self):
+  from web_place_fixtures import PLACE
+  with tempfile.TemporaryDirectory() as directory:
+   path=Path(directory)/'db';store=Store(path);store.initialize([]);agent=AgentStore(path);thread=agent.create_thread()['id']
+   candidate={**PLACE,'id':'review','geocoding':{**PLACE['geocoding'],'verification':'needs_confirmation','matchCode':{'address_number':'unmatched'}}}
+   p=agent.create_proposal(thread,[COMMAND],place_candidates=[{'placeId':'unknown-store','query':'店舗','candidates':[candidate]}])
+   for confirmed in (False,'true',1):
+    with self.assertRaises(ValidationError):agent.select_place_candidate(p['id'],1,'review',confirmed=confirmed)
+   p=agent.select_place_candidate(p['id'],1,'review',confirmed=True)
+   store.apply_agent_proposal(p['id'],p['revision'])
+   saved=store.get_trajectory_day('2027-01-04')['places']['unknown-store']
+   self.assertEqual(saved['geocoding']['verification'],'user_confirmed')
+   self.assertEqual(saved['geocoding']['matchCode']['address_number'],'unmatched')
+   self.assertEqual(saved['coordinates'],PLACE['coordinates'])

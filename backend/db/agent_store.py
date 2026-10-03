@@ -273,14 +273,14 @@ class AgentStore:
             proposal['metadata'] = metadata
             return proposal
 
-    def select_place_candidate(self, proposal_id, revision, candidate_id=None, *, manual=None, place_id=None):
+    def select_place_candidate(self, proposal_id, revision, candidate_id=None, *, manual=None, place_id=None, confirmed=False):
         from services.agent_places import choose, preview as place_preview
         if type(revision) is not int:
             raise ValidationError('revision', '確認した版を指定してください。')
         with self.store._connection() as c:
             c.execute('BEGIN IMMEDIATE')
             row = self._pending(c, proposal_id, revision)
-            commands, metadata = choose(c, json.loads(row['commands_json']), json.loads(row['metadata_json']), candidate_id, manual, place_id)
+            commands, metadata = choose(c, json.loads(row['commands_json']), json.loads(row['metadata_json']), candidate_id, manual, place_id, confirmed)
             values = place_preview(c, commands, metadata)
             c.execute("""UPDATE agent_proposals SET commands_json=?, metadata_json=?, baselines_json=?,
                 before_json=?, after_json=?, revision=revision+1 WHERE id=?""",

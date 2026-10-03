@@ -49,7 +49,7 @@ class SearchBudget:
         if tasks:await asyncio.gather(*tasks,return_exceptions=True)
 
 def conditions(request):
-    return {k:v for k,v in request.items() if k not in ('place_id','reuse_search_id','evidence','refresh')}
+    return {'address_format':'original',**{k:v for k,v in request.items() if k not in ('place_id','reuse_search_id','evidence','refresh')}}
 
 def store_reasons(place,request,region):
     reasons=[];name=compact(place.get('name'));brand=compact(request.get('brand') or request['query'])
@@ -117,7 +117,7 @@ class PlaceSearchService:
         def start(stage,params):
             a={'id':str(uuid.uuid4()),'stage':stage,'params':params,'startedAt':time.time(),'status':'running'};attempts.append(a);self.searches.record_attempt(self.context,sid,a);return a
         def record(a,**values):a.update(values);self.searches.record_attempt(self.context,sid,a)
-        key=json.dumps(conditions(request),ensure_ascii=False,sort_keys=True)
+        key=json.dumps({k:v for k,v in conditions(request).items() if k!='address_format'},ensure_ascii=False,sort_keys=True)
         children=[]
         try:
             a=start('web',conditions(request))
@@ -136,12 +136,13 @@ class PlaceSearchService:
                 try:
                     if reasons:result={'candidates':[],'unresolved':reasons}
                     else:
-                        geo_key=json.dumps({k:p[k] for k in ('address','country_code','locality')},ensure_ascii=False,sort_keys=True)
+                        p={**p,'address_format':request.get('address_format','original')}
+                        geo_key=json.dumps({k:p[k] for k in ('address','country_code','locality','address_format')},ensure_ascii=False,sort_keys=True)
                         result=await self.budget.run('geocode',geo_key,lambda t:self.geocoder.geocode(p,timeout=t))
                     if result['candidates']:
                         c=result['candidates'][0];reasons=store_reasons({**p,**c},request,resolved['region'])
                         if not reasons:
-                            out['candidates'].append({'id':p['id'],'name':p['name'],'address':p['address'],**c,'sources':p['sources'],'sourceUrl':p['sources'][0]['url'],'attribution':'© Mapbox','matchReasons':['address_verified']+(['interpolated'] if c['geocoding']['accuracy']=='interpolated' else [])})
+                            out['candidates'].append({'id':p['id'],'name':p['name'],'address':p['address'],**c,'sources':p['sources'],'sourceUrl':p['sources'][0]['url'],'attribution':'© Mapbox','matchReasons':(['user_confirmation_required'] if c['geocoding'].get('verification')=='needs_confirmation' else ['address_verified'])+(['interpolated'] if c['geocoding']['accuracy']=='interpolated' else [])})
                     else:reasons=result['unresolved']
                     item.update(status='complete',result=result)
                 except (PlaceProviderError,SearchLimit) as e:

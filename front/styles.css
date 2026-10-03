@@ -243,3 +243,8 @@
 .agent-unlocated article { padding: 12px 0; border-bottom: 1px solid #d5deed; overflow-wrap: anywhere; }
 .agent-unlocated p { font-size: 13px; line-height: 1.6; }
 .trajectory-source { display: block; }
+
+.agent-coordinate-review { width:100%; padding:12px; border-radius:12px; background:#ebf0f8; font-size:13px; line-height:1.6; overflow-wrap:anywhere; }
+.agent-coordinate-review p { margin:0 0 8px; }
+.agent-coordinate-review a { color:#405ab5; text-decoration:underline; text-underline-offset:3px; }
+.agent-coordinate-review a:focus-visible { outline:2px solid #415eee; outline-offset:3px; }

@@ -23,6 +23,7 @@ class SearchInput(TypedDict):
     evidence: NotRequired[list[Evidence]]
     reuse_search_id: NotRequired[str | None]
     refresh: NotRequired[bool]
+    address_format: NotRequired[str]
 
 class Candidate(TypedDict, total=False):
     id: str

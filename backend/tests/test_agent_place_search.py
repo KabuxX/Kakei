@@ -149,3 +149,10 @@ class SearchTests(unittest.IsolatedAsyncioTestCase):
         self.assertGreater(out.get('omittedCandidates',0)+out.get('omittedSources',0),0)
         self.assertEqual({s['id'] for s in out['sources']},{s['id'] for c in out['candidates'] for s in c['sources']})
         for c in out['candidates']:validate_sources(c['sources'])
+    async def test_format_retry_reuses_web_facts_but_retries_geocoding(self):
+        self.geocoder.error=PlaceProviderError('network')
+        await self.service.search({**self.req,'address_format':'original'})
+        await self.service.search({**self.req,'address_format':'japanese'})
+        self.assertEqual(len(self.provider.calls),2)
+        self.assertEqual(len(self.geocoder.calls),2)
+        with self.assertRaises(ValidationError):await self.service.search({**self.req,'address_format':'invented'})

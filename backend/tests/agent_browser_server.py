@@ -12,7 +12,7 @@ class BrowserRunner:
             from web_place_fixtures import SOURCE,PLACE
             result={'text':'店舗を確認しました [source:s1]','sources':[SOURCE],'commands':[]}
             if '軌跡' in messages[-1]['text']:
-                result.update(commands=[{'kind':'trajectory.create','identity':{'kind':'day','date':'2027-01-05'},'data':{'events':[{'id':'web-event','placeId':'web-shop','time':'12:00','timeEvidence':'exact'}],'legs':[]}}],placeCandidates=[{'placeId':'web-shop','query':'店舗','candidates':[{**PLACE,'id':'web-candidate','geocoding':{**PLACE['geocoding'],'accuracy':'interpolated'}}],'unlocatedCandidates':[{'id':'unlocated','name':'住所のみ確認できた店舗','address':'福岡市中央区','sources':[SOURCE],'unresolved':['address_precision_unconfirmed']}]}])
+                result.update(commands=[{'kind':'trajectory.create','identity':{'kind':'day','date':'2027-01-05'},'data':{'events':[{'id':'web-event','placeId':'web-shop','time':'12:00','timeEvidence':'exact'}],'legs':[]}}],placeCandidates=[{'placeId':'web-shop','query':'店舗','candidates':[{**PLACE,'id':'web-candidate','geocoding':{**PLACE['geocoding'],'accuracy':'interpolated','verification':'needs_confirmation'}}],'unlocatedCandidates':[{'id':'unlocated','name':'住所のみ確認できた店舗','address':'福岡市中央区','sources':[SOURCE],'unresolved':['address_precision_unconfirmed']}]}])
             return result
         if '軌跡' in messages[-1]['text']:
             candidates=[{'id':'ny','name':'同名店','address':'New York, USA','coordinates':[-73.9,40.7],'sourceUrl':'https://www.openstreetmap.org/copyright','attribution':'© OpenStreetMap contributors'}, {'id':'london','name':'同名店','address':'London, UK','coordinates':[-0.1,51.5],'sourceUrl':'https://www.openstreetmap.org/copyright','attribution':'© OpenStreetMap contributors'}]

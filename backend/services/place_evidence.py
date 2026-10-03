@@ -41,8 +41,9 @@ def validate_place_evidence(place):
     if 'geocoding' not in place:return
     g=place['geocoding']
     fields={'provider','providerId','queryAddress','matchedAddress','featureType','accuracy','matchCode','permanent','retrievedAt'}
-    if not isinstance(g,dict) or set(g)!=fields or g['provider']!='mapbox' or g['permanent'] is not True:raise ValidationError('geocoding','座標の根拠が不正です。')
+    if not isinstance(g,dict) or (not fields<=set(g) or set(g)-fields-{'verification'}) or g['provider']!='mapbox' or g['permanent'] is not True:raise ValidationError('geocoding','座標の根拠が不正です。')
+    if 'verification' in g and g['verification'] not in ('needs_confirmation','user_confirmed'):raise ValidationError('verification','座標の確認状態が不正です。')
     for k,n in (('providerId',2048),('queryAddress',500),('matchedAddress',500),('featureType',40),('accuracy',40)):text(g[k],n,k)
     timestamp(g['retrievedAt'])
-    allowed={'confidence','address_number','street','postcode','place','region','locality','country','secondary_address','block'}
+    allowed={'confidence','address_number','street','postcode','place','region','locality','country','secondary_address','block','neighborhood'}
     if not isinstance(g['matchCode'],dict) or set(g['matchCode'])-allowed or any(not isinstance(v,str) or len(v)>40 for v in g['matchCode'].values()):raise ValidationError('matchCode','住所の照合情報が不正です。')

@@ -1,0 +1,140 @@
+[
+  {
+    "kind": "live_mapbox",
+    "format": "original",
+    "result": {
+      "candidates": [
+        {
+          "coordinates": [
+            130.3990083,
+            33.5900778
+          ],
+          "geocoding": {
+            "provider": "mapbox",
+            "providerId": "0bbc8036759975d428f64f1f4206ce9faa1e6dcf",
+            "queryAddress": "〒810-0001 福岡県福岡市中央区天神2-11-3",
+            "matchedAddress": "日本, 〒810-0001 福岡県福岡市中央区天神２丁目１１番３号",
+            "featureType": "address",
+            "accuracy": "rooftop",
+            "matchCode": {
+              "address_number": "unmatched",
+              "block": "unmatched",
+              "neighborhood": "unmatched",
+              "locality": "matched",
+              "place": "matched",
+              "postcode": "matched",
+              "region": "matched",
+              "country": "matched"
+            },
+            "permanent": true,
+            "retrievedAt": 1791036769.415874,
+            "verification": "needs_confirmation"
+          }
+        }
+      ],
+      "unresolved": []
+    }
+  },
+  {
+    "kind": "live_mapbox",
+    "format": "without_postcode",
+    "result": {
+      "candidates": [
+        {
+          "coordinates": [
+            130.3990083,
+            33.5900778
+          ],
+          "geocoding": {
+            "provider": "mapbox",
+            "providerId": "0bbc8036759975d428f64f1f4206ce9faa1e6dcf",
+            "queryAddress": "福岡県福岡市中央区天神2-11-3",
+            "matchedAddress": "日本, 〒810-0001 福岡県福岡市中央区天神２丁目１１番３号",
+            "featureType": "address",
+            "accuracy": "rooftop",
+            "matchCode": {
+              "address_number": "unmatched",
+              "block": "unmatched",
+              "neighborhood": "unmatched",
+              "locality": "matched",
+              "place": "matched",
+              "postcode": "unmatched",
+              "region": "matched",
+              "country": "matched"
+            },
+            "permanent": true,
+            "retrievedAt": 1791036769.9337769,
+            "verification": "needs_confirmation"
+          }
+        }
+      ],
+      "unresolved": []
+    }
+  },
+  {
+    "kind": "live_mapbox",
+    "format": "japanese",
+    "result": {
+      "candidates": [
+        {
+          "coordinates": [
+            130.3990083,
+            33.5900778
+          ],
+          "geocoding": {
+            "provider": "mapbox",
+            "providerId": "0bbc8036759975d428f64f1f4206ce9faa1e6dcf",
+            "queryAddress": "福岡県福岡市中央区天神2丁目11番3号",
+            "matchedAddress": "日本, 〒810-0001 福岡県福岡市中央区天神２丁目１１番３号",
+            "featureType": "address",
+            "accuracy": "rooftop",
+            "matchCode": {
+              "address_number": "matched",
+              "block": "matched",
+              "neighborhood": "matched",
+              "locality": "matched",
+              "place": "matched",
+              "postcode": "unmatched",
+              "region": "matched",
+              "country": "matched"
+            },
+            "permanent": true,
+            "retrievedAt": 1791036770.390292,
+            "verification": "needs_confirmation"
+          }
+        }
+      ],
+      "unresolved": []
+    }
+  },
+  {
+    "kind": "live_model_synthetic_tool_result",
+    "model": "gpt-6-luna",
+    "calls": [
+      {
+        "name": "search_place",
+        "args": {
+          "query": "ドトールコーヒーショップ 西鉄福岡駅店",
+          "place_id": "shop",
+          "brand": "ドトール",
+          "branch": "西鉄福岡駅店",
+          "address_format": "without_postcode"
+        },
+        "id": "call_VHag8WMgLH1SZwUWLtsoKoq4",
+        "type": "tool_call"
+      }
+    ],
+    "usage": {
+      "input_tokens": 2123,
+      "output_tokens": 74,
+      "total_tokens": 2197,
+      "input_token_details": {
+        "cache_creation": 2120,
+        "cache_read": 0
+      },
+      "output_token_details": {
+        "reasoning": 14
+      }
+    }
+  }
+]

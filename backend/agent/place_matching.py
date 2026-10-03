@@ -41,6 +41,8 @@ class EvidenceResolver:
         if not isinstance(request.get('query'),str): raise ValidationError('query','検索語が必要です。')
         if not isinstance(request.get('place_id'),str) or not 1<=len(request['place_id'])<=100: raise ValidationError('placeId','仮地点IDが必要です。')
         if request.get('country_code') and request['country_code'] not in ISO_COUNTRIES: raise ValidationError('country_code','国コードが不正です。')
+        fmt=request.setdefault('address_format','original')
+        if fmt not in ('original','without_postcode','japanese'):raise ValidationError('address_format','住所の検索形式が不正です。')
         evidence=request.get('evidence',[])
         if not isinstance(evidence,list) or len(evidence)>12: raise ValidationError('evidence','検索の根拠を確認してください。')
         with self.store._connection() as c: state=read_state(c)

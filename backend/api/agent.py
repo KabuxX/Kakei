@@ -91,9 +91,9 @@ def register_agent(app, store, runner_factory=None):
     @app.post('/api/agent/proposals/{proposal_id}/places/selection')
     async def choose_place(proposal_id: str, request: Request):
         payload = await body(request)
-        if set(payload) != {'revision', 'candidateId'}:
-            raise ValidationError('candidateId', '候補IDと版だけを指定してください。')
-        return json_response(200, {'proposal': repository.select_place_candidate(proposal_id, payload['revision'], payload['candidateId'])})
+        if not {'revision','candidateId'}<=set(payload) or set(payload)-{'revision','candidateId','confirmed'}:
+            raise ValidationError('candidateId', '候補ID、版、必要な場合は位置の確認結果を指定してください。')
+        return json_response(200, {'proposal': repository.select_place_candidate(proposal_id, payload['revision'], payload['candidateId'], confirmed=payload.get('confirmed',False))})
 
     @app.post('/api/agent/proposals/{proposal_id}/places/manual')
     async def manual_place(proposal_id: str, request: Request):

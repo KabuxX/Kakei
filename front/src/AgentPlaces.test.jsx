@@ -37,3 +37,16 @@ it('shows result truncation even when a legacy result has no error message',()=>
  render(<AgentProposal proposal={proposal} onChange={vi.fn()} onCommitted={vi.fn()} busy={false} setBusy={vi.fn()}/>);
  expect(screen.getByText(/候補3件・出典2件を省略/)).toBeTruthy();
 });
+it('requires address and map confirmation for an uncertain provider match',async()=>{
+ const candidate={id:'review',name:'店舗',address:'福岡市天神2-11-3',coordinates:[130.4,33.59],geocoding:{provider:'mapbox',verification:'needs_confirmation',matchedAddress:'日本, 福岡市天神２丁目１１番３号',accuracy:'rooftop'}};
+ const proposal={id:'p',revision:1,status:'pending',expiresAt:Date.now()/1000+86400,commands:[],before:[],after:[],metadata:{placeCandidates:[{placeId:'x',query:'店舗',candidates:[candidate]}]}};
+ api.selectPlaceCandidate.mockResolvedValue({...proposal,revision:2});
+ render(<AgentProposal proposal={proposal} onChange={vi.fn()} onCommitted={vi.fn()} busy={false} setBusy={vi.fn()}/>);
+ fireEvent.click(screen.getByRole('radio'));
+ expect(screen.getByRole('button',{name:'この地点を選ぶ'}).disabled).toBe(true);
+ expect(screen.getByRole('link',{name:/地図で位置を確認/}).getAttribute('href')).toContain('mlat=33.59');
+ expect(screen.getByText(/Mapboxの照合情報が不十分/)).toBeTruthy();
+ fireEvent.click(screen.getByRole('checkbox',{name:'住所と地図を確認しました'}));
+ fireEvent.click(screen.getByRole('button',{name:'この地点を選ぶ'}));
+ await vi.waitFor(()=>expect(api.selectPlaceCandidate).toHaveBeenCalledWith('p',1,'review',true));
+});
