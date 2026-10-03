@@ -110,7 +110,7 @@ class GeoapifyProvider:
     async def geocode(self,query,*,country_code=None,region=None,timeout):
         params={'text':query,'format':'json','limit':5,**spatial_params(region)}
         if country_code:
-            params['filter']=','.join(filter(None,(params.get('filter'),'countrycode:'+country_code)))
+            params['filter']='|'.join(filter(None,(params.get('filter'),'countrycode:'+country_code)))
         return await self._request('/v1/geocode/search',params,timeout,'results')
 
     async def nearby(self,name,*,category,region,timeout):

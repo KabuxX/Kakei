@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const shots = process.env.KAKEI_E2E_ARTIFACT_DIR || '../.superpowers/e2e';
 
 test.beforeEach(async ({ page }) => {
   await page.clock.install({ time: new Date('2026-10-02T12:00:00+09:00') });
@@ -245,10 +246,10 @@ test('agent approval survives lost response and refreshes visible app data', asy
   await page.getByRole('button',{name:'差分を更新'}).click();
   await expect(page.getByText('確認待ち · 第2版')).toBeVisible();
   await page.evaluate(()=>window.scrollTo({top:0,behavior:'instant'}));
-  await page.screenshot({animations:'disabled',path:'../.superpowers/sdd/2026-10-03-agent-chat-foundation/agent-desktop.png'});
+  await page.screenshot({animations:'disabled',path:`${shots}/agent-desktop.png`});
   await page.setViewportSize({width:390,height:844});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-  await page.screenshot({animations:'disabled',path:'../.superpowers/sdd/2026-10-03-agent-chat-foundation/agent-phone.png'});
+  await page.screenshot({animations:'disabled',path:`${shots}/agent-phone.png`});
   let count=0;
   await page.route('**/api/agent/proposals/*/approve',async route=>{
     count++; if(count===1){await route.fetch();return route.abort();}return route.continue();
@@ -263,10 +264,10 @@ test('agent approval survives lost response and refreshes visible app data', asy
   expect((await page.locator('.balance-card').boundingBox()).y).toBeLessThan(160);
   await page.evaluate(()=>window.scrollTo({top:0,behavior:'instant'}));
   expect((await page.locator('.balance-card').boundingBox()).y).toBeGreaterThanOrEqual(0);
-  await page.screenshot({animations:'disabled',path:'../.superpowers/sdd/2026-10-03-agent-chat-foundation/dashboard-phone-after-agent.png'});
+  await page.screenshot({animations:'disabled',path:`${shots}/dashboard-phone-after-agent.png`});
   await page.setViewportSize({width:1440,height:900});
   await page.clock.runFor(300);
-  await page.screenshot({animations:'disabled',path:'../.superpowers/sdd/2026-10-03-agent-chat-foundation/dashboard-desktop-after-agent.png'});
+  await page.screenshot({animations:'disabled',path:`${shots}/dashboard-desktop-after-agent.png`});
 });
 
 test('receipt upload corrects discrepancy then saves and opens attached bytes',async({page})=>{
@@ -280,15 +281,15 @@ test('receipt upload corrects discrepancy then saves and opens attached bytes',a
  await expect(page.getByRole('button',{name:'変更案を確認'})).toBeDisabled();
  await page.getByRole('combobox',{name:'保存先'}).selectOption('new');
  await page.getByRole('button',{name:'品目を保存しない'}).click();
- await page.screenshot({animations:'disabled',path:'../.superpowers/sdd/2026-10-03-agent-chat-receipts/receipt-desktop.png',fullPage:true});
+ await page.screenshot({animations:'disabled',path:`${shots}/receipt-desktop.png`,fullPage:true});
  await page.setViewportSize({width:390,height:844});
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
- await page.screenshot({animations:'disabled',path:'../.superpowers/sdd/2026-10-03-agent-chat-receipts/receipt-phone.png',fullPage:true});
+ await page.screenshot({animations:'disabled',path:`${shots}/receipt-phone.png`,fullPage:true});
  await page.getByRole('button',{name:'変更案を確認'}).click();
  await expect(page.getByRole('img',{name:'確認するレシート'})).toBeVisible();
  const original=await page.request.get(await page.getByRole('link',{name:'レシート原本を開く'}).getAttribute('href'));
  expect(original.status()).toBe(200);
- await page.screenshot({animations:'disabled',path:'../.superpowers/sdd/2026-10-03-agent-chat-receipts/receipt-approval-phone.png',fullPage:true});
+ await page.screenshot({animations:'disabled',path:`${shots}/receipt-approval-phone.png`,fullPage:true});
  await page.getByRole('button',{name:'確認して保存'}).click();
  await expect(page.getByText('保存済み',{exact:true})).toBeVisible();
  await page.getByRole('link',{name:'概要',exact:true}).click();
@@ -311,10 +312,10 @@ test('trajectory proposal binds a place and confirms order then appears in live 
  await expect(page.getByText('確認待ち · 第3版')).toBeVisible();
  await page.getByRole('button',{name:'この訪問順を確認した'}).click();
  await expect(page.getByText('確認待ち · 第4版')).toBeVisible();
- await page.screenshot({animations:'disabled',path:'../.superpowers/sdd/2026-10-03-agent-chat-trajectory/review-desktop.png',fullPage:true});
+ await page.screenshot({animations:'disabled',path:`${shots}/review-desktop.png`,fullPage:true});
  await page.setViewportSize({width:390,height:844});
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
- await page.screenshot({animations:'disabled',path:'../.superpowers/sdd/2026-10-03-agent-chat-trajectory/review-phone.png',fullPage:true});
+ await page.screenshot({animations:'disabled',path:`${shots}/review-phone.png`,fullPage:true});
  await page.getByRole('button',{name:'確認して保存'}).click();await expect(page.getByText('保存済み',{exact:true})).toBeVisible();
  await page.getByRole('link',{name:'軌跡',exact:true}).click();await page.getByRole('combobox',{name:'表示する日付'}).selectOption('2027-01-04');
  await expect(page.getByText('時刻不明 · 不明')).toHaveCount(2);
@@ -322,7 +323,7 @@ test('trajectory proposal binds a place and confirms order then appears in live 
  await expect(page.getByText('© OpenStreetMap contributors',{exact:false})).toHaveCount(2);
  await expect(page.getByText(/実際に通った経路や移動距離ではありません/)).toBeVisible();
  await page.evaluate(()=>window.scrollTo({top:0,behavior:'instant'}));
- await page.screenshot({animations:'disabled',path:'../.superpowers/sdd/2026-10-03-agent-chat-trajectory/trajectory-phone.png',fullPage:true});
+ await page.screenshot({animations:'disabled',path:`${shots}/trajectory-phone.png`,fullPage:true});
  await page.setViewportSize({width:1440,height:900});
- await page.screenshot({animations:'disabled',path:'../.superpowers/sdd/2026-10-03-agent-chat-trajectory/trajectory-desktop.png',fullPage:true});
+ await page.screenshot({animations:'disabled',path:`${shots}/trajectory-desktop.png`,fullPage:true});
 });

@@ -56,3 +56,10 @@ class ProviderTests(unittest.IsolatedAsyncioTestCase):
             return httpx.Response(200,json={'features':[]})
         async with httpx.AsyncClient(transport=httpx.MockTransport(serve)) as c:
             self.assertEqual(await GeoapifyProvider(c).nearby('cafe',category='catering.cafe',region={'kind':'boundary','provider_id':'boundary-1'},timeout=1),[])
+
+    async def test_country_and_circle_filters_use_geoapify_and_syntax(self):
+        def serve(r):
+            self.assertEqual(r.url.params['filter'],'circle:130.4,33.59,1000|countrycode:jp')
+            return httpx.Response(200,json={'results':[]})
+        async with httpx.AsyncClient(transport=httpx.MockTransport(serve)) as c:
+            await GeoapifyProvider(c).geocode('cafe',country_code='jp',region={'kind':'point','coordinates':[130.4,33.59]},timeout=1)
