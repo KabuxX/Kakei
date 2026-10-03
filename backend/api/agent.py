@@ -52,7 +52,7 @@ def register_agent(app, store, runner_factory=None):
             return json_response(200, lease['cached'])
         try:
             runner = runner_factory(store) if runner_factory else AgentRunner(store)
-            result = await asyncio.wait_for(runner.run_turn(thread_id, repository.get_thread(thread_id)['messages'], payload.get('receiptId')), 60)
+            result = await asyncio.wait_for(runner.run_turn(thread_id, repository.get_thread(thread_id)['messages'], payload.get('receiptId'), turn_context={'thread_id':thread_id,'client_message_id':client_id,'run_token':lease['token']}), 60)
             return json_response(200, repository.complete_turn(thread_id, client_id, lease, result))
         except BaseException as error:
             repository.fail_turn(thread_id, client_id, lease['token'])

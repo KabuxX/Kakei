@@ -8,7 +8,7 @@ from test_agent_changes import DRAFT
 
 class FakeRunner:
     calls = 0
-    async def run_turn(self, thread_id, messages, receipt_id=None):
+    async def run_turn(self, thread_id, messages, receipt_id=None, *, turn_context=None):
         self.calls += 1
         return {'text': '保存前に確認してください。', 'commands': [{'kind': 'transaction.create', 'identity': {}, 'data': DRAFT}]}
 
@@ -62,7 +62,7 @@ class AgentAPITests(unittest.TestCase):
 
     def test_changed_source_during_turn_retries_without_duplicate_messages(self):
         thread = self.client.post('/api/agent/threads', json={}).json()['thread']['id']
-        async def change_source(*args):
+        async def change_source(*args, **kwargs):
             self.app.state.store.create_transaction(DRAFT)
             return {'text':'確認', 'commands':[{'kind':'transaction.create','identity':{},'data':DRAFT}]}
         url = f'/api/agent/threads/{thread}/messages'
@@ -75,3 +75,15 @@ class AgentAPITests(unittest.TestCase):
         rejected = self.client.post('/api/agent/proposals/'+proposal['id']+'/reject', json={'revision':1})
         self.assertEqual(rejected.json()['proposal']['status'], 'rejected')
         self.assertEqual(len(self.client.get(f'/api/agent/threads/{thread}').json()['thread']['messages']), 2)
+
+    def test_deleted_thread_rejects_late_runner_output(self):
+        thread=self.client.post('/api/agent/threads',json={}).json()['thread']['id']
+        async def deleted(*args,**kwargs):
+            self.assertEqual(kwargs['turn_context']['thread_id'],thread)
+            from db.agent_store import AgentStore
+            AgentStore(self.app.state.store.db_path).delete_thread(thread)
+            return {'text':'完了','commands':[]}
+        with patch.object(self.runner,'run_turn',side_effect=deleted):
+            response=self.client.post(f'/api/agent/threads/{thread}/messages',json={'clientMessageId':'late','text':'検索'})
+        self.assertEqual(response.status_code,409)
+        self.assertEqual(self.client.get(f'/api/agent/threads/{thread}').status_code,404)
