@@ -13,56 +13,60 @@ class Provider:
     def __init__(self):self.calls=[];self.rows=[copy.deepcopy(WEB_PLACE)];self.error=None
     async def __aexit__(self,*args):pass
     async def research(self,request,**kwargs):
-        self.calls.append(('web',request))
+        self.calls.append(('web',{**request,'strategy':kwargs.get('strategy')}))
         if self.error:raise self.error
         return {'text':'synthetic','sources':[],'actions':[],'usage':{},'retrievedAt':1}
     async def extract(self,report,**kwargs):self.calls.append(('extract',report));return copy.deepcopy(self.rows)
-class Geocoder:
+class Verifier:
     def __init__(self):self.calls=[];self.error=None;self.block=None
     async def __aexit__(self,*args):pass
-    async def geocode(self,place,**kwargs):
+    async def verify(self,place,**kwargs):
         self.calls.append(place['address'])
         if self.block:await self.block.wait()
         if self.error:raise self.error
-        return {'candidates':[{'coordinates':[130.4,33.59],'geocoding':copy.deepcopy(GEOCODING)}],'unresolved':[]}
+        from coordinate_fixtures import PUBLISHED_PLACE
+        candidate={**copy.deepcopy(PUBLISHED_PLACE),'name':place['name'],'address':place['address'],'sources':place['sources'],'matchReasons':['store_and_address_verified']}
+        sid=place['sources'][0]['id'];candidate['coordinateEvidence']['sourceIds']=[sid];candidate['coordinateEvidence']['observations'][0]['sourceId']=sid
+        return {'candidates':[candidate],'anchors':[],'verifiedHints':[],'unresolved':[]}
+
 
 class SearchTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
         self.store,self.agent,self.ctx=active_turn(Path(self.tmp.name)/'db')
-        self.searches=AgentSearchStore(self.store.db_path);self.provider=Provider();self.geocoder=Geocoder()
+        self.searches=AgentSearchStore(self.store.db_path);self.provider=Provider();self.verifier=Verifier()
         self.resolver=EvidenceResolver(self.store,self.searches,self.ctx['thread_id'],[])
         self.budget=SearchBudget(time.monotonic()+120)
-        self.service=PlaceSearchService(self.provider,self.geocoder,self.searches,self.resolver,self.ctx,self.budget)
+        self.service=PlaceSearchService(self.provider,self.verifier,self.searches,self.resolver,self.ctx,self.budget)
         self.req={**SEARCH,'query':'ドトールコーヒーショップ 西鉄福岡駅店'}
     async def asyncTearDown(self):await self.budget.close()
-    async def test_web_to_mapbox_persists_partial_search(self):
-        self.geocoder.error=PlaceProviderError('network')
+    async def test_web_failure_persists_partial_search(self):
+        self.verifier.error=PlaceProviderError('network')
         out=await self.service.search(self.req)
         rec=self.searches.get(self.ctx['thread_id'],out['searchId'])
-        self.assertEqual(out['pipelineVersion'],'web-mapbox-v1');self.assertEqual(out['status'],'partial')
-        self.assertEqual([a['stage'] for a in rec['attempts']],['web','extract','geocode'])
+        self.assertEqual(out['pipelineVersion'],'web-coordinates-v1');self.assertEqual(out['status'],'partial')
+        self.assertEqual([a['stage'] for a in rec['attempts']][:3],['web','extract','verify'])
         self.assertEqual(out['unlocatedCandidates'][0]['address'],WEB_PLACE['address']);self.assertEqual(out['candidates'],[])
     async def test_parallel_duplicate_searches_have_distinct_ids_and_shared_requests(self):
         a,b=await asyncio.gather(self.service.search(self.req),self.service.search({**self.req,'place_id':'b'}))
-        self.assertEqual(len(self.provider.calls),2);self.assertEqual(len(self.geocoder.calls),1)
+        self.assertEqual(len(self.provider.calls),2);self.assertEqual(len(self.verifier.calls),1)
         self.assertNotEqual(a['candidates'][0]['id'],b['candidates'][0]['id']);self.assertNotEqual(a['sources'][0]['id'],b['sources'][0]['id'])
     async def test_shared_stage_budgets_and_deadlines(self):
         seen=[];running=0;maximum=0
         async def invoke(timeout):
             nonlocal running,maximum
             running+=1;maximum=max(maximum,running);seen.append(timeout);await asyncio.sleep(.001);running-=1;return []
-        for stage,limit in (('web',3),('extract',3),('geocode',10)):
+        for stage,limit in (('web',6),('extract',6),('page',16)):
             out=await asyncio.gather(*(self.budget.run(stage,str(i),invoke) for i in range(limit+1)),return_exceptions=True)
             self.assertEqual(sum(isinstance(x,SearchLimit) for x in out),1)
-        self.assertLessEqual(maximum,3)
+        self.assertLessEqual(maximum,6)
         geo_only=SearchBudget(time.monotonic()+120);maximum=0
-        await asyncio.gather(*(geo_only.run('geocode',str(i),invoke) for i in range(5)))
-        self.assertEqual(maximum,2);await geo_only.close()
-        late=SearchBudget(120,clock=lambda:111)
+        await asyncio.gather(*(geo_only.run('page',str(i),invoke) for i in range(5)))
+        self.assertEqual(maximum,3);await geo_only.close()
+        late=SearchBudget(180,clock=lambda:166)
         with self.assertRaises(SearchLimit):await late.run('web','x',invoke)
         await late.close()
-        clock=[0];timed=SearchBudget(200,clock=lambda:clock[0]);await timed.run('web','a',invoke);clock[0]=86
+        clock=[0];timed=SearchBudget(200,clock=lambda:clock[0]);await timed.run('web','a',invoke);clock[0]=146
         with self.assertRaises(SearchLimit):await timed.run('web','b',invoke)
         await timed.close()
     async def test_refresh_reuse_and_latest_region(self):
@@ -87,17 +91,21 @@ class SearchTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(out['candidates']),2)
 
     async def test_cancel_preserves_finished_attempts(self):
-        self.geocoder.block=asyncio.Event();task=asyncio.create_task(self.service.search(self.req))
-        while not self.geocoder.calls:await asyncio.sleep(.001)
+        self.verifier.block=asyncio.Event();task=asyncio.create_task(self.service.search(self.req))
+        async def started():
+            while not self.verifier.calls:
+                if task.done():await task
+                await asyncio.sleep(.001)
+        await asyncio.wait_for(started(),1)
         task.cancel()
         with self.assertRaises(asyncio.CancelledError):await task
         rec=self.searches.history(self.ctx['thread_id'])['records'][0]
         self.assertEqual(rec['status'],'cancelled');self.assertEqual(rec['attempts'][0]['status'],'complete');self.assertEqual(rec['attempts'][-1]['status'],'cancelled')
     async def test_rate_limit_stops_only_affected_provider(self):
-        self.geocoder.error=PlaceProviderError('rate_limited',stop_turn=True)
+        self.provider.error=PlaceProviderError('rate_limited',stop_turn=True)
         await self.service.search(self.req)
         await self.service.search({**self.req,'query':self.req['query']+'2'})
-        self.assertEqual(len(self.geocoder.calls),1);self.assertEqual(len(self.provider.calls),4)
+        self.assertEqual(len(self.verifier.calls),0);self.assertEqual(len(self.provider.calls),1)
     async def test_reuse_does_not_bypass_conflicting_evidence(self):
         messages=[{'id':'f','role':'user','text':'福岡市'},{'id':'t','role':'user','text':'東京'}]
         self.resolver.messages=messages
@@ -129,7 +137,7 @@ class SearchTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(candidate['sources']),1)
         validate_sources(candidate['sources'])
         with self.store._connection() as c:
-            commands,metadata=choose(c,[],{'placeCandidates':[out]},candidate_id=candidate['id'])
+            commands,metadata=choose(c,[],{'placeCandidates':[out]},candidate_id=candidate['id'],confirmed=True)
         self.assertEqual(commands[0]['data']['name'],candidate['name'])
 
     async def test_result_size_omissions_are_partial_and_explicit(self):
@@ -149,12 +157,12 @@ class SearchTests(unittest.IsolatedAsyncioTestCase):
         self.assertGreater(out.get('omittedCandidates',0)+out.get('omittedSources',0),0)
         self.assertEqual({s['id'] for s in out['sources']},{s['id'] for c in out['candidates'] for s in c['sources']})
         for c in out['candidates']:validate_sources(c['sources'])
-    async def test_format_retry_reuses_web_facts_but_retries_geocoding(self):
-        self.geocoder.error=PlaceProviderError('network')
+    async def test_address_format_is_ignored_by_new_search(self):
+        self.verifier.error=PlaceProviderError('network')
         await self.service.search({**self.req,'address_format':'original'})
         await self.service.search({**self.req,'address_format':'japanese'})
-        self.assertEqual(len(self.provider.calls),2)
-        self.assertEqual(len(self.geocoder.calls),2)
+        self.assertEqual(len(self.provider.calls),8)
+        self.assertEqual(len(self.verifier.calls),1)
         with self.assertRaises(ValidationError):await self.service.search({**self.req,'address_format':'invented'})
     async def test_same_name_new_address_cannot_reuse_old_coordinates(self):
         from test_merchant_address import DRAFT
@@ -166,5 +174,30 @@ class SearchTests(unittest.IsolatedAsyncioTestCase):
         second=await self.service.search(req('福岡市中央区天神2-11-30'))
         self.assertEqual(second['candidates'],[])
         self.assertIn('address_mismatch',second['unlocatedCandidates'][0]['unresolved'])
-        self.assertEqual(len([c for c in self.provider.calls if c[0]=='web']),2)
+        self.assertEqual(len([c for c in self.provider.calls if c[0]=='web']),5)
         with self.assertRaises(ValidationError):await self.service.search({**req('福岡市中央区天神2-11-30'),'reuse_search_id':first['searchId']})
+
+    async def test_conflicting_published_coordinates_are_not_averaged(self):
+        from agent.place_search import compare_candidates
+        from coordinate_fixtures import PUBLISHED_PLACE
+        values=compare_candidates([PUBLISHED_PLACE,{**copy.deepcopy(PUBLISHED_PLACE),'coordinates':[131,34]}])
+        self.assertEqual(len(values),2)
+        self.assertTrue(all('coordinate_conflict' in c['matchReasons'] for c in values))
+    async def test_maps_then_anchor_returns_grounded_estimate(self):
+        from coordinate_fixtures import BUILDING_HINT,ANCHOR
+        self.provider.rows[0]['hints']=[BUILDING_HINT]
+        original=self.provider.research
+        async def research(request,**kw):
+            report=await original(request,**kw);report['strategy']=kw['strategy'];return report
+        self.provider.research=research
+        async def extract(report,**kw):
+            if report['strategy']=='anchor':return [{**copy.deepcopy(WEB_PLACE),'role':'anchor','name':ANCHOR['name'],'address':ANCHOR['address'],'branch':''}]
+            return copy.deepcopy(self.provider.rows)
+        self.provider.extract=extract
+        async def verify(place,**kw):
+            return {'candidates':[],'anchors':[ANCHOR] if place.get('role')=='anchor' else [],'unresolved':[],'verifiedHints':[BUILDING_HINT] if place.get('role')!='anchor' else []}
+        self.verifier.verify=verify
+        out=await self.service.search(self.req)
+        self.assertEqual(out['candidates'][0]['coordinateEvidence']['status'],'estimated')
+        self.assertEqual(out['pipelineVersion'],'web-coordinates-v1')
+        self.assertEqual([call[1]['strategy'] for call in self.provider.calls if call[0]=='web'],['store','maps','address','anchor'])

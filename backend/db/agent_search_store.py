@@ -142,7 +142,7 @@ class AgentSearchStore:
             clean=copy.deepcopy(attempt); bounded_candidates(clean)
             index=next((i for i,a in enumerate(attempts) if a['id']==clean['id']),None)
             if index is None:
-                if len(attempts)>=4: raise ValidationError('search','検索回数の上限です。')
+                if len(attempts)>=20: raise ValidationError('search','検索回数の上限です。')
                 attempts.append(clean)
             else: attempts[index]=clean
             data=bound({'attempts':attempts},200*1024)

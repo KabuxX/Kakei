@@ -1,4 +1,4 @@
-"""Read-only web discovery followed by permanent, verified address geocoding."""
+"""Bounded Web discovery, coordinate verification and grounded estimation."""
 import asyncio,copy,json,time,uuid
 from agent.limits import SEARCH_SECONDS,FINAL_REPLY_RESERVE,STAGE_LIMITS,PIPELINE_VERSION
 from agent.place_matching import compact,coordinates_valid,locality_matches,distance
@@ -6,15 +6,17 @@ from agent.place_http import PlaceProviderError
 from db.store import TrajectoryConflict
 from services.validation import ValidationError
 from services.merchant_address import addresses_match
+from services.coordinate_evidence import rebind_candidate_sources
+from agent.coordinate_estimation import estimate_coordinates
 
 class SearchLimit(Exception):pass
 
 class SearchBudget:
     def __init__(self,turn_deadline,*,clock=time.monotonic):
         self.turn_deadline,self.clock=turn_deadline,clock;self.deadline=None
-        self.counts=dict.fromkeys(STAGE_LIMITS,0);self.stopped={};self.tasks={};self.lock=asyncio.Lock();self.geo_slots=asyncio.Semaphore(2)
+        self.counts=dict.fromkeys(STAGE_LIMITS,0);self.stopped={};self.tasks={};self.lock=asyncio.Lock();self.page_slots=asyncio.Semaphore(3)
     async def run(self,stage,key,call):
-        provider='mapbox' if stage=='geocode' else 'openai'
+        provider='pages' if stage=='page' else 'openai'
         async with self.lock:
             now=self.clock()
             if self.deadline is None:self.deadline=min(now+SEARCH_SECONDS,self.turn_deadline-FINAL_REPLY_RESERVE)
@@ -28,7 +30,7 @@ class SearchBudget:
                     acquired=False
                     try:
                         async with asyncio.timeout(max(.001,self.deadline-self.clock())):
-                            if stage=='geocode':await self.geo_slots.acquire();acquired=True
+                            if stage=='page':await self.page_slots.acquire();acquired=True
                             if provider in self.stopped:raise PlaceProviderError(self.stopped[provider],stop_turn=True)
                             remaining=self.deadline-self.clock()
                             if remaining<=0:raise SearchLimit('time_limit')
@@ -39,7 +41,20 @@ class SearchBudget:
                         if e.stop_turn:self.stopped[provider]=e.code
                         raise
                     finally:
-                        if acquired:self.geo_slots.release()
+                        if acquired:self.page_slots.release()
+                self.tasks[identity]=asyncio.create_task(invoke())
+            task=self.tasks[identity]
+        return copy.deepcopy(await asyncio.shield(task))
+    async def verify(self,key,call):
+        identity=('verify',key)
+        async with self.lock:
+            if identity not in self.tasks:
+                async def invoke():
+                    remaining=(self.deadline or min(self.clock()+SEARCH_SECONDS,self.turn_deadline-FINAL_REPLY_RESERVE))-self.clock()
+                    if remaining<=0:raise SearchLimit('time_limit')
+                    try:
+                        async with asyncio.timeout(remaining):return await call(5)
+                    except TimeoutError:raise PlaceProviderError('timeout') from None
                 self.tasks[identity]=asyncio.create_task(invoke())
             task=self.tasks[identity]
         return copy.deepcopy(await asyncio.shield(task))
@@ -50,7 +65,7 @@ class SearchBudget:
         if tasks:await asyncio.gather(*tasks,return_exceptions=True)
 
 def conditions(request):
-    return {'address_format':'original',**{k:v for k,v in request.items() if k not in ('place_id','reuse_search_id','evidence','refresh')}}
+    return {k:v for k,v in request.items() if k not in ('place_id','reuse_search_id','evidence','refresh','address_format')}
 
 def store_reasons(place,request,region):
     reasons=[];name=compact(place.get('name'));brand=compact(request.get('brand') or request['query'])
@@ -60,7 +75,7 @@ def store_reasons(place,request,region):
     if request.get('address') and not addresses_match(request['address'],place.get('address')):reasons.append('address_mismatch')
     if not locality_matches(request.get('locality'),place):reasons.append('locality_unconfirmed')
     if request.get('country_code') and place.get('country_code')!=request['country_code']:reasons.append('country_unconfirmed')
-    if region and region.get('coordinates') and coordinates_valid(place.get('coordinates')) and distance(place['coordinates'],region['coordinates'])>1000:reasons.append('outside_region')
+    if region and region.get('coordinates') and coordinates_valid(place.get('coordinates')) and place.get('coordinateEvidence',{}).get('precision')!='area' and distance(place['coordinates'],region['coordinates'])>1000:reasons.append('outside_region')
     return reasons
 
 def unique_stores(rows):
@@ -71,12 +86,13 @@ def unique_stores(rows):
         current=merged[key];urls={s['url'] for s in current.get('sources',[])}
         for s in row.get('sources',[]):
             if s['url'] not in urls and len(current['sources'])<3:current['sources'].append(s);urls.add(s['url'])
+        current['verifiedHints']=current.get('verifiedHints',[])+[h for h in row.get('verifiedHints',[]) if h not in current.get('verifiedHints',[])]
         current['unresolved']=list(dict.fromkeys(current.get('unresolved',[])+row.get('unresolved',[])))
     return list(merged.values())
 
 class PlaceSearchService:
-    def __init__(self,web,geocoder,searches,resolver,context,budget):
-        self.web,self.geocoder,self.searches,self.resolver,self.context,self.budget=web,geocoder,searches,resolver,context,budget
+    def __init__(self,web,verifier,searches,resolver,context,budget):
+        self.web,self.verifier,self.searches,self.resolver,self.context,self.budget=web,verifier,searches,resolver,context,budget
     async def search(self,request):
         resolved=self.resolver.resolve(request);request=resolved['request']
         refresh=request.get('refresh',False);reuse=request.get('reuse_search_id')
@@ -85,14 +101,13 @@ class PlaceSearchService:
         out={'pipelineVersion':PIPELINE_VERSION,'searchId':sid,'placeId':request['place_id'],'query':request['query'],'candidates':[],'unlocatedCandidates':[],'sources':[],'status':'empty','error':None,'unresolved':[],'truncated':False,'grounding':copy.deepcopy(resolved['region'])}
         source_ids={};attempts=[]
         def sources_for(rows):
-            for row in rows:
-                row['id']=str(uuid.uuid4())
-                refs={}
-                for source in row.get('sources',[]):
-                    source['id']=source_ids.setdefault(source['url'],sid+':'+str(len(source_ids)+1))
-                    refs.setdefault(source['url'],source)
-                if 'sources' in row:row['sources']=list(refs.values())
-            return rows
+            result=[]
+            for original in rows:
+                mapping={source['id']:source_ids.setdefault(source['url'],sid+':'+str(len(source_ids)+1)) for source in original.get('sources',[])}
+                row=rebind_candidate_sources(original,mapping);row['id']=str(uuid.uuid4())
+                for hint in row.get('hints',[])+row.get('verifiedHints',[]):hint['relationSourceIds']=[mapping.get(i,i) for i in hint['relationSourceIds']]
+                row['sources']=list({s['id']:s for s in row.get('sources',[])}.values());result.append(row)
+            return result
         def finish(status):
             out['status']=status
             all_sources={}
@@ -110,7 +125,7 @@ class PlaceSearchService:
             if old['result'].get('pipelineVersion')!=PIPELINE_VERSION or old['result'].get('grounding')!=resolved['region']:
                 out['unresolved']=['検索方式または地域の根拠が変わりました。再検索してください。'];return finish('needs_clarification')
             prior=copy.deepcopy(old['result']);out.update(prior);out.update(searchId=sid,placeId=request['place_id'],reusedFrom={'searchId':reuse,'createdAt':old['createdAt']})
-            sources_for(out['candidates']);sources_for(out.get('unlocatedCandidates',[]));return finish(prior['status'])
+            out['candidates']=sources_for(out['candidates']);out['unlocatedCandidates']=sources_for(out.get('unlocatedCandidates',[]));return finish(prior['status'])
         if not refresh:
             for p in resolved['saved_places']:
                 if coordinates_valid(p.get('coordinates')) and not store_reasons(p,request,resolved['region']):out['candidates'].append(p)
@@ -119,52 +134,69 @@ class PlaceSearchService:
         def start(stage,params):
             a={'id':str(uuid.uuid4()),'stage':stage,'params':params,'startedAt':time.time(),'status':'running'};attempts.append(a);self.searches.record_attempt(self.context,sid,a);return a
         def record(a,**values):a.update(values);self.searches.record_attempt(self.context,sid,a)
-        key=json.dumps({k:v for k,v in conditions(request).items() if k!='address_format'},ensure_ascii=False,sort_keys=True)
-        children=[]
+        key=json.dumps(conditions(request),ensure_ascii=False,sort_keys=True)
+        children=[];stores=[];anchors=[];failures=[];tried=[];a=None
         try:
-            a=start('web',conditions(request))
-            report=await self.budget.run('web',key,lambda t:self.web.research(request,timeout=t))
-            record(a,status='complete',result=report,finishedAt=time.time())
-            a=start('extract',{'webAttemptId':a['id']})
-            rows=await self.budget.run('extract',key,lambda t:self.web.extract(report,timeout=t))
-            rows=sources_for(unique_stores(rows))[:5]
-            record(a,status='complete',candidates=rows,finishedAt=time.time())
-            if not rows:
-                out['unresolved']=['住所と引用元を確認できません。店舗の地域や住所を補足してください。'];return finish('needs_region' if not request.get('locality') and not request.get('landmark') else 'empty')
-            a=start('geocode',{'addresses':[p['address'] for p in rows]});a['items']=[]
-            async def locate(p):
-                item={'id':p['id'],'address':p['address'],'status':'running'};a['items'].append(item);record(a)
-                reasons=list(p.get('unresolved',[]))+store_reasons(p,request,None)
+            for index in range(4):
+                strategy='store' if index==0 or not stores else ('maps','address','anchor')[index-1]
+                prior={'stores':[{k:p[k] for k in ('name','address')} for p in stores],'hints':[h for p in stores for h in p.get('verifiedHints',[])],'tried':tried,'unresolved':failures}
+                stage_key=key+':'+strategy+':'+str(index)
+                tried.append(strategy);a=start('web',{'strategy':strategy,**conditions(request)})
                 try:
-                    if reasons:result={'candidates':[],'unresolved':reasons}
-                    else:
-                        p={**p,'address_format':request.get('address_format','original')}
-                        geo_key=json.dumps({k:p[k] for k in ('address','country_code','locality','address_format')},ensure_ascii=False,sort_keys=True)
-                        result=await self.budget.run('geocode',geo_key,lambda t:self.geocoder.geocode(p,timeout=t))
-                    if result['candidates']:
-                        c=result['candidates'][0];reasons=store_reasons({**p,**c},request,resolved['region'])
-                        if not reasons:
-                            out['candidates'].append({'id':p['id'],'name':p['name'],'address':p['address'],**c,'sources':p['sources'],'sourceUrl':p['sources'][0]['url'],'attribution':'© Mapbox','matchReasons':(['user_confirmation_required'] if c['geocoding'].get('verification')=='needs_confirmation' else ['address_verified'])+(['interpolated'] if c['geocoding']['accuracy']=='interpolated' else [])})
-                    else:reasons=result['unresolved']
-                    item.update(status='complete',result=result)
-                except (PlaceProviderError,SearchLimit) as e:
-                    reasons=[e.code if isinstance(e,PlaceProviderError) else str(e)];item.update(status='failed',errorCode=reasons[0])
-                except asyncio.CancelledError:
-                    item.update(status='cancelled',finishedAt=time.time());record(a);raise
-                if reasons:out['unlocatedCandidates'].append({k:p[k] for k in ('id','name','address','sources')}|{'unresolved':reasons})
-                item['finishedAt']=time.time();record(a)
-            children=[asyncio.create_task(locate(p)) for p in rows]
-            await asyncio.gather(*children)
-            order={p['id']:i for i,p in enumerate(rows)}
-            for k in ('candidates','unlocatedCandidates'):out[k].sort(key=lambda p:order[p['id']])
-            record(a,status='complete',finishedAt=time.time())
-            if out['unlocatedCandidates']:
-                out['error']='一部の店舗の位置を確認できませんでした。';return finish('partial')
+                    report=await self.budget.run('web',stage_key,lambda t:self.web.research(request,strategy=strategy,prior=prior,timeout=t))
+                    record(a,status='complete',result=report,finishedAt=time.time())
+                    a=start('extract',{'webAttemptId':a['id']})
+                    rows=await self.budget.run('extract',stage_key,lambda t:self.web.extract(report,timeout=t))
+                    rows=unique_stores(rows)[:5];record(a,status='complete',candidates=rows,finishedAt=time.time())
+                    a=start('verify',{'strategy':strategy,'stores':[p['name'] for p in rows]})
+                    async def locate(p):
+                        if p.get('role')=='anchor':
+                            hints=[h for store in stores for h in store.get('verifiedHints',[])]
+                            if not any(compact(h['anchorName'])==compact(p['name']) and addresses_match(h['anchorAddress'],p['address']) for h in hints):return
+                        else:
+                            reasons=store_reasons(p,request,None)+p.get('unresolved',[])
+                            if reasons:
+                                stores.append({**p,'unresolved':reasons});return
+                        verify_key=json.dumps({'name':p['name'],'address':p['address'],'sources':p['sources'],'hints':p.get('hints',[])},sort_keys=True,ensure_ascii=False)
+                        try:
+                            result=await self.budget.verify(verify_key,lambda t:self.verifier.verify(p,timeout=t))
+                        except (PlaceProviderError,SearchLimit) as e:
+                            failures.append(e.code if isinstance(e,PlaceProviderError) else str(e))
+                            if p.get('role')!='anchor':stores.append({**p,'unresolved':[failures[-1]]})
+                            return
+                        failures.extend(result.get('unresolved',[]))
+                        if p.get('role')=='anchor':anchors.extend(result['anchors']);return
+                        stores.append({**p,'verifiedHints':result.get('verifiedHints',[])})
+                        for c in result['candidates']:
+                            if not store_reasons({**p,**c},request,resolved['region']):out['candidates'].append(c)
+                    children=[asyncio.create_task(locate(p)) for p in rows]
+                    await asyncio.gather(*children)
+                    stores=unique_stores(stores)[:5]
+                    record(a,status='complete',candidates=out['candidates'],unresolved=list(dict.fromkeys(failures)),finishedAt=time.time())
+                    if anchors:
+                        a=start('estimate',{'anchors':[p['name'] for p in anchors]})
+                        for store in stores:
+                            for c in estimate_coordinates(store,anchors):
+                                if not store_reasons({**store,**c},request,resolved['region']):out['candidates'].append(c)
+                        record(a,status='complete',candidates=out['candidates'],finishedAt=time.time())
+                    if out['candidates']:break
+                except PlaceProviderError as e:
+                    failures.append(e.code);record(a,status='failed',errorCode=e.code,finishedAt=time.time())
+                    if e.stop_turn:break
+            a=start('compare',{});out['candidates']=sources_for(compare_candidates(out['candidates']))
+            record(a,status='complete',candidates=out['candidates'],finishedAt=time.time())
+            located={(compact(c['name']),compact(c['address'])) for c in out['candidates']}
+            out['unlocatedCandidates']=sources_for([{k:p[k] for k in ('id','name','address','sources')}|{'unresolved':p.get('unresolved') or list(dict.fromkeys(failures)) or ['position_unverified']} for p in stores if (compact(p['name']),compact(p['address'])) not in located])
+            out['unresolved']=list(dict.fromkeys(failures))
+            if failures or out['unlocatedCandidates']:
+                out['error']='一部の店舗の位置確認・探索が完了していません。';return finish('partial' if stores or out['candidates'] else 'error')
+            if not stores and not out['candidates']:out['unresolved']=['住所と位置の根拠を確認できません。地域・住所を補足してください。']
             return finish('found' if out['candidates'] else 'empty')
         except (PlaceProviderError,SearchLimit) as e:
             code=e.code if isinstance(e,PlaceProviderError) else str(e)
-            record(a,status='failed',errorCode=code,finishedAt=time.time());out['error']='地点検索を完了できませんでした（'+code+'）。'
-            return finish('partial' if isinstance(e,SearchLimit) else 'error')
+            if a:record(a,status='failed',errorCode=code,finishedAt=time.time())
+            out['candidates']=sources_for(compare_candidates(out['candidates']));out['unresolved'].append(code);out['error']='地点検索は途中で終了しました（'+code+'）。'
+            return finish('partial')
         except asyncio.CancelledError:
             for task in children:task.cancel()
             await asyncio.gather(*children,return_exceptions=True);await self.budget.close()
@@ -174,3 +206,18 @@ class PlaceSearchService:
                 finish('cancelled')
             except TrajectoryConflict:pass
             raise
+
+def compare_candidates(candidates):
+    groups={}
+    for candidate in candidates:
+        key=(compact(candidate['name']),compact(candidate['address']))
+        group=groups.setdefault(key,[])
+        if any(c['coordinates']==candidate['coordinates'] and c.get('coordinateEvidence',{}).get('status')==candidate.get('coordinateEvidence',{}).get('status') for c in group):continue
+        group.append(copy.deepcopy(candidate))
+    result=[]
+    for group in list(groups.values())[:5]:
+        published=[c for c in group if c.get('coordinateEvidence',{}).get('status')=='published']
+        if any(distance(a['coordinates'],b['coordinates'])>100 for a in published for b in published):
+            for c in published:c['matchReasons']=list(dict.fromkeys(c.get('matchReasons',[])+['coordinate_conflict']))
+        result.extend(group[:3])
+    return result

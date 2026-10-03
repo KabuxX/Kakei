@@ -51,7 +51,7 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
         import json
         from db.agent_store import AgentStore
         from db.agent_search_store import AgentSearchStore
-        from test_agent_place_search import Provider, Geocoder
+        from test_agent_place_search import Provider, Verifier
         from agent_search_fixtures import SEARCH
         repository=AgentStore(self.store.db_path)
         thread=repository.create_thread()['id']; lease=repository.begin_turn(thread,'one','店舗を探して')
@@ -61,7 +61,7 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
         class FakeProvider(Provider):
             async def __aenter__(self): return self
             async def __aexit__(self,*args): pass
-        with patch('agent.web_places.WebPlaceProvider',FakeProvider), patch('agent.geocoding.MapboxGeocoder',Geocoder):
+        with patch('agent.web_places.WebPlaceProvider',FakeProvider), patch('agent.web_coordinates.WebCoordinateVerifier',lambda *args:Verifier()):
             raw=await AgentRunner(self.store,model=model).run_turn(thread,repository.get_thread(thread)['messages'],turn_context=ctx)
         response=repository.complete_turn(thread,'one',lease,raw)
         self.assertIsNone(response['proposal'])
@@ -110,8 +110,8 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
         from agent.runtime import configuration
         with patch.dict('os.environ',{'OPENAI_API_KEY':'secret','KAKEI_AGENT_MODEL':'test'},clear=True):
             status=configuration()
-            self.assertTrue(status['available']);self.assertFalse(status['placesAvailable'])
-            self.assertEqual(status['placesMissing'],['MAPBOX_GEOCODING_ACCESS_TOKEN'])
+            self.assertTrue(status['available']);self.assertTrue(status['placesAvailable'])
+            self.assertEqual(status['placesMissing'],[])
 
     async def test_long_turn_keeps_lease_and_stale_retries_are_fenced(self):
         import time
@@ -119,11 +119,11 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
         from agent.limits import TURN_LEASE_SECONDS
         from db.agent_store import AgentStore
         from db.store import TrajectoryConflict
-        self.assertEqual(TURN_SECONDS,120);self.assertEqual(TURN_LEASE_SECONDS,130)
+        self.assertEqual(TURN_SECONDS,180);self.assertEqual(TURN_LEASE_SECONDS,190)
         repo=AgentStore(self.store.db_path);thread=repo.create_thread()['id']
         lease=repo.begin_turn(thread,'one','search')
         with self.store._connection() as c:c.execute('UPDATE agent_turns SET started_at=?',(time.time()-80,))
         with self.assertRaises(TrajectoryConflict):repo.begin_turn(thread,'two','search again')
-        with self.store._connection() as c:c.execute('UPDATE agent_turns SET started_at=?',(time.time()-131,))
+        with self.store._connection() as c:c.execute('UPDATE agent_turns SET started_at=?',(time.time()-191,))
         repo.begin_turn(thread,'two','search again')
         with self.assertRaises(TrajectoryConflict):repo.complete_turn(thread,'one',lease,{'text':'late'})

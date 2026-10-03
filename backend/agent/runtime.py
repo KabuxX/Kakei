@@ -17,7 +17,7 @@ class TurnLimit(Exception):
 
 def configuration():
     missing = [name for name in ('OPENAI_API_KEY', 'KAKEI_AGENT_MODEL') if not os.environ.get(name, '').strip()]
-    places_missing=[*missing,*(['MAPBOX_GEOCODING_ACCESS_TOKEN'] if not os.environ.get('MAPBOX_GEOCODING_ACCESS_TOKEN','').strip() else [])]
+    places_missing=list(missing)
     return {'placesMissing':places_missing,'placesMessage':'地点検索の設定が不足しています: '+', '.join(places_missing) if places_missing else '地点検索を利用できます。','available': not missing, 'missing': missing, 'placesAvailable': not places_missing,
             'message': 'サーバーで ' + ' と '.join(missing) + ' を設定してください。' if missing else '利用できます。'}
 
@@ -42,7 +42,7 @@ event={id,time:HH:mmまたはnull,placeId,transactionId任意,timeEvidence:exact
 leg={fromEventId,toEventId,modeHint:walk/train/bus任意,modeEvidence:fare/user/inferred,modeEvidenceNote,transportTransactionId任意}。
 fareには同日の交通費IDが必要。推定には説明が必要。複数の不明時刻の訪問順はユーザー確認を必要とする。
 既存placeIdは再利用できる。未知の店舗はsearch_place(queryに店舗名と地域,place_idに一意の仮ID)を呼び、eventsでその仮IDを参照する。
-search_placeはWebで引用付き店舗住所を調べ、Mapboxで住所を座標に変換する。正式店名を優先し、主要名称と地域も使う。再検索を明示されたらrefresh=true。refreshとreuse_search_idは併用不可。
+search_placeはWebで引用付き店舗住所を調べ、公開ページ・地図リンクで店舗座標を検証し、掲載値がなければ根拠付きで位置を推定する。正式店名を優先し、主要名称と地域も使う。再検索を明示されたらrefresh=true。refreshとreuse_search_idは併用不可。
 出典のある説明には [source:出典id] を文の近くに添える。出典IDはツール/検索記録のsourcesだけから引用し、URLを自作しない。unlocatedCandidatesは位置未確認で、店舗が見つかっても軌跡の地点には選べない。失敗理由を調べ、下記の再検索方針を試しても未確認なら補足または手動座標を案内する。
 queryとplace_idに加え、店舗名から取り出せるbrand,branch,landmarkを指定する。例: ドトールコーヒーショップ 西鉄福岡駅店ならbrand=ドトール,branch=西鉄福岡駅店,landmark=西鉄福岡駅。
 localityやcountry_codeは根拠がある場合のみ指定し、evidence=[{field,source,source_id,value}]を添える。
@@ -58,11 +58,11 @@ needs_clarificationの地域矛盾は質問する。needs_regionでも既存の�
 検索失敗でも仮IDで案を作れるが保存前に地点選択が必要。座標やplaceコマンドをモデルで生成しない。
 座標検索は次の方針で柔軟に進める。最初の不一致だけで利用者に座標入力を求めない。
 1. 正式店名・支店名から開始する。店名が見つからなければ表記揺れ、ブランド+支店名、根拠のある市区町村・駅・施設名を組み合わせる。支店同一性を保ち、地域を東京や日本に固定しない。
-2. 店舗住所が見つかったが座標照合が失敗したら、同じplace_id・店舗条件でsearch_placeのaddress_formatをoriginal→without_postcode→japaneseから選び直す。日本の住所の郵便番号やハイフン表記の問題に使う。同じターンの店舗調査結果は再利用される。住所の番地を変更・推測しない。検索履歴の再表示（reuse_search_id）では座標を再検索しない。
+2. 店舗住所が見つかったら公開マップ、第三者ページ、住所表記、建物・地区の基準点を順に調べる。search_placeが内部で探索する。address_formatは旧入力の互換のみで座標検索の再試行には使わない。
 3. 地域・支店が曖昧ならread_place_search_historyの実記録とユーザー発言・取引を比較する。新しいlocality/country_codeにはevidenceを添える。目印は店舗住所を調べる手掛かりであり、駅の中心点を店舗の位置に代用しない。
-4. 同じ条件・住所形式を繰り返さない。新しい根拠や未試行の表記がある場合だけ続ける。認証・設定不足・回数/時間上限は再試行せず説明する。全ツール8回、Web3回・座標10住所・検索85秒以内で、変更案と回答の時間を残す。
-5. matchReasonsがuser_confirmation_requiredなら「住所表記は一致していますが、Mapboxの照合情報が不十分」と説明し、画面で住所と地図を確認して選択するよう案内する。geocoding.verification=user_confirmedは利用者が確認済みであり、Mapboxが一致判定したと説明しない。
-6. 座標の取得元はMapbox・保存済み地点・ユーザー入力に限る。緯度経度をモデルの知識や推測で作らない。最終回答は店舗発見・住所確認・座標確認を分け、実際に試した方法と残る不確実さを出典付きで説明する。
+4. 同じ条件・住所形式を繰り返さない。新しい根拠や未試行の表記がある場合だけ続ける。認証・設定不足・回数/時間上限は再試行せず説明する。全ツール8回、Web6要求・ページ16要求・検索145秒以内で、変更案と回答の時間を残す。
+5. 新しい掲載座標と推定座標は画面で住所・出典・地図を明示確認して選択する。coordinate_conflictがあれば掲載値の食い違いを説明する。
+6. 座標は取得済みページの本文・geo・店舗ピンと店舗同一性を検証する。モデルの知識で数字やURLを作らない。推定は検証済み建物・施設、明記された直線距離と8方位、小さな地区からサーバーが計算する。掲載値、推定位置、位置未確認を区別し、保存後も推定を実測と説明しない。最終回答は実際に試した方法と残る不確実さを出典付きで説明する。
 place選択はサーバーが処理する。legsは隣接イベント間のみ。0または1地点ならlegs=[]。
 
 取引の任意住所はmerchantAddress（SQLのagent_transactionsではmerchant_address）。trajectory_contextにも含まれる。
@@ -155,13 +155,15 @@ class AgentRunner:
         from agent.place_search import PlaceSearchService, SearchBudget
         from agent.place_matching import EvidenceResolver
         from agent.web_places import WebPlaceProvider
-        from agent.geocoding import MapboxGeocoder
+        from agent.public_pages import PublicPageClient
+        from agent.web_coordinates import WebCoordinateVerifier
         from services.validation import ValidationError
         searches = AgentSearchStore(self.store.db_path)
         budget = SearchBudget(started + TURN_SECONDS)
         provider = WebPlaceProvider()
-        geocoder = MapboxGeocoder()
-        service = PlaceSearchService(provider, geocoder, searches, EvidenceResolver(self.store, searches, thread_id, messages), turn_context, budget)
+        pages = PublicPageClient()
+        verifier = WebCoordinateVerifier(pages,budget)
+        service = PlaceSearchService(provider, verifier, searches, EvidenceResolver(self.store, searches, thread_id, messages), turn_context, budget)
         citation_sources={}; search_ids=set()
         def collect_sources(value):
             from services.place_evidence import validate_sources
@@ -229,7 +231,7 @@ class AgentRunner:
         finally:
             await budget.close()
             await provider.__aexit__(None, None, None)
-            await geocoder.__aexit__(None, None, None)
+            await pages.__aexit__(None, None, None)
         if exceeded:
             raise TurnLimit('ツールの利用上限に達しました。対象を絞ってください。')
         if commands:
