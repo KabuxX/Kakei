@@ -47,3 +47,6 @@ class VerificationResult(TypedDict):
     candidates: list[CoordinateCandidate]
     anchors: list[VerifiedAnchor]
     unresolved: list[str]
+    identityVerified: bool
+    verifiedHints: list[EstimationHint]
+    links: list[str]
