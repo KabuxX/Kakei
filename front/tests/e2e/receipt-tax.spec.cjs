@@ -33,5 +33,5 @@ test('receipt tax calculation survives review, save and reload at desktop and ph
  const body=await response.json();
  const records=Array.isArray(body)?body:body.transactions;
  const saved=records.find(t=>t.merchant==='セブンイレブン 千代田店');
- expect(saved.amount).toBe(1139);expect(saved.items.map(i=>i.amount)).toEqual([137,148,324,481,49]);
+ expect(saved.merchantAddress).toBe('東京都千代田区二番町8-8');expect(saved.amount).toBe(1139);expect(saved.items.map(i=>i.amount)).toEqual([137,148,324,481,49]);
 });

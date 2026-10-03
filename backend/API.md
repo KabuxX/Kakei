@@ -310,3 +310,13 @@ Agent処理期限120秒、processingリース130秒。検索停止でも保存�
 `search_place.address_format` は `original`（省略時）、`without_postcode`、`japanese`。日本の同じ住所の表記を変えてMapboxへ再照会する。同一turn・同一店舗条件のWeb調査と抽出は共有し、座標照会は形式別に予算内で実施。海外住所は元の表記を維持する。`reuse_search_id` は結果のコピーで、再照会ではない。
 
 日本の住所点が国・地域・番地と一致し一意でも、Mapboxの照合情報だけが未確認の場合、候補の `geocoding.verification` は `needs_confirmation`。選択APIで `{revision,candidateId,confirmed:true}` が必要で、未確認・文字列・数値は拒否する。選択後は `user_confirmed` として保存し、元の `matchCode` を変更しない。旧候補の選択には追加属性不要。別番地・郵便番号矛盾・国不一致・街区中心・複数の住所点は引き続き選択不可。
+
+## 取引先住所
+
+支出の任意項目 `merchantAddress`（文字列/null、500 Unicodeコードポイント以内）。前後空白・改行コードを正規化。POST/初期取込の省略はnull、PUT/agent更新の省略は既存値維持、明示null/空白は消去。保存住所のある取引の店名変更では住所を明示する。収入に住所は保存しない。
+
+- `GET /api/transaction-addresses`: `{addresses:[{transactionId,places:[{placeId,name,address,coordinates,status}]}]}`。関連地点のない取引は省略。
+- `GET /api/transaction-addresses/{id}`: `{address:{transactionId,places:[]}}`。IDはURLエンコード。取引なし404、未初期化409。
+- `PATCH /api/transaction-addresses/{id}`: `{merchantAddress,expected:{merchant,merchantAddress}}`。住所列のみ更新し `{transaction:...}` を返す。expectedは読取値そのもの。店名・住所の競合409、収入/不正入力400。
+
+statusは `matched` / `trajectory_only` / `needs_review`。日別軌跡の各eventに同じ派生値を `locationStatus` として返す（保存コマンドへ含めない）。needs_reviewの旧座標は記録として返るが、新住所の地図表示には使用しない。

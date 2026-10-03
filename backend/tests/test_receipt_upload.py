@@ -93,3 +93,20 @@ class ReceiptUploadTests(unittest.TestCase):
         body['target']='new';first=self.client.post(url,json=body)
         self.assertEqual(first.status_code,201,first.text)
         self.assertEqual(first.json()['proposal']['id'],self.client.post(url,json=body).json()['proposal']['id'])
+
+    def test_receipt_address_persists_with_original_and_omission_preserves_it(self):
+        from agent.receipt import ReceiptCandidate,receipt_review
+        from test_merchant_address import DRAFT
+        identifier=self.upload().json()['id']
+        review=receipt_review(ReceiptCandidate(merchant='店',merchant_address='住所A'),[],identifier)
+        lease=self.agent.begin_turn(self.thread,'address-receipt','読取',identifier)
+        self.agent.complete_turn(self.thread,'address-receipt',lease,{'text':'確認','commands':[],'receiptReview':review})
+        proposal=self.agent.create_receipt_proposal(self.thread,identifier,'new',{**DRAFT,'merchantAddress':review['candidate']['merchant_address']},'JPY')
+        result=self.app.state.store.apply_agent_proposal(proposal['id'],1)
+        tx=result['transactions'][0]
+        self.assertEqual(self.app.state.store.get_transaction(tx['id'])['merchantAddress'],'住所A')
+        self.assertEqual(self.receipts.list_for_transaction(tx['id'])[0]['id'],identifier)
+        self.assertEqual(self.agent.get_proposal(proposal['id'])['metadata']['receiptReview']['candidate']['merchant_address'],'住所A')
+        # Ordinary receipt-compatible update without address cannot erase it.
+        self.app.state.store.update_transaction(tx['id'],DRAFT)
+        self.assertEqual(self.app.state.store.get_transaction(tx['id'])['merchantAddress'],'住所A')

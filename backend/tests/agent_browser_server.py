@@ -8,7 +8,10 @@ from api.app import create_app
 class BrowserRunner:
     def __init__(self,store):self.store=store
     async def run_turn(self, thread_id, messages, receipt_id=None, *, turn_context=None):
-        if 'Web出典' in messages[-1]['text']:
+        if '住所の位置を修正' in messages[-1]['text']:
+            tx=next(t for t in self.store.list_transactions() if t['title']=='住所の統合確認')
+            return {'text':'新しい住所と地点を確認してください。','commands':[{'kind':'trajectory.update','identity':{'kind':'day','date':'2026-10-04'},'data':{'events':[{'id':'address-visit','placeId':'corrected-address','time':'12:00','timeEvidence':'exact','transactionId':tx['id']}],'legs':[]}}], 'placeCandidates':[{'placeId':'corrected-address','query':tx['merchant'],'candidates':[{'id':'corrected-candidate','name':tx['merchant'],'address':tx['merchantAddress'],'coordinates':[130.401,33.591],'sourceUrl':'https://example.com/corrected','attribution':'ブラウザ検証データ'}]}]}
+        if 'Web出典'  in messages[-1]['text']:
             from web_place_fixtures import SOURCE,PLACE
             result={'text':'店舗を確認しました [source:s1]','sources':[SOURCE],'commands':[]}
             if '軌跡' in messages[-1]['text']:
@@ -25,7 +28,7 @@ class BrowserRunner:
             candidate=ReceiptCandidate(merchant='レシート店舗',date='2026-09-30',time='12:00',total=90,currency='JPY',payment_method='cash',items=[{'name':'商品','amount':100}],discount=10)
             if '税込' in messages[-1]['text']:
                 from test_receipt_amounts import SAMPLE
-                candidate=ReceiptCandidate.model_validate(SAMPLE)
+                candidate=ReceiptCandidate.model_validate({**SAMPLE,'merchant_address':'東京都千代田区二番町8-8'})
             with self.store._connection() as c:matches=find_receipt_matches(c,candidate,asset['sha256'])
             return {'text':'品目と合計金額を確認してください。','commands':[],'receiptReview':{**receipt_review(candidate,matches,receipt_id),'mimeType':asset['mime_type']}}
         return {'text':'給与の追加案を作成しました。内容を確認してください。', 'commands':[{

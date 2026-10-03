@@ -7,7 +7,7 @@ test('saved transaction address wraps and opens the linked coordinates at deskto
   await page.route('**/api/status', route => route.fulfill({ json: { initialized: true } }));
   await page.route('**/api/transactions', route => route.fulfill({ json: { transactions: [record] } }));
   await page.route('**/api/transactions/address-preview/receipts', route => route.fulfill({ json: { receipts: [] } }));
-  await page.route('**/api/trajectory/2026-10-02', route => route.fulfill({ json: { places: { shop: { name: record.merchant, address, coordinates: [130.3990083, 33.5900778] } }, days: [{ date: '2026-10-02', events: [{ transactionId: record.id, placeId: 'shop' }] }] } }));
+  await page.route('**/api/transaction-addresses/address-preview', route => route.fulfill({ json: { address: {transactionId:record.id, places:[{placeId:'shop', name:record.merchant, address, coordinates:[130.3990083,33.5900778],status:'trajectory_only'}]} } }));
   await page.goto('/#transaction/address-preview');
   await expect(page.getByText(address, { exact: true })).toBeVisible();
   const link = page.getByRole('link', { name: /地図で見る/ });
