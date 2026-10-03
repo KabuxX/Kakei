@@ -213,6 +213,11 @@ def _create_agent_tables(connection: sqlite3.Connection) -> None:
             created_at REAL NOT NULL, expires_at REAL NOT NULL, applied_at REAL,
             result_json TEXT, before_json TEXT NOT NULL DEFAULT '[]', after_json TEXT NOT NULL DEFAULT '[]',
             metadata_json TEXT NOT NULL DEFAULT '{}')''',
+        '''CREATE TABLE IF NOT EXISTS receipt_assets (
+            id TEXT PRIMARY KEY, thread_id TEXT REFERENCES agent_threads(id) ON DELETE SET NULL,
+            mime_type TEXT NOT NULL, sha256 TEXT NOT NULL, page_count INTEGER NOT NULL, data BLOB NOT NULL,
+            created_at REAL NOT NULL, expires_at REAL, transaction_id TEXT REFERENCES transactions(id) ON DELETE CASCADE)''',
+        'CREATE INDEX IF NOT EXISTS receipt_hash ON receipt_assets(sha256)',
         '''CREATE TABLE IF NOT EXISTS agent_turns (
             thread_id TEXT NOT NULL REFERENCES agent_threads(id) ON DELETE CASCADE,
             client_message_id TEXT NOT NULL, input_json TEXT NOT NULL, token TEXT NOT NULL,

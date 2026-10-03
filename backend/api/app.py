@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from api.http import HTTPFailure, error_response
 from api.transactions import register_transactions
 from api.agent import register_agent
+from api.receipts import register_receipts
 from config.paths import TIMELINE_PATH
 from db.store import AlreadyInitialized, NotInitialized, Store, TrajectoryConflict, TrajectoryNotFound
 from services.trajectory_validation import load_timeline
@@ -70,6 +71,7 @@ def create_app(db_path: Path, front_dir: Path, *, port: int = 8765,
     async def handle_database_error(_request: Request, _error_value: sqlite3.Error):
         return error_response(500, "database_error", "データベースにアクセスできませんでした。")
 
+    register_receipts(app, store)
     register_agent(app, store, runner_factory)
     register_transactions(app, store)
 

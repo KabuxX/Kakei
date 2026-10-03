@@ -35,6 +35,8 @@ class AgentStore:
 
     @staticmethod
     def _expire(connection):
+        from db.receipt_store import cleanup
+        cleanup(connection)
         connection.execute("UPDATE agent_proposals SET status = 'expired' WHERE status = 'pending' AND expires_at <= ?", (time.time(),))
 
     @staticmethod
@@ -202,4 +204,5 @@ class AgentStore:
             c.execute('BEGIN IMMEDIATE')
             self._thread(c, thread_id)
             c.execute("DELETE FROM agent_proposals WHERE thread_id = ? AND status != 'applied'", (thread_id,))
+            c.execute('DELETE FROM receipt_assets WHERE thread_id=? AND transaction_id IS NULL', (thread_id,))
             c.execute('DELETE FROM agent_threads WHERE id = ?', (thread_id,))
