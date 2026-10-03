@@ -34,4 +34,10 @@
 
 最終ブラウザ検証で品目追加後の遅れたrequestAnimationFrameのfocusが金額入力を妨げるケースを確認。追加欄のDOM反映時にuseLayoutEffectでfocusするよう修正。新規品目の即時focusを確認するテストでRED→GREEN。Front126件成功。
 
-main反映は完了後に追記。
+## main・稼働確認
+
+- mainへa009b0bまでfast-forward統合。mainのFront126件成功、配信用distビルド成功。
+- ローカルViteの依存最適化キャッシュがテストで更新され、既存プロセスに読込エラーが出たためフロントを再起動。以後の実ブラウザ確認成功。
+- 稼働中の5173で、画像と同じサンプル取引の住所のみ表示、編集ページの店名初期値、キャンセルで詳細へ戻る操作を確認。APIの書込リクエストは0件。
+- 8765・5173とも画面と取引APIが正常応答。既存38件を維持。バックエンドコード・DB・.envへの変更なし。
+- [稼働画面の詳細](2026-10-04-transaction-edit/live-detail-desktop.png)。
