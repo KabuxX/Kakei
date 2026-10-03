@@ -11,10 +11,11 @@ function useGreeting(){
 }
 
 export default function AgentChat({session,onCommitted}) {
-  const {status,thread,busy,setBusy,loading,error,draft,load,send,upload,change,proposed,setText,removeReceipt}=session;
+  const {status,thread,messages=thread?.messages||[],sending=false,busy,setBusy,loading,error,draft,load,send,upload,change,proposed,setText,removeReceipt}=session;
   const greeting=useGreeting(), composer=useRef(null), file=useRef(null), conversation=useRef(null);
   const composing=useRef(false), [viewportInset,setViewportInset]=useState(0);
-  const active=!!thread?.messages?.length;
+  const active=messages.length>0;
+  const latestMessage=useRef(null), progress=useRef(null);
   const receipt=draft.receipt;
   const unavailable=loading||!status?.available;
   useEffect(()=>{
@@ -23,7 +24,9 @@ export default function AgentChat({session,onCommitted}) {
     viewport.addEventListener('resize',update);viewport.addEventListener('scroll',update);update();
     return()=>{viewport.removeEventListener('resize',update);viewport.removeEventListener('scroll',update);};
   },[]);
-  useEffect(()=>{if(!busy&&active)conversation.current?.scrollTo?.({top:conversation.current.scrollHeight,behavior:'instant'});},[thread?.id,thread?.messages?.length]);
+  useEffect(()=>{
+    if(active)(sending?progress.current:latestMessage.current)?.scrollIntoView?.({block:sending?'end':'start',behavior:'instant'});
+  },[thread?.id,messages.length,sending,active]);
   const submit=async e=>{e?.preventDefault();if(await send())composer.current?.focus({preventScroll:true});};
   const shortcut=e=>{if(e.key==='Enter'&&(e.metaKey||e.ctrlKey)&&!e.nativeEvent.isComposing&&!composing.current&&e.keyCode!==229){e.preventDefault();submit();}};
   const receiptUrl=receipt?`/api/agent/threads/${encodeURIComponent(thread.id)}/receipts/${encodeURIComponent(receipt.id)}`:null;
@@ -31,10 +34,11 @@ export default function AgentChat({session,onCommitted}) {
     <h1 id="agent-heading" className="sr-only" tabIndex="-1">Agent Chat</h1>
     {active&&<div className="agent-history-content" ref={conversation}>
       <div className="agent-conversation" aria-label="会話の内容" aria-live="polite">
-        {thread.messages.map(m=><article key={m.id} className={`agent-message ${m.role}`}><strong>{m.role==='user'?'あなた':'Agent'}</strong><p>{m.text}</p></article>)}
+        {messages.map((m,i)=><article ref={i===messages.length-1?latestMessage:null} key={m.id} className={`agent-message ${m.role}`}><strong>{m.role==='user'?'あなた':'Agent'}</strong><p>{m.text}</p>{m.state==='failed'&&<small>応答を確認できませんでした。入力欄から再送できます。</small>}</article>)}
       </div>
-      {thread.receiptReviews?.filter(r=>!thread.proposals?.some(p=>p.metadata?.receiptId===r.receiptId)).map(r=><ReceiptReview key={r.receiptId} review={r} threadId={thread.id} busy={busy} setBusy={setBusy} onProposed={proposed}/>)}
-      {thread.proposals?.map(p=><AgentProposal key={p.id} proposal={p} onChange={change} onCommitted={onCommitted} busy={busy} setBusy={setBusy}/>)}
+      {sending&&<div ref={progress} className="agent-message agent-processing" role="status" aria-label="Agentが処理中"><span className="agent-loading-dots" aria-hidden="true"><i/><i/><i/></span><span>Agentが処理中</span></div>}
+      {thread?.receiptReviews?.filter(r=>!thread.proposals?.some(p=>p.metadata?.receiptId===r.receiptId)).map(r=><ReceiptReview key={r.receiptId} review={r} threadId={thread.id} busy={busy} setBusy={setBusy} onProposed={proposed}/>)}
+      {thread?.proposals?.map(p=><AgentProposal key={p.id} proposal={p} onChange={change} onCommitted={onCommitted} busy={busy} setBusy={setBusy}/>)}
     </div>}
     <div className="agent-input-region">
       {!active&&<h2 className="agent-greeting">{greeting}</h2>}
@@ -50,8 +54,8 @@ export default function AgentChat({session,onCommitted}) {
         <div className="agent-composer-tools">
           <input ref={file} id="agent-receipt" className="sr-only" tabIndex="-1" type="file" aria-label="レシートファイル" accept="image/jpeg,image/png,image/webp,application/pdf" disabled={busy||unavailable} onChange={e=>{upload(e.target.files?.[0]);e.target.value='';}}/>
           <ChatButton label="レシートを添付" icon="attach" disabled={busy||unavailable} onClick={()=>file.current?.click()}/>
-          <span className="agent-compose-status" role="status">{loading?'接続を確認中…':busy?'処理しています…':''}</span>
-          <ChatButton type="submit" label={draft.retry?'再送':'送信'} icon={busy?'spinner':draft.retry?'retry':'send'} className="agent-send" disabled={busy||unavailable||!draft.text.trim()}/>
+          <span className="agent-compose-status" role="status">{loading?'接続を確認中…':busy&&!sending?'処理しています…':''}</span>
+          <ChatButton type="submit" label={draft.retry&&!sending?'再送':'送信'} icon={busy&&!sending?'spinner':draft.retry&&!sending?'retry':'send'} className="agent-send" disabled={busy||unavailable||!draft.text.trim()}/>
         </div>
       </form>
       {error&&<div role="alert" className="agent-error">{error}<ChatButton label="状態を再読み込み" icon="retry" onClick={load} disabled={busy}/></div>}

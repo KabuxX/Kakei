@@ -81,3 +81,76 @@ it('keeps receipt source and destination context in the final approval and edit 
  fireEvent.click(screen.getByRole('button',{name:'内容を修正'}));
  expect(screen.getByRole('link',{name:'レシート原本を開く'})).toBeTruthy();
 });
+
+function deferred(){let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});return {promise,resolve,reject};}
+async function enterMessage(text='先に表示するメッセージ'){
+ await vi.waitFor(()=>expect(screen.getByRole('textbox',{name:'メッセージ'}).disabled).toBe(false));
+ fireEvent.change(screen.getByRole('textbox',{name:'メッセージ'}),{target:{value:text}});
+ fireEvent.click(screen.getByRole('button',{name:'送信'}));
+}
+it('shows the user bubble before thread creation or response and replaces loading with the answer',async()=>{
+ const creation=deferred(),response=deferred();api.createThread.mockReturnValue(creation.promise);api.sendMessage.mockReturnValue(response.promise);
+ render(<AgentChat onCommitted={vi.fn()}/>);await enterMessage();
+ expect(await screen.findByText('先に表示するメッセージ')).toBeTruthy();
+ expect(screen.getByRole('textbox',{name:'メッセージ'}).value).toBe('');
+ expect(screen.getByRole('status',{name:'Agentが処理中'})).toBeTruthy();
+ expect(screen.queryByText('確認してください')).toBeNull();
+ creation.resolve({id:'t',title:'新しい会話'});
+ await vi.waitFor(()=>expect(api.sendMessage).toHaveBeenCalledTimes(1));
+ const body=api.sendMessage.mock.calls[0][1];
+ api.getThread.mockResolvedValue({id:'t',messages:[{id:'u',clientMessageId:`user:${body.clientMessageId}`,role:'user',text:body.text},{id:'a',role:'assistant',text:'確認してください'}],proposals:[]});
+ response.resolve({});
+ await screen.findByText('確認してください');
+ expect(screen.getAllByText('先に表示するメッセージ')).toHaveLength(1);
+ expect(screen.queryByRole('status',{name:'Agentが処理中'})).toBeNull();
+});
+it('keeps the failed bubble and retries the same turn without duplicating it',async()=>{
+ api.sendMessage.mockRejectedValueOnce(new Error('応答が途切れました'));
+ const response=deferred();api.sendMessage.mockReturnValueOnce(response.promise);
+ render(<AgentChat onCommitted={vi.fn()}/>);await enterMessage('再送するメッセージ');
+ await screen.findByRole('alert');
+ expect(screen.getAllByText('再送するメッセージ').filter(el=>el.tagName!=='TEXTAREA')).toHaveLength(1);
+ expect(screen.queryByRole('status',{name:'Agentが処理中'})).toBeNull();
+ expect(screen.getByRole('textbox',{name:'メッセージ'}).value).toBe('再送するメッセージ');
+ const body=api.sendMessage.mock.calls[0][1];
+ api.getThread.mockResolvedValue({id:'t',messages:[{id:'u',clientMessageId:`user:${body.clientMessageId}`,role:'user',text:body.text},{id:'a',role:'assistant',text:'再送完了'}],proposals:[]});
+ fireEvent.click(screen.getByRole('button',{name:'再送'}));
+ await vi.waitFor(()=>expect(api.sendMessage).toHaveBeenCalledTimes(2));
+ expect(api.sendMessage.mock.calls[1][1]).toEqual(body);
+ expect(screen.getAllByText('再送するメッセージ')).toHaveLength(1);
+ response.resolve({});await screen.findByText('再送完了');
+ expect(screen.getAllByText('再送するメッセージ')).toHaveLength(1);
+});
+it('retains text and the user bubble if conversation creation fails',async()=>{
+ api.createThread.mockRejectedValueOnce(new Error('会話作成に失敗'));
+ render(<AgentChat onCommitted={vi.fn()}/>);await enterMessage('失わない入力');
+ await screen.findByRole('alert');
+ expect(screen.getAllByText('失わない入力').filter(el=>el.tagName!=='TEXTAREA')).toHaveLength(1);
+ expect(screen.queryByRole('status',{name:'Agentが処理中'})).toBeNull();
+ expect(screen.getByRole('textbox',{name:'メッセージ'}).value).toBe('失わない入力');
+});
+it('does not present receipt uploading as agent generation and restores the attachment after a failed turn',async()=>{
+ const upload=deferred();api.uploadReceipt.mockReturnValue(upload.promise);
+ api.sendMessage.mockRejectedValue(new Error('レシート処理に失敗'));
+ render(<AgentChat onCommitted={vi.fn()}/>);
+ const input=screen.getByLabelText('レシートファイル');
+ await vi.waitFor(()=>expect(input.disabled).toBe(false));
+ fireEvent.change(input,{target:{files:[new File(['image'],'receipt.png',{type:'image/png'})]}});
+ await vi.waitFor(()=>expect(api.uploadReceipt).toHaveBeenCalledTimes(1));
+ expect(screen.queryByRole('status',{name:'Agentが処理中'})).toBeNull();
+ upload.resolve({id:'r',mimeType:'image/png'});
+ await screen.findByRole('img',{name:'添付レシート'});
+ fireEvent.click(screen.getByRole('button',{name:'送信'}));
+ await screen.findByRole('alert');
+ expect(screen.getByRole('img',{name:'添付レシート'}).getAttribute('src')).toContain('/receipts/r');
+ expect(api.sendMessage.mock.calls[0][1].receiptId).toBe('r');
+ expect(screen.getByRole('textbox',{name:'メッセージ'}).value).toBe('このレシートを読み取ってください。');
+});
+it('does not offer resend when only the sidebar refresh fails after a completed response',async()=>{
+ api.listThreads.mockResolvedValueOnce([]).mockRejectedValueOnce(new Error('一覧を更新できません'));
+ render(<AgentChat onCommitted={vi.fn()}/>);await start();
+ await screen.findByRole('alert');
+ expect(screen.getByRole('textbox',{name:'メッセージ'}).value).toBe('');
+ expect(screen.queryByRole('button',{name:'再送'})).toBeNull();
+ expect(screen.queryByRole('status',{name:'Agentが処理中'})).toBeNull();
+});
