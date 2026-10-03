@@ -10,3 +10,10 @@ export const sendMessage=(thread,body)=>request('POST',`${base}/threads/${id(thr
 export const revise=async(proposal,revision,commands)=>(await request('PUT',`${base}/proposals/${id(proposal)}`,{revision,commands})).proposal;
 export const approve=async(proposal,revision)=>(await request('POST',`${base}/proposals/${id(proposal)}/approve`,{revision})).result;
 export const reject=async(proposal,revision)=>(await request('POST',`${base}/proposals/${id(proposal)}/reject`,{revision})).proposal;
+export async function uploadReceipt(thread,file){
+ const form=new FormData();form.append('file',file);
+ const response=await fetch(`${base}/threads/${id(thread)}/receipts`,{method:'POST',body:form});
+ const result=await response.json();if(!response.ok)throw new Error(result?.error?.message||'添付できませんでした。');return result;
+}
+export const listTransactionReceipts=async(transaction)=>(await request('GET',`/api/transactions/${id(transaction)}/receipts`)).receipts;
+export const proposeReceipt=async(thread,body)=>(await request('POST',`${base}/threads/${id(thread)}/receipt-proposals`,body)).proposal;

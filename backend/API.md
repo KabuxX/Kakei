@@ -275,3 +275,5 @@ curl http://localhost:8765/api/trajectory/2026-09-19
 `GET /api/agent/threads/{id}/receipts/{receiptId}` は同じ会話のプレビュー、`GET /api/receipts/{id}` は取引に保存済みのファイルだけを返します。未保存ファイルは24時間で削除されます。
 
 `GET /api/transactions/{id}/receipts` → `{receipts:[{id,mimeType,sha256,pageCount,createdAt}]}`。取引操作の変更案は `data.receiptIds` に同じ会話の未保存レシートIDを持てます。取引と添付は同じトランザクションで保存され、再承認でも増えません。却下・期限切れ・会話削除で未保存バイトを削除し、取引削除ではその添付も削除します。
+
+レシートを添付したメッセージの結果は `receiptReview`（candidate, missingFields, itemMismatch, matches, receiptId, mimeType）を含みます。会話取得時は `receiptReviews` に戻ります。`POST /api/agent/threads/{id}/receipt-proposals` に `{receiptId,target:"new"|候補の取引ID,draft,currency:"JPY"}` を送ると確認用変更案を作成します。同じレシートの未保存・適用済み案があればその案を返し、内容変更は既存のPUTで行います。この時点では取引は保存しません。

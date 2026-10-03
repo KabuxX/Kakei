@@ -81,3 +81,15 @@ class ReceiptUploadTests(unittest.TestCase):
         self.app.state.store.apply_agent_proposal(proposal['id'],1)
         self.assertEqual(self.receipts.list_for_transaction(tx['id'])[0]['id'],identifier)
         self.assertEqual(len(self.app.state.store.list_transactions()),1)
+
+    def test_review_requires_explicit_target_and_is_idempotent(self):
+        identifier=self.upload().json()['id']
+        lease=self.agent.begin_turn(self.thread,'receipt','読取',identifier)
+        self.agent.complete_turn(self.thread,'receipt',lease,{'text':'確認','commands':[],'receiptReview':{'receiptId':identifier,'matches':[]}})
+        draft={'title':'食材','date':'2026-10-03T12:00','type':'expense','category':'食費','merchant':'店','amount':100,'paymentMethod':'cash'}
+        url=f'/api/agent/threads/{self.thread}/receipt-proposals'
+        body={'receiptId':identifier,'target':'','draft':draft,'currency':'JPY'}
+        self.assertEqual(self.client.post(url,json=body).status_code,400)
+        body['target']='new';first=self.client.post(url,json=body)
+        self.assertEqual(first.status_code,201,first.text)
+        self.assertEqual(first.json()['proposal']['id'],self.client.post(url,json=body).json()['proposal']['id'])

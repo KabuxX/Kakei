@@ -67,7 +67,7 @@ class AgentRunner:
             candidate = await asyncio.wait_for(extract_receipt(ReceiptFile(asset['data'], asset['mime_type'], asset['sha256'], asset['page_count']), model), TURN_SECONDS)
             with self.store._connection() as c:
                 matches = find_receipt_matches(c, candidate, asset['sha256'])
-            receipt_context = receipt_review(candidate, matches, receipt_id)
+            receipt_context = {**receipt_review(candidate, matches, receipt_id), 'mimeType': asset['mime_type']}
         commands, lock = [], threading.Lock()
         count = 1 if receipt_context else 0
         exceeded = False

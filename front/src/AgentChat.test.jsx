@@ -48,3 +48,12 @@ it('keeps plain Enter in composer from approving a pending proposal', async () =
   fireEvent.keyDown(screen.getByRole('textbox',{name:'メッセージ'}),{key:'Enter'});
   expect(api.approve).not.toHaveBeenCalled();
 });
+
+it('uploads a receipt without submitting or approving it',async()=>{
+ api.uploadReceipt.mockResolvedValue({id:'r',mimeType:'image/png'});
+ render(<AgentChat onCommitted={vi.fn()}/>);
+ const input=await screen.findByLabelText('レシートを添付');
+ fireEvent.change(input,{target:{files:[new File(['image'],'receipt.png',{type:'image/png'})]}});
+ expect(await screen.findByRole('img',{name:'添付レシート'})).toBeTruthy();
+ expect(api.sendMessage).not.toHaveBeenCalled();expect(api.approve).not.toHaveBeenCalled();
+});

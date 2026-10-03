@@ -8,7 +8,7 @@ export function RecordView({value}) {
   if(typeof value==='object') return <dl className="agent-record">{Object.entries(value).filter(([key])=>key!=='id').map(([key,v])=><div key={key}><dt>{labels[key]||key}</dt><dd><RecordView value={v}/></dd></div>)}</dl>;
   return <span>{typeof value==='boolean'?(value?'はい':'いいえ'):values[value]||String(value)}</span>;
 }
-function TransactionFields({command,index,onChange}) {
+export function TransactionFields({command,index,onChange}) {
   const data=command.data;
   const set=(key,value)=>onChange({...command,data:{...data,[key]:value}});
   const input=(key,type='text')=><label>{labels[key]}<input aria-label={`${labels[key]} ${index+1}`} type={type} value={data[key]??''} onChange={e=>set(key,type==='number'?Number(e.target.value):e.target.value)} required /></label>;

@@ -166,3 +166,7 @@
  .agent-welcome { padding:20px; } .agent-message.user { margin-left:5%; }
  .agent-actions > button { min-height:44px; } .agent-composer .agent-actions > button { margin-left:auto; }
 }
+.receipt-preview{max-width:100%;max-height:300px;object-fit:contain;border:1px solid #d3dae5;border-radius:12px;margin:12px 0;display:block}
+.agent-upload{border:1px dashed #cdd2da;padding:16px;border-radius:16px;background:#f8f9fc}
+.agent-upload p{font-size:12px;color:#595d65;line-height:1.6}
+.receipt-review form>label{margin:16px 0}.receipt-review form>button{margin:8px 8px 0 0}

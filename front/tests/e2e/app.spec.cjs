@@ -268,3 +268,29 @@ test('agent approval survives lost response and refreshes visible app data', asy
   await page.clock.runFor(300);
   await page.screenshot({animations:'disabled',path:'../.superpowers/sdd/2026-10-03-agent-chat-foundation/dashboard-desktop-after-agent.png'});
 });
+
+test('receipt upload corrects discrepancy then saves and opens attached bytes',async({page})=>{
+ test.skip(test.info().config.projects[0].use.baseURL!=='http://127.0.0.1:8767','requires isolated fake runner');
+ await page.goto('/');await expect(page.locator('#dashboard-view')).toHaveClass(/data-ready/);
+ await page.getByRole('link',{name:'Agent Chat'}).click();
+ await page.getByLabel('レシートを添付').setInputFiles({name:'receipt.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAE0lEQVR4nGP8//8/AwwwwVl4OQCWbgMF7ZjH1AAAAABJRU5ErkJggg==','base64')});
+ await expect(page.getByRole('img',{name:'添付レシート'})).toBeVisible();
+ await page.getByRole('button',{name:'送信',exact:true}).click();
+ await expect(page.getByText(/品目合計と合計金額が一致しません/)).toBeVisible();
+ await expect(page.getByRole('button',{name:'変更案を確認'})).toBeDisabled();
+ await page.getByRole('combobox',{name:'保存先'}).selectOption('new');
+ await page.getByRole('button',{name:'品目を保存しない'}).click();
+ await page.screenshot({animations:'disabled',path:'../.superpowers/sdd/2026-10-03-agent-chat-receipts/receipt-desktop.png',fullPage:true});
+ await page.setViewportSize({width:390,height:844});
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await page.screenshot({animations:'disabled',path:'../.superpowers/sdd/2026-10-03-agent-chat-receipts/receipt-phone.png',fullPage:true});
+ await page.getByRole('button',{name:'変更案を確認'}).click();
+ await page.getByRole('button',{name:'確認して保存'}).click();
+ await expect(page.getByText('保存済み',{exact:true})).toBeVisible();
+ await page.getByRole('link',{name:'概要',exact:true}).click();
+ await page.getByRole('link',{name:'レシート店舗',exact:true}).click();
+ const receipt=page.getByRole('link',{name:'レシート 1 を開く'});
+ await expect(receipt).toBeVisible();
+ const response=await page.request.get(await receipt.getAttribute('href'));
+ expect(response.headers()['content-type']).toBe('image/png');expect(response.status()).toBe(200);
+});

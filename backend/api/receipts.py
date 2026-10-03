@@ -41,6 +41,13 @@ def register_receipts(app,store):
         if not asset or asset['thread_id']!=thread_id:raise TrajectoryNotFound('レシートが見つかりません。')
         return file_response(asset)
 
+    @app.post('/api/agent/threads/{thread_id}/receipt-proposals')
+    async def propose(thread_id:str,request:Request):
+        from api.agent import body
+        from db.agent_store import AgentStore
+        value=await body(request)
+        return json_response(201,{'proposal':AgentStore(store.db_path).create_receipt_proposal(thread_id,value.get('receiptId'),value.get('target'),value.get('draft'),value.get('currency'))})
+
     @app.get('/api/transactions/{transaction_id}/receipts')
     def list_receipts(transaction_id:str):
         return json_response(200,{'receipts':receipts.list_for_transaction(transaction_id)})

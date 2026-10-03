@@ -32,3 +32,10 @@ it('shows estimated and entered times distinctly', () => {
   expect(screen.getByText('2026年10月3日 09:17')).toBeTruthy();
   expect(screen.queryByText('時刻は仮設定')).toBeNull();
 });
+
+it('opens an approved receipt from its transaction',async()=>{
+ vi.stubGlobal('fetch',vi.fn(async()=>({ok:true,status:200,json:async()=>({receipts:[{id:'r',mimeType:'image/png'}]})})));
+ render(<TransactionDetail record={{id:'t',title:'食材',type:'expense',date:'2026-10-03T12:00',amount:100,category:'食費'}}/>);
+ expect((await screen.findByRole('link',{name:'レシート 1 を開く'})).getAttribute('href')).toBe('/api/receipts/r');
+ vi.unstubAllGlobals();
+});

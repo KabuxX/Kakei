@@ -74,6 +74,7 @@ class AgentStore:
             proposals = [proposal_record(p) for p in c.execute(
                 'SELECT * FROM agent_proposals WHERE thread_id = ? ORDER BY created_at', (thread_id,))]
             reviews = [json.loads(r[0])['receiptReview'] for r in c.execute("SELECT result_json FROM agent_turns WHERE thread_id=? AND status='complete' ORDER BY started_at", (thread_id,)) if json.loads(r[0]).get('receiptReview')]
+            reviews = list({r['receiptId']: r for r in reviews}.values())
             return {'id': row['id'], 'title': row['title'], 'createdAt': row['created_at'], 'messages': messages, 'proposals': proposals, 'receiptReviews': reviews}
 
     def append_message(self, thread_id, client_message_id, role, text):
@@ -215,3 +216,32 @@ class AgentStore:
             c.execute("DELETE FROM agent_proposals WHERE thread_id = ? AND status != 'applied'", (thread_id,))
             c.execute('DELETE FROM receipt_assets WHERE thread_id=? AND transaction_id IS NULL', (thread_id,))
             c.execute('DELETE FROM agent_threads WHERE id = ?', (thread_id,))
+
+    def create_receipt_proposal(self, thread_id, receipt_id, target, draft, currency):
+        from db.receipt_store import ReceiptStore
+        if currency != 'JPY':
+            raise ValidationError('currency', 'この家計簿は日本円に対応しています。金額と通貨を確認してください。')
+        with self.store._connection() as c:
+            c.execute('BEGIN IMMEDIATE')
+            self._thread(c, thread_id)
+            old = c.execute("SELECT * FROM agent_proposals WHERE thread_id=? AND json_extract(metadata_json, '$.receiptId')=? AND status IN ('pending','applied') ORDER BY created_at DESC LIMIT 1", (thread_id, receipt_id)).fetchone()
+            if old:
+                return proposal_record(old)
+            reviews = [json.loads(r[0]).get('receiptReview') for r in c.execute("SELECT result_json FROM agent_turns WHERE thread_id=? AND status='complete' ORDER BY started_at DESC", (thread_id,))]
+            review = next((r for r in reviews if r and r['receiptId'] == receipt_id), None)
+            if not review:
+                raise ValidationError('receiptId', '先にレシートを読み取ってください。')
+            choices = {m['transaction']['id'] for m in review['matches']}
+            if target != 'new' and target not in choices:
+                raise ValidationError('target', '新規追加か、表示された既存取引を選択してください。')
+            ReceiptStore.validate_pending(c, [receipt_id], thread_id)
+            if not isinstance(draft, dict):
+                raise ValidationError('draft', '取引内容を入力してください。')
+            command = {'kind': 'transaction.create' if target == 'new' else 'transaction.update',
+                       'identity': {} if target == 'new' else {'id': target},
+                       'data': {**draft, 'receiptIds': [receipt_id]}}
+            proposal = self._create_proposal(c, thread_id, [command])
+            metadata = {'receiptId': receipt_id, 'receiptReview': review, 'targetChoice': target}
+            c.execute('UPDATE agent_proposals SET metadata_json=? WHERE id=?', (dumps(metadata), proposal['id']))
+            proposal['metadata'] = metadata
+            return proposal
