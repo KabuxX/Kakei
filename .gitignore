@@ -2,7 +2,7 @@
 .superpowers/
 .DS_Store
 .env
-front/node_modules/
+front/node_modules
 front/test-results/
 front/playwright-report/
 prompt-log.md

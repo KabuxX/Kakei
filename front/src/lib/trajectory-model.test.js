@@ -19,6 +19,28 @@ const timeline = {
   ], legs: [{ fromEventId: 'a', toEventId: 'b', modeHint: 'train', transportTransactionId: 'train' }] }],
 };
 
+it('test_arbitrary_date_and_global_place', async () => {
+  const { buildTrajectoryDays } = await import('./trajectory-model.js');
+  const changed = structuredClone(timeline);
+  changed.days[0].date = '2027-01-04';
+  changed.days[0].events.forEach((event) => { delete event.transactionId; });
+  changed.days[0].legs = [{ fromEventId: 'a', toEventId: 'b' }];
+  changed.places.a.coordinates = [-73.98, 40.75];
+  changed.places.b.coordinates = [-73.97, 40.76];
+  expect(buildTrajectoryDays([], changed).get('2027-01-04').stopCount).toBe(2);
+});
+
+it('test_empty_and_single_event_days', async () => {
+  const { buildTrajectoryDays } = await import('./trajectory-model.js');
+  const days = buildTrajectoryDays([], { places: timeline.places, days: [
+    { date: '2027-01-01', events: [], legs: [] },
+    { date: '2027-01-02', events: [{ id: 'one', time: '12:00', placeId: 'a' }], legs: [] },
+  ] });
+  expect(days.get('2027-01-01').bounds).toBeNull();
+  expect(days.get('2027-01-02').bounds).toEqual([139.7, 35.657, 139.7, 35.657]);
+  expect(days.get('2027-01-02').segments).toEqual([]);
+});
+
 it('joins dated transactions and traffic evidence into a measured day', async () => {
   const { buildTrajectoryDays } = await import('./trajectory-model.js');
   const day = buildTrajectoryDays(transactions, timeline).get(date);

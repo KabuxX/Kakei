@@ -1,6 +1,6 @@
 import bbox from '@turf/bbox';
 import length from '@turf/length';
-import { featureCollection, lineString } from '@turf/helpers';
+import { featureCollection, lineString, point } from '@turf/helpers';
 import { transactionCalendarDate } from './transaction-datetime.js';
 
 function checkPlace(placeId, place) {
@@ -9,8 +9,8 @@ function checkPlace(placeId, place) {
   }
   const [longitude, latitude] = place.coordinates || [];
   if (!Number.isFinite(longitude) || !Number.isFinite(latitude)
-    || longitude < 139.4 || longitude > 140.1 || latitude < 35.4 || latitude > 35.9) {
-    throw new Error(`Place ${placeId} needs Tokyo coordinates`);
+    || longitude < -180 || longitude > 180 || latitude < -90 || latitude > 90) {
+    throw new Error(`Place ${placeId} needs valid coordinates`);
   }
 }
 
@@ -38,8 +38,9 @@ function buildTrajectoryDays(transactions, timeline) {
   const eventIds = new Set();
   for (const day of timeline.days) {
     if (result.has(day.date)) throw new Error(`Duplicate day ${day.date}`);
-    if (!/^2026-09-(0[1-9]|[12][0-9]|30)$/.test(day.date)) throw new Error(`Invalid September date ${day.date}`);
-    if (!Array.isArray(day.events) || day.events.length < 2) throw new Error(`Day ${day.date} needs two events`);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day.date) || !Number.isFinite(Date.parse(day.date))
+      || new Date(day.date).toISOString().slice(0, 10) !== day.date) throw new Error(`Invalid date ${day.date}`);
+    if (!Array.isArray(day.events)) throw new Error(`Day ${day.date} needs events`);
     const events = day.events.map((event) => {
       if (eventIds.has(event.id)) throw new Error(`Duplicate event ${event.id}`);
       eventIds.add(event.id);
@@ -49,21 +50,17 @@ function buildTrajectoryDays(transactions, timeline) {
       const transaction = event.transactionId
         ? matchTransaction(event.transactionId, transactionsById, day.date)
         : null;
-      if (transaction && transaction.category !== '交通' && transaction.merchant !== place.name) {
-        throw new Error(`Transaction ${transaction.id} merchant differs from place ${event.placeId}`);
-      }
       return { ...event, place, transaction, coordinates: place.coordinates };
     });
     if (events.some((event, index) => index > 0 && event.time <= events[index - 1].time)) {
       throw new Error(`Day ${day.date} events are not chronological`);
     }
-    if (!Array.isArray(day.legs) || day.legs.length !== events.length - 1) {
-      throw new Error(`Day ${day.date} needs a leg between every pair of events`);
-    }
+    if (!Array.isArray(day.legs)) throw new Error(`Day ${day.date} needs legs`);
     const segments = day.legs.map((leg, index) => {
-      const from = events[index];
-      const to = events[index + 1];
-      if (leg.fromEventId !== from.id || leg.toEventId !== to.id) {
+      const fromIndex = events.findIndex((event) => event.id === leg.fromEventId);
+      const from = events[fromIndex];
+      const to = events[fromIndex + 1];
+      if (!from || !to || leg.toEventId !== to.id) {
         throw new Error(`Day ${day.date} leg ${index + 1} does not connect consecutive events`);
       }
       let mode = 'inferred';
@@ -97,7 +94,7 @@ function buildTrajectoryDays(transactions, timeline) {
         distanceKm: length(lineString(coordinates)),
       };
     });
-    const features = segments.map((segment) => lineString(segment.coordinates));
+    const features = [...segments.map((segment) => lineString(segment.coordinates)), ...events.map((event) => point(event.coordinates))];
     result.set(day.date, {
       date: day.date,
       events,
@@ -108,7 +105,7 @@ function buildTrajectoryDays(transactions, timeline) {
       stopCount: events.length,
       modes: [...new Set(segments.map((segment) => segment.mode))],
       distanceKm: segments.reduce((sum, segment) => sum + segment.distanceKm, 0),
-      bounds: bbox(featureCollection(features)),
+      bounds: features.length ? bbox(featureCollection(features)) : null,
     });
   }
   return result;

@@ -83,7 +83,7 @@ export default function TrajectoryMap({ day, selectedEventId, onSelectEvent }) {
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || issue) return undefined;
+    if (!map || issue || !day.bounds) return undefined;
     const markers = [];
     day.events.forEach((event, index) => {
       const element = document.createElement('span');
@@ -99,7 +99,7 @@ export default function TrajectoryMap({ day, selectedEventId, onSelectEvent }) {
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || issue) return undefined;
+    if (!map || issue || !day.bounds) return undefined;
     const [west, south, east, north] = day.bounds;
     const fitDay = () => {
       const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;

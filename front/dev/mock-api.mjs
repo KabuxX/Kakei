@@ -16,12 +16,20 @@ export function mockApi() {
     name: 'kakei-json-api',
     configureServer(server) {
       let transactions = assignEstimatedTransactionDatetimes(JSON.parse(readFileSync(fixtureUrl, 'utf8')));
+      const timeline = JSON.parse(readFileSync(new URL('../src/data/september-timeline.json', import.meta.url), 'utf8'));
       server.middlewares.use(async (request, response, next) => {
         const path = new URL(request.url, 'http://localhost').pathname;
         if (!path.startsWith('/api/')) return next();
 
         if (path === '/api/status' && request.method === 'GET') {
           return send(response, 200, { initialized: true });
+        }
+        if (path === '/api/trajectory' && request.method === 'GET') {
+          return send(response, 200, { dates: timeline.days.map((day) => day.date) });
+        }
+        if (path.startsWith('/api/trajectory/') && request.method === 'GET') {
+          const days = timeline.days.filter((day) => day.date === path.split('/').at(-1));
+          return days.length ? send(response, 200, { places: timeline.places, days }) : send(response, 404, { error: { code: 'not_found' } });
         }
         if (path === '/api/transactions' && request.method === 'GET') {
           return send(response, 200, { transactions });

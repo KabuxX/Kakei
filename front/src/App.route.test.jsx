@@ -4,6 +4,8 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import App from './App.jsx';
 import { useTransactions } from './useTransactions.js';
 import { detailHref } from './lib/transaction-detail.js';
+import transactions from './data/september-transactions.json';
+import { trajectoryResponse } from './trajectory-test-fixture.js';
 
 vi.mock('./useTransactions.js', () => ({ useTransactions: vi.fn() }));
 const record = { id: 'a/b %日本語', title: '食材', type: 'expense', date: '2026-09-27', category: '食費', amount: 1200 };
@@ -12,7 +14,7 @@ beforeEach(() => {
   useTransactions.mockReturnValue({ transactions: [record], status: 'ready', error: null, writePending: false, load: vi.fn(), refresh: vi.fn(), addTransaction: vi.fn(), deleteTransaction: vi.fn(), deleteSamples: vi.fn() });
   window.scrollTo = vi.fn();
 });
-afterEach(() => { cleanup(); window.location.hash = ''; });
+afterEach(() => { cleanup(); window.location.hash = ''; vi.unstubAllGlobals(); });
 
 it('opens an encoded direct detail URL within the overview destination', () => {
   window.location.hash = detailHref(record.id);
@@ -30,15 +32,17 @@ it('opens a direct deletion URL for an ID containing reserved characters', () =>
   expect(screen.getByRole('link', { name: '概要' }).getAttribute('aria-current')).toBe('page');
 });
 
-it('opens the September trajectory sample from its direct URL', () => {
+it('opens saved trajectory data from its direct URL', async () => {
+  vi.stubGlobal('fetch', vi.fn(trajectoryResponse));
+  useTransactions.mockReturnValue({ transactions, status: 'ready', refresh: vi.fn() });
   window.location.hash = '#trajectory';
   render(<App />);
   expect(document.title).toBe('軌跡 | Kakei');
   expect(screen.getByRole('link', { name: '軌跡' }).getAttribute('aria-current')).toBe('page');
   expect(document.getElementById('dashboard-view').hidden).toBe(true);
   expect(screen.getByRole('heading', { level: 1, name: '生活軌跡' })).toBeTruthy();
-  expect(screen.getByRole('combobox', { name: '表示する日付' }).value).toBe('2026-09-19');
-  expect(screen.getByRole('heading', { name: '時系列' })).toBeTruthy();
+  expect((await screen.findByRole('combobox', { name: '表示する日付' })).value).toBe('2026-09-19');
+  expect(await screen.findByRole('heading', { name: '時系列' })).toBeTruthy();
 });
 
 it('shows a missing state without a delete action for an unknown deletion URL', () => {

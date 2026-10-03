@@ -27,3 +27,5 @@ npm run dev:api
 `http://127.0.0.1:5173/` を開きます。`/api` のリクエストはバックエンドへ転送され、取引の追加・削除は SQLite に保存されます。別の API アドレスを使う場合は `KAKEI_API_TARGET=http://127.0.0.1:8765 npm run dev:api` のように指定できます。
 
 通常の `npm run build` と、バックエンドが配信する `front/dist/` は実際の API を使います。
+
+軌跡画面は `GET /api/trajectory` の記録日一覧と `GET /api/trajectory/{date}` の保存内容を読み込みます。月や年は固定せず、訪問地点が0件・1件の日も表示できます。APIへの変更は日付の選択時または画面を開き直したときに反映されます。

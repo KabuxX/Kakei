@@ -1,6 +1,5 @@
-import React, { Suspense, lazy, useMemo, useState } from 'react';
-import transactions from './data/september-transactions.json';
-import timeline from './data/september-timeline.json';
+import React, { Suspense, lazy, useEffect, useMemo, useState } from 'react';
+import { listTrajectoryDates, loadTrajectoryDay } from './lib/api.js';
 import { buildTrajectoryDays } from './lib/trajectory-model.js';
 import { stageColor } from './lib/trajectory-display.js';
 import '../trajectory.css';
@@ -21,26 +20,57 @@ class MapErrorBoundary extends React.Component {
   }
 }
 
-export default function Trajectory() {
-  const days = useMemo(() => buildTrajectoryDays(transactions, timeline), []);
-  const dates = useMemo(() => [...days.keys()], [days]);
-  const [selectedDate, setSelectedDate] = useState(dates[0]);
+const EMPTY = [];
+export default function Trajectory({ transactions = EMPTY, refreshKey = 0 }) {
+  const [dates, setDates] = useState(null);
+  const [timeline, setTimeline] = useState(null);
+  const [error, setError] = useState('');
+  const [retry, setRetry] = useState(0);
+  const [selectedDate, setSelectedDate] = useState('');
   const [selectedEventId, setSelectedEventId] = useState(null);
-  const day = days.get(selectedDate);
-  const dateIndex = dates.indexOf(selectedDate);
+  useEffect(() => {
+    let active = true;
+    setError('');
+    listTrajectoryDates().then((saved) => {
+      if (!active) return;
+      setDates(saved);
+      setSelectedDate((previous) => saved.includes(previous) ? previous : saved[0] || '');
+    }).catch((failure) => { if (active) setError(failure.message); });
+    return () => { active = false; };
+  }, [retry, refreshKey]);
+  useEffect(() => {
+    if (!selectedDate) return undefined;
+    let active = true;
+    setTimeline(null);
+    setError('');
+    loadTrajectoryDay(selectedDate).then((saved) => { if (active) setTimeline(saved); })
+      .catch((failure) => { if (active) setError(failure.message); });
+    return () => { active = false; };
+  }, [selectedDate, retry, refreshKey]);
+  const model = useMemo(() => {
+    if (!timeline) return {};
+    try { return { day: buildTrajectoryDays(transactions, timeline).get(selectedDate) }; }
+    catch (failure) { return { error: failure.message }; }
+  }, [transactions, timeline, selectedDate]);
+  const day = model.day;
+  const dateIndex = dates?.indexOf(selectedDate) ?? -1;
   const changeDate = (date) => {
-    if (!days.has(date)) return;
+    if (!dates.includes(date)) return;
     setSelectedDate(date);
     setSelectedEventId(null);
   };
 
   return <div className="trajectory-page">
     <h1 id="trajectory-heading" className="sr-only" tabIndex="-1">生活軌跡</h1>
+    {(error || model.error) && <div role="alert"><p>{error || model.error}</p><button className="secondary-button" onClick={() => setRetry((value) => value + 1)}>再読み込み</button></div>}
+    {!dates && !error && <p role="status">記録日を読み込んでいます…</p>}
+    {dates?.length === 0 && <p>軌跡の記録はまだありません。<a href="#agent">Agent Chat で作成する</a></p>}
+    {dates?.length > 0 && <>
     <section className="trajectory-summary" aria-label="選択した日の概要">
       <div className="trajectory-date-row">
         <div>
           <p className="trajectory-section-label">選択した日</p>
-          <strong className="trajectory-date-title">2026年{dateLabel(selectedDate)}</strong>
+          <strong className="trajectory-date-title">{selectedDate.slice(0, 4)}年{dateLabel(selectedDate)}</strong>
         </div>
         <div className="trajectory-date-controls">
           <button type="button" aria-label="前の記録日" onClick={() => changeDate(dates[dateIndex - 1])} disabled={dateIndex === 0}>‹</button>
@@ -51,20 +81,21 @@ export default function Trajectory() {
           <button type="button" aria-label="次の記録日" onClick={() => changeDate(dates[dateIndex + 1])} disabled={dateIndex === dates.length - 1}>›</button>
         </div>
       </div>
-      <div className="trajectory-stats">
+      {day && <div className="trajectory-stats">
         <div><span>訪問地点</span><strong>{day.stopCount}地点</strong></div>
         <div><span>記録された支出</span><strong>{yen.format(day.expenseTotal)}</strong></div>
         <div><span>地点間の直線距離</span><strong>約{day.distanceKm.toFixed(1)} km</strong></div>
-      </div>
-      <p className="trajectory-summary-note">実在する店舗・駅を使った架空の取引です。訪問時刻・移動順・経路はサンプルで、線と距離は道路や線路に沿った実測値ではありません。</p>
+      </div>}
+      <p className="trajectory-summary-note">線と距離は地点間の概算です。実際に通った経路や移動距離ではありません。</p>
     </section>
 
-    <div className="trajectory-content-grid">
+    {!day && !error && !model.error && <p role="status">軌跡を読み込んでいます…</p>}
+    {day && <div className="trajectory-content-grid">
       <section className="trajectory-map-panel" aria-labelledby="trajectory-map-heading">
         <div className="trajectory-panel-heading"><div><p className="trajectory-section-label">MAP</p><h2 id="trajectory-map-heading">一日の移動</h2></div><span>{dateLabel(selectedDate)}</span></div>
         <MapErrorBoundary>
           <Suspense fallback={<div className="trajectory-map-loading" role="status">地図を準備しています…</div>}>
-            <TrajectoryMap day={day} selectedEventId={selectedEventId} onSelectEvent={setSelectedEventId} />
+            {day.bounds ? <TrajectoryMap day={day} selectedEventId={selectedEventId} onSelectEvent={setSelectedEventId} /> : <p>地図に表示する地点はありません。</p>}
           </Suspense>
         </MapErrorBoundary>
         <div className="trajectory-legend" aria-label="区間の色">
@@ -90,7 +121,9 @@ export default function Trajectory() {
             </li>;
           })}
         </ol>
+        {!day.events.length && <p>この日の訪問地点はまだありません。</p>}
       </section>
-    </div>
+    </div>}
+    </>}
   </div>;
 }

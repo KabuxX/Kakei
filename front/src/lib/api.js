@@ -65,4 +65,16 @@
     return result.deletedCount;
   }
 
-export { ApiError, listTransactions, loadInitialTransactions, addTransaction, removeTransaction, removeSamples };
+export async function listTrajectoryDates(fetchImpl = fetch) {
+  const result = await request('GET', '/api/trajectory', undefined, fetchImpl);
+  if (!Array.isArray(result?.dates)) throw new ApiError(200, { message: '記録日を読み込めませんでした。' });
+  return result.dates;
+}
+
+export async function loadTrajectoryDay(date, fetchImpl = fetch) {
+  const result = await request('GET', `/api/trajectory/${encodeURIComponent(date)}`, undefined, fetchImpl);
+  if (!result?.places || !Array.isArray(result?.days)) throw new ApiError(200, { message: '軌跡を読み込めませんでした。' });
+  return result;
+}
+
+export { ApiError, request, listTransactions, loadInitialTransactions, addTransaction, removeTransaction, removeSamples };
