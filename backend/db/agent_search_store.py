@@ -24,7 +24,7 @@ def bound(value, maximum):
         choices = []
         def scan(node):
             if isinstance(node, dict):
-                if 'name' in node and 'coordinates' in node: return
+                if ('name' in node and 'address' in node) or ('id' in node and 'url' in node): return
                 for k, v in node.items():
                     if isinstance(v, str) and len(v.encode()) > 100:
                         choices.append((len(v.encode()), node, k, v))
@@ -46,12 +46,15 @@ def bounded_candidates(node):
     """Candidate names/IDs/coordinates are atomic; omit, never rewrite identity."""
     if isinstance(node, dict):
         for k,v in list(node.items()):
-            if k == 'candidates' and isinstance(v,list):
-                node[k] = [c for c in v[:20] if size(c)<=2048]
+            if k in ('candidates','unlocatedCandidates') and isinstance(v,list):
+                for c in v:
+                    while size(c)>8192 and len(c.get('sources',[]))>1:
+                        c['sources'].pop();c['truncated']=True
+                node[k] = [c for c in v[:20] if size(c)<=8192]
                 omitted=len(v)-len(node[k])
                 if omitted:
                     node.update(truncated=True,omittedCandidates=omitted)
-            elif k=='candidate' and isinstance(v,dict) and size(v)>2048:
+            elif k=='candidate' and isinstance(v,dict) and size(v)>8192:
                 node[k]={'id':v.get('id'),'truncated':True,'omissionReason':'candidate_size_limit'}
             else: bounded_candidates(v)
     elif isinstance(node,list):

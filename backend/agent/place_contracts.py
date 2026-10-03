@@ -22,6 +22,7 @@ class SearchInput(TypedDict):
     country_code: NotRequired[str | None]
     evidence: NotRequired[list[Evidence]]
     reuse_search_id: NotRequired[str | None]
+    refresh: NotRequired[bool]
 
 class Candidate(TypedDict, total=False):
     id: str
@@ -77,6 +78,9 @@ class SearchResult(TypedDict, total=False):
     truncated: bool
     reusedFrom: dict
     grounding: Region | None
+    pipelineVersion: str
+    sources: list[dict]
+    unlocatedCandidates: list[dict]
 
 class HistoryRecord(TypedDict, total=False):
     searchId: str | None

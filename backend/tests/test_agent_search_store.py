@@ -53,7 +53,7 @@ class SearchStoreTests(unittest.TestCase):
         self.assertLessEqual(len(json.dumps(self.searches.summary(self.thread), ensure_ascii=False).encode()),8192)
         rec=self.searches.get(self.thread, ids[0])
         for c in rec['result']['candidates']:
-            self.assertLessEqual(len(json.dumps(c, ensure_ascii=False).encode()),2048)
+            self.assertLessEqual(len(json.dumps(c, ensure_ascii=False).encode()),8192)
         self.assertTrue(rec['result']['truncated'])
 
     def test_delete_during_search_does_not_resurrect(self):
@@ -88,8 +88,8 @@ class SearchStoreTests(unittest.TestCase):
     def test_selectable_names_are_not_shortened_to_meet_byte_limit(self):
         import uuid
         sid=self.searches.start(self.ctx,REQUEST)
-        candidate={'id':str(uuid.uuid4()),'providerId':'x'*500,'name':'カ'*190+'西鉄福岡駅店','address':'a'*500,'attribution':'a'*200,'sourceUrl':'https://example.com/'+'p'*100,'coordinates':[130.4,33.59],'matchReasons':['name_and_region_match'],'searchId':sid}
-        self.assertGreater(len(json.dumps(candidate,ensure_ascii=False).encode()),2048)
+        candidate={'id':str(uuid.uuid4()),'providerId':'x'*8500,'name':'カ'*190+'西鉄福岡駅店','address':'a'*500,'attribution':'a'*200,'sourceUrl':'https://example.com/'+'p'*100,'coordinates':[130.4,33.59],'matchReasons':['name_and_region_match'],'searchId':sid}
+        self.assertGreater(len(json.dumps(candidate,ensure_ascii=False).encode()),8192)
         self.searches.finish(self.ctx,sid,result(sid,[candidate]))
         saved=self.searches.get(self.thread,sid)['result']
         self.assertTrue(saved['truncated'])
@@ -97,3 +97,11 @@ class SearchStoreTests(unittest.TestCase):
             self.assertEqual(c['name'],candidate['name'])
         self.assertEqual(saved['candidates'],[])
         self.assertEqual(saved['omittedCandidates'],1)
+
+    def test_bounds_preserve_source_identity(self):
+        from web_place_fixtures import PLACE,SOURCE
+        sid=self.searches.start(self.ctx,REQUEST)
+        candidate={**PLACE,'id':'c','sources':[{**SOURCE,'url':'https://store.example/'+'あ'*900}]}
+        self.searches.finish(self.ctx,sid,result(sid,[candidate]))
+        saved=self.searches.get(self.thread,sid)['result']['candidates']
+        self.assertEqual(saved[0]['sources'][0]['url'],candidate['sources'][0]['url'])
