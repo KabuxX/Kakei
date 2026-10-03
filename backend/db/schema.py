@@ -191,7 +191,29 @@ def _ensure_domain_schema(connection: sqlite3.Connection) -> None:
 def ensure_schema(connection: sqlite3.Connection) -> None:
     """Migrate domain tables before exposing public views in the same transaction."""
     _ensure_domain_schema(connection)
+    _create_agent_tables(connection)
     for name in ('transactions', 'transaction_items', 'trajectory_days', 'trajectory_events', 'trajectory_legs', 'trajectory_places'):
         connection.execute(f'DROP VIEW IF EXISTS agent_{name}')
         # Prevent COUNT(*) view flattening from losing its authorizer context.
         connection.execute(f'CREATE VIEW agent_{name} AS SELECT * FROM {name} LIMIT -1 OFFSET 0')
+
+
+def _create_agent_tables(connection: sqlite3.Connection) -> None:
+    for statement in (
+        '''CREATE TABLE IF NOT EXISTS agent_threads (
+            id TEXT PRIMARY KEY, created_at REAL NOT NULL, title TEXT NOT NULL)''',
+        '''CREATE TABLE IF NOT EXISTS agent_messages (
+            id TEXT PRIMARY KEY, thread_id TEXT NOT NULL REFERENCES agent_threads(id) ON DELETE CASCADE,
+            client_message_id TEXT NOT NULL, role TEXT NOT NULL CHECK(role IN ('user','assistant')),
+            text TEXT NOT NULL, created_at REAL NOT NULL, UNIQUE(thread_id, client_message_id))''',
+        '''CREATE TABLE IF NOT EXISTS agent_proposals (
+            id TEXT PRIMARY KEY, thread_id TEXT REFERENCES agent_threads(id) ON DELETE SET NULL,
+            revision INTEGER NOT NULL, status TEXT NOT NULL CHECK(status IN ('pending','applied','rejected','expired')),
+            commands_json TEXT NOT NULL, baselines_json TEXT NOT NULL,
+            created_at REAL NOT NULL, expires_at REAL NOT NULL, applied_at REAL,
+            result_json TEXT, before_json TEXT NOT NULL DEFAULT '[]', after_json TEXT NOT NULL DEFAULT '[]',
+            metadata_json TEXT NOT NULL DEFAULT '{}')''',
+        'CREATE INDEX IF NOT EXISTS agent_messages_thread ON agent_messages(thread_id, created_at)',
+        'CREATE INDEX IF NOT EXISTS agent_proposals_thread ON agent_proposals(thread_id, created_at)',
+    ):
+        connection.execute(statement)
