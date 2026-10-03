@@ -124,7 +124,7 @@ def _legacy_items(row: tuple) -> list[tuple[str, int, str, int]]:
     return result
 
 
-def ensure_schema(connection: sqlite3.Connection) -> None:
+def _ensure_domain_schema(connection: sqlite3.Connection) -> None:
     """Create a fresh schema or atomically move legacy items into child rows.
 
     The caller enables foreign keys before calling and commits or rolls back.
@@ -173,6 +173,8 @@ def ensure_schema(connection: sqlite3.Connection) -> None:
          int(record["timeEstimated"]))
         for row, record in zip(legacy_rows, records)
     ))
+    connection.execute("DROP VIEW IF EXISTS agent_transactions")
+    connection.execute("DROP VIEW IF EXISTS agent_transaction_items")
     connection.execute("DROP TABLE transactions")
     connection.execute("ALTER TABLE transactions_new RENAME TO transactions")
     _create_items(connection)
@@ -184,3 +186,12 @@ def ensure_schema(connection: sqlite3.Connection) -> None:
         "INSERT INTO transaction_items (transaction_id, position, name, amount) VALUES (?, ?, ?, ?)",
         item_rows,
     )
+
+
+def ensure_schema(connection: sqlite3.Connection) -> None:
+    """Migrate domain tables before exposing public views in the same transaction."""
+    _ensure_domain_schema(connection)
+    for name in ('transactions', 'transaction_items', 'trajectory_days', 'trajectory_events', 'trajectory_legs', 'trajectory_places'):
+        connection.execute(f'DROP VIEW IF EXISTS agent_{name}')
+        # Prevent COUNT(*) view flattening from losing its authorizer context.
+        connection.execute(f'CREATE VIEW agent_{name} AS SELECT * FROM {name} LIMIT -1 OFFSET 0')
