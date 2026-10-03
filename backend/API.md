@@ -248,3 +248,8 @@ curl http://localhost:8765/api/trajectory/2026-09-19
 | `409` | `conflict` | 軌跡の ID 重複、参照中の削除、イベントと区間の順序衝突 |
 | `413` | `body_too_large` | JSON 本文が上限を超過 |
 | `500` | `database_error` | SQLite にアクセスできない |
+# Agent foundation additions
+
+`PUT /api/transactions/{id}` replaces a transaction's editable fields and items while preserving its ID. The request uses the creation fields, plus optional boolean `confirmTime`. An unchanged estimated timestamp remains estimated unless explicitly confirmed. Referenced transactions cannot move to another day without a corresponding trajectory update.
+
+`GET /api/trajectory` returns `{ "dates": ["YYYY-MM-DD", ...] }` in ascending order, including before transaction initialization. It reflects SQLite changes immediately and returns `Cache-Control: no-store`.

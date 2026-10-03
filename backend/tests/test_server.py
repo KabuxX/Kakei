@@ -113,6 +113,7 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(self.request("GET", "/api/transactions"), (200, {"transactions": []}))
         self.assertEqual(self.request("POST", "/api/initialize", {"transactions": records})[0], 409)
         self.assertEqual(self.request("PUT", "/api/transactions")[0], 405)
+        self.assertEqual(self.request("GET", "/api/unknown")[1]["error"]["code"], "not_found")
 
     def test_update_transaction_http(self):
         self.request("POST", "/api/initialize", {"transactions": []})
@@ -125,7 +126,22 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(self.request("GET", path)[1], updated)
         self.assertEqual(self.request("PUT", "/api/transactions/missing", draft)[0], 404)
         self.assertEqual(self.request("PUT", path, {**draft, "confirmTime": "yes"})[0], 400)
-        self.assertEqual(self.request("GET", "/api/unknown")[1]["error"]["code"], "not_found")
+
+    def test_trajectory_dates_work_before_initialization(self):
+        response = self.client.get("/api/trajectory", headers={"Host": "localhost:8765"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers["Cache-Control"], "no-store")
+        self.assertIn("2026-09-29", response.json()["dates"])
+        self.assertEqual(response.json()["dates"], sorted(response.json()["dates"]))
+
+    def test_trajectory_dates_reflect_mutations(self):
+        command = {"kind": "day", "date": "2027-01-04", "data": {"events": [], "legs": []}}
+        self.assertEqual(self.request("POST", "/api/trajectory", command)[0], 201)
+        status, payload = self.request("GET", "/api/trajectory")
+        self.assertEqual(status, 200)
+        self.assertIn("2027-01-04", payload["dates"])
+        self.request("DELETE", "/api/trajectory", {"kind": "day", "date": "2027-01-04"})
+        self.assertNotIn("2027-01-04", self.request("GET", "/api/trajectory")[1]["dates"])
 
     def test_create_rejects_date_only_and_returns_time_estimated(self):
         record = {"id": "legacy-income", "title": "給与", "date": "2026-09-01",
@@ -303,7 +319,8 @@ class ServerTests(unittest.TestCase):
         self.assertEqual((status, result["error"]["code"]), (403, "forbidden_origin"))
         self.assertEqual(Store(self.db).get_trajectory_day("2026-09-19"), before)
         status, result = self.request("GET", "/api/trajectory")
-        self.assertEqual((status, result["error"]["code"]), (405, "method_not_allowed"))
+        self.assertEqual(status, 200)
+        self.assertIn("2026-09-19", result["dates"])
 
     def test_trajectory_mutation_body_guards(self):
         before = Store(self.db).get_trajectory_day("2026-09-19")

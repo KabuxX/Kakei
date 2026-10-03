@@ -257,6 +257,10 @@ class Store:
             connection.execute("BEGIN")
             return read_trajectory_day(connection, date)
 
+    def list_trajectory_dates(self) -> list[str]:
+        with self._connection() as connection:
+            return [row["date"] for row in connection.execute("SELECT date FROM trajectory_days ORDER BY date")]
+
     def mutate_trajectory(self, command: TrajectoryCommand, action: str) -> dict | None:
         if action not in ("create", "update", "delete"):
             raise ValueError("unknown trajectory action")

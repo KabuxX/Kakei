@@ -12,6 +12,10 @@ from services.trajectory_mutation import parse_trajectory_command
 
 
 def register_trajectory(app: FastAPI, store: Store) -> None:
+    @app.get("/api/trajectory")
+    def trajectory_dates():
+        return json_response(200, {"dates": store.list_trajectory_dates()})
+
     async def mutate(request: Request, action: str, status: int):
         payload = await read_json(request, 1024 * 1024)
         command = parse_trajectory_command(payload, request.method)
