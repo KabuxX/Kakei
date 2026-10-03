@@ -1,0 +1,38 @@
+import json,sys,tempfile,unittest
+from pathlib import Path
+from unittest.mock import patch
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+import httpx
+from agent.places import search_places
+from api.http import HTTPFailure
+from db.store import Store,TrajectoryConflict
+from db.agent_store import AgentStore
+from services.validation import ValidationError
+
+CANDIDATE={'id':'candidate-a','name':'同名店','address':'New York','coordinates':[-73.9,40.7],'sourceUrl':'https://www.openstreetmap.org/copyright','attribution':'© OpenStreetMap contributors'}
+COMMAND={'kind':'trajectory.create','identity':{'kind':'day','date':'2027-01-04'},'data':{'events':[{'id':'e','time':None,'timeEvidence':'unknown','placeId':'unknown-store'}],'legs':[]}}
+class PlacesTests(unittest.TestCase):
+ def test_geoapify_search_returns_distinct_same_name_results(self):
+  requests=[]
+  def handle(request):
+   requests.append(request)
+   return httpx.Response(200,json={'results':[{'place_id':str(i),'name':'同名店','formatted':city,'lon':lon,'lat':40,'datasource':{'url':'https://www.openstreetmap.org/copyright','attribution':'OSM'}} for i,city,lon in [(1,'New York',-73),(2,'London',0)]]})
+  with patch.dict('os.environ',{'GEOAPIFY_API_KEY':'secret'}),httpx.Client(transport=httpx.MockTransport(handle)) as client:
+   result=search_places('同名店',client=client)
+  self.assertEqual(len(result),2);self.assertNotEqual(result[0]['id'],result[1]['id']);self.assertNotIn('secret',json.dumps(result));self.assertEqual(requests[0].url.params['limit'],'5')
+ def test_timeout_empty_and_missing_key(self):
+  with patch.dict('os.environ',{},clear=True),self.assertRaises(HTTPFailure):search_places('店')
+  def timeout(request):raise httpx.ReadTimeout('timeout')
+  with patch.dict('os.environ',{'GEOAPIFY_API_KEY':'secret'}),httpx.Client(transport=httpx.MockTransport(timeout)) as client,self.assertRaises(HTTPFailure):search_places('店',client=client)
+  with patch.dict('os.environ',{'GEOAPIFY_API_KEY':'secret'}),httpx.Client(transport=httpx.MockTransport(lambda r:httpx.Response(200,json={'results':[]}))) as client:self.assertEqual(search_places('店',client=client),[])
+ def test_candidate_selection_uses_saved_coordinates_and_rejects_forgery(self):
+  with tempfile.TemporaryDirectory() as directory:
+   path=Path(directory)/'db';store=Store(path);store.initialize([]);agent=AgentStore(path);thread=agent.create_thread()['id']
+   proposal=agent.create_proposal(thread,[COMMAND],place_candidates=[{'placeId':'unknown-store','query':'同名店','candidates':[CANDIDATE]}])
+   with self.assertRaises(TrajectoryConflict):store.apply_agent_proposal(proposal['id'],1)
+   with self.assertRaises(ValidationError):agent.select_place_candidate(proposal['id'],1,'forged')
+   selected=agent.select_place_candidate(proposal['id'],1,'candidate-a')
+   self.assertEqual(selected['revision'],2)
+   with self.assertRaises(TrajectoryConflict):agent.select_place_candidate(proposal['id'],1,'candidate-a')
+   store.apply_agent_proposal(proposal['id'],2)
+   self.assertEqual(store.get_trajectory_day('2027-01-04')['places']['unknown-store']['coordinates'],CANDIDATE['coordinates'])

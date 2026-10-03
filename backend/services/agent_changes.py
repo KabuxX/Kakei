@@ -165,6 +165,11 @@ def apply_proposal(connection, proposal_id, revision):
         return json.loads(row['result_json'])
     if row['status'] != 'pending' or row['expires_at'] <= time.time():
         raise TrajectoryConflict('この変更案は期限切れか却下済みです。新しい案を作成してください。')
+    from services.agent_places import unresolved, validate_bound_places
+    metadata = json.loads(row['metadata_json'])
+    if unresolved(metadata):
+        raise TrajectoryConflict('未確定の地点があります。候補または座標を選んでください。')
+    validate_bound_places(json.loads(row['commands_json']), metadata)
     expected = json.loads(row['baselines_json'])
     if fingerprints(read_state(connection), expected) != expected:
         raise TrajectoryConflict('元データが変更されました。差分を更新して再確認してください。')

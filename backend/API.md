@@ -282,3 +282,7 @@ curl http://localhost:8765/api/trajectory/2026-09-19
 
 地点は世界座標（経度±180、緯度±90）に対応し、`placeEvidence: provider|user|legacy` と `attribution` を返します。ユーザー座標は住所・sourceUrlをnullにできます。訪問は `timeEvidence: exact|estimated|unknown|legacy`、`timeEvidenceNote` を持ち、unknown時だけtimeがnullです。推定には説明を付けます。取引の仮時刻をexactへ昇格する案は拒否します。
 区間は `modeEvidence: fare|user|inferred|legacy` と `modeEvidenceNote` を持ちます。fareは交通費参照が必須、inferredは説明が必須です。交通費削除時は参照を外し推定へ変更します。新しい根拠付きイベントは送信した順序を保存し、既知の時刻が逆順なら拒否します。既存形式だけの操作では従来の時刻順整列を維持します。0・1地点の日も保存できます。
+
+### 地点選択
+
+未解決の地点を含む変更案は `metadata.placeCandidates` に `{placeId,query,candidates,selectedCandidateId?}` を持ち、承認できません。`POST /api/agent/proposals/{id}/places/selection` に `{revision,candidateId}` を送るとサーバー保存の座標を使って案を改訂します。クライアント座標は受け付けません。手動指定は `/places/manual` に `{revision,placeId,place:{name,coordinates:[longitude,latitude]}}`。どちらも `{proposal}` を返し、版が増えます。元データの変更や古い版は409です。

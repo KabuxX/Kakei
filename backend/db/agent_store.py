@@ -95,12 +95,12 @@ class AgentStore:
                 c.execute("UPDATE agent_threads SET title = ? WHERE id = ? AND title = '新しい会話'", (text[:40], thread_id))
             return {'id': identifier, 'role': role, 'text': text, 'createdAt': now}
 
-    def create_proposal(self, thread_id, commands, baselines=None):
+    def create_proposal(self, thread_id, commands, baselines=None, place_candidates=None):
         with self.store._connection() as c:
             c.execute('BEGIN IMMEDIATE')
-            return self._create_proposal(c, thread_id, commands)
+            return self._create_proposal(c, thread_id, commands, place_candidates)
 
-    def _create_proposal(self, c, thread_id, commands):
+    def _create_proposal(self, c, thread_id, commands, place_candidates=None):
         from services.agent_changes import prepare_changes
         commands = command_dicts(commands)
         identifier, now = str(uuid.uuid4()), time.time()
@@ -108,12 +108,15 @@ class AgentStore:
         self._expire(c)
         from db.receipt_store import ReceiptStore
         ReceiptStore.validate_commands(c, commands, thread_id)
-        preview = prepare_changes(c, commands)
+        from services.agent_places import preview as place_preview, source_version
+        metadata = {'placeCandidates': place_candidates, 'sourceVersion': source_version(c)} if place_candidates else {}
+        preview = place_preview(c, commands, metadata)
         c.execute("""INSERT INTO agent_proposals
             (id, thread_id, revision, status, commands_json, baselines_json, created_at, expires_at, before_json, after_json)
             VALUES (?, ?, 1, 'pending', ?, ?, ?, ?, ?, ?)""",
             (identifier, thread_id, dumps(commands), dumps(preview['baselines']), now, now + 86400,
              dumps(preview['before']), dumps(preview['after'])))
+        c.execute('UPDATE agent_proposals SET metadata_json=? WHERE id=?', (dumps(metadata), identifier))
         return proposal_record(c.execute('SELECT * FROM agent_proposals WHERE id = ?', (identifier,)).fetchone())
 
     def begin_turn(self, thread_id, client_id, text, receipt_id=None):
@@ -161,7 +164,7 @@ class AgentStore:
             if result.get('commands'):
                 if hashlib.sha256(canonical(read_state(c)).encode()).hexdigest() != lease['sourceVersion']:
                     raise TrajectoryConflict('応答中に元データが変更されました。再送してください。')
-                proposal = self._create_proposal(c, thread_id, result['commands'])
+                proposal = self._create_proposal(c, thread_id, result['commands'], result.get('placeCandidates'))
             message = {'id': str(uuid.uuid4()), 'role': 'assistant', 'text': text, 'createdAt': time.time()}
             c.execute('INSERT INTO agent_messages VALUES (?, ?, ?, ?, ?, ?)', (message['id'], thread_id, 'assistant:'+client_id, 'assistant', text, message['createdAt']))
             response = {'message': message, 'proposal': proposal}
@@ -189,7 +192,11 @@ class AgentStore:
             row = self._pending(c, proposal_id, expected_revision)
             from db.receipt_store import ReceiptStore
             ReceiptStore.validate_commands(c, commands, row['thread_id'])
-            preview = prepare_changes(c, commands)
+            from services.agent_places import check_source, preview as place_preview, validate_bound_places
+            metadata = json.loads(row['metadata_json'])
+            check_source(c, metadata)
+            validate_bound_places(commands, metadata)
+            preview = place_preview(c, commands, metadata)
             c.execute('''UPDATE agent_proposals SET commands_json = ?, revision = revision + 1,
                 baselines_json = ?, before_json = ?, after_json = ? WHERE id = ?''',
                 (dumps(commands), dumps(preview['baselines']), dumps(preview['before']), dumps(preview['after']), proposal_id))
@@ -245,3 +252,17 @@ class AgentStore:
             c.execute('UPDATE agent_proposals SET metadata_json=? WHERE id=?', (dumps(metadata), proposal['id']))
             proposal['metadata'] = metadata
             return proposal
+
+    def select_place_candidate(self, proposal_id, revision, candidate_id=None, *, manual=None, place_id=None):
+        from services.agent_places import choose, preview as place_preview
+        if type(revision) is not int:
+            raise ValidationError('revision', '確認した版を指定してください。')
+        with self.store._connection() as c:
+            c.execute('BEGIN IMMEDIATE')
+            row = self._pending(c, proposal_id, revision)
+            commands, metadata = choose(c, json.loads(row['commands_json']), json.loads(row['metadata_json']), candidate_id, manual, place_id)
+            values = place_preview(c, commands, metadata)
+            c.execute("""UPDATE agent_proposals SET commands_json=?, metadata_json=?, baselines_json=?,
+                before_json=?, after_json=?, revision=revision+1 WHERE id=?""",
+                (dumps(commands), dumps(metadata), dumps(values['baselines']), dumps(values['before']), dumps(values['after']), proposal_id))
+            return proposal_record(c.execute('SELECT * FROM agent_proposals WHERE id=?', (proposal_id,)).fetchone())

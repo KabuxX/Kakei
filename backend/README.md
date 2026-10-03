@@ -77,3 +77,5 @@ backend/.venv/bin/python backend/replace_samples.py \
 1ターンは60秒・8ツール呼び出しまで。外部 LangSmith tracing は各ターンで無効にしています。会話の直近20件と必要な公開SQLの結果をモデルに送ります。取引・軌跡は変更案の承認時だけ保存されます。変更案は24時間で期限切れになります。同じ送信IDや承認IDの再送は保存済み結果を返します。
 
 レシート原本は SQLite の BLOB に保存します。画像/PDFと読み取り依頼を OpenAI に送信しますが、原本を LangSmith に送信する設定は使用しません。画像/PDF入力と構造化出力を扱えるモデルを `KAKEI_AGENT_MODEL` に指定してください。対応通貨は日本円です。暗号化PDF、複数画像の一括添付には対応しません。
+
+未知の店舗検索にはサーバーで `GEOAPIFY_API_KEY` を設定します。[Geoapify Forward Geocoding API](https://apidocs.geoapify.com/docs/geocoding/forward-geocoding/) に店舗名・地域を送り、最大5候補を返します（5秒、64 KiBまで）。キーは保存する出典URLに含めません。取得した出典と帰属表示は地点とともに保持します。検索失敗時も、保存済み地点や利用者指定の座標を選べます。

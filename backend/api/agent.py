@@ -86,3 +86,15 @@ def register_agent(app, store, runner_factory=None):
         if type(payload.get('revision')) is not int:
             raise ValidationError('revision', '確認した版を指定してください。')
         return json_response(200, {'proposal': repository.reject_proposal(proposal_id, payload['revision'])})
+
+    @app.post('/api/agent/proposals/{proposal_id}/places/selection')
+    async def choose_place(proposal_id: str, request: Request):
+        payload = await body(request)
+        if set(payload) != {'revision', 'candidateId'}:
+            raise ValidationError('candidateId', '候補IDと版だけを指定してください。')
+        return json_response(200, {'proposal': repository.select_place_candidate(proposal_id, payload['revision'], payload['candidateId'])})
+
+    @app.post('/api/agent/proposals/{proposal_id}/places/manual')
+    async def manual_place(proposal_id: str, request: Request):
+        payload = await body(request)
+        return json_response(200, {'proposal': repository.select_place_candidate(proposal_id, payload.get('revision'), manual=payload.get('place'), place_id=payload.get('placeId'))})
