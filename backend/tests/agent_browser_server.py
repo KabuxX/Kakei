@@ -8,6 +8,12 @@ from api.app import create_app
 class BrowserRunner:
     def __init__(self,store):self.store=store
     async def run_turn(self, thread_id, messages, receipt_id=None, *, turn_context=None):
+        if 'Web出典' in messages[-1]['text']:
+            from web_place_fixtures import SOURCE,PLACE
+            result={'text':'店舗を確認しました [source:s1]','sources':[SOURCE],'commands':[]}
+            if '軌跡' in messages[-1]['text']:
+                result.update(commands=[{'kind':'trajectory.create','identity':{'kind':'day','date':'2027-01-05'},'data':{'events':[{'id':'web-event','placeId':'web-shop','time':'12:00','timeEvidence':'exact'}],'legs':[]}}],placeCandidates=[{'placeId':'web-shop','query':'店舗','candidates':[{**PLACE,'id':'web-candidate','geocoding':{**PLACE['geocoding'],'accuracy':'interpolated'}}],'unlocatedCandidates':[{'id':'unlocated','name':'住所のみ確認できた店舗','address':'福岡市中央区','sources':[SOURCE],'unresolved':['address_precision_unconfirmed']}]}])
+            return result
         if '軌跡' in messages[-1]['text']:
             candidates=[{'id':'ny','name':'同名店','address':'New York, USA','coordinates':[-73.9,40.7],'sourceUrl':'https://www.openstreetmap.org/copyright','attribution':'© OpenStreetMap contributors'}, {'id':'london','name':'同名店','address':'London, UK','coordinates':[-0.1,51.5],'sourceUrl':'https://www.openstreetmap.org/copyright','attribution':'© OpenStreetMap contributors'}]
             return {'text':'地点候補と訪問順を確認してください。','commands':[{'kind':'trajectory.create','identity':{'kind':'day','date':'2027-01-04'},'data':{'events':[{'id':'future-a','placeId':'future-shop','time':None,'timeEvidence':'unknown'},{'id':'future-b','placeId':'future-shop','time':None,'timeEvidence':'unknown'}],'legs':[{'fromEventId':'future-a','toEventId':'future-b','modeEvidence':'inferred','modeEvidenceNote':'訪問順から結んだ概算。実際の経路と手段は不明。'}]}}], 'placeCandidates':[{'placeId':'future-shop','query':'同名店','candidates':candidates}]}
