@@ -24,6 +24,7 @@ class SearchInput(TypedDict):
     reuse_search_id: NotRequired[str | None]
     refresh: NotRequired[bool]
     address_format: NotRequired[str]
+    address: NotRequired[str | None]
 
 class Candidate(TypedDict, total=False):
     id: str

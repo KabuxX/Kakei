@@ -39,11 +39,7 @@ def match_address(place,feature):
         postcodes={value for value in (query_postal,actual_postal,structured_postal) if value}
         if len(postcodes)>1:reasons.append('postcode_mismatch')
     query=normalize_address(query_text);actual=normalize_address(actual_text)
-    # Only an explicitly separated building/floor may be omitted. An arbitrary
-    # suffix (notably Japanese house-number continuations such as の3) is unsafe.
-    if query!=actual:
-        building=re.fullmatch(r'(.+?)\s+(?:[^\s]+(?:ビル|ビルディング|タワー|マンション|building|tower)(?:\s*\d+(?:階|f|号室))?|\d+(?:階|f|号室))',query_text,re.IGNORECASE)
-        if not building or normalize_address(building[1])!=actual:reasons.append('address_mismatch')
+    if not addresses_match(query_text,actual_text):reasons.append('address_mismatch')
     if not re.search(r'\d',actual):reasons.append('address_number_missing')
     if not place.get('locality') or normalize_address(place['locality']) not in actual:reasons.append('locality_unconfirmed')
     return list(dict.fromkeys(reasons))

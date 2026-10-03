@@ -156,3 +156,15 @@ class SearchTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(self.provider.calls),2)
         self.assertEqual(len(self.geocoder.calls),2)
         with self.assertRaises(ValidationError):await self.service.search({**self.req,'address_format':'invented'})
+    async def test_same_name_new_address_cannot_reuse_old_coordinates(self):
+        from test_merchant_address import DRAFT
+        record=self.store.create_transaction({**DRAFT,'merchantAddress':WEB_PLACE['address']})
+        def req(address):return {**self.req,'address':address,'evidence':[{'field':'address','source':'transaction','source_id':record['id'],'value':address}]}
+        first=await self.service.search(req(WEB_PLACE['address']))
+        self.assertEqual(len(first['candidates']),1)
+        self.store.update_transaction(record['id'],{**DRAFT,'merchantAddress':'福岡市中央区天神2-11-30'})
+        second=await self.service.search(req('福岡市中央区天神2-11-30'))
+        self.assertEqual(second['candidates'],[])
+        self.assertIn('address_mismatch',second['unlocatedCandidates'][0]['unresolved'])
+        self.assertEqual(len([c for c in self.provider.calls if c[0]=='web']),2)
+        with self.assertRaises(ValidationError):await self.service.search({**req('福岡市中央区天神2-11-30'),'reuse_search_id':first['searchId']})

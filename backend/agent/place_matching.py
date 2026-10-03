@@ -4,6 +4,7 @@ import re
 import unicodedata
 import uuid
 from services.validation import ValidationError
+from services.merchant_address import normalize_merchant_address, addresses_match
 from services.agent_changes import read_state
 from db.store import TrajectoryNotFound
 
@@ -38,6 +39,9 @@ class EvidenceResolver:
             val=request[key]
             if not isinstance(val,str) or not 1<=len(val.strip())<=200: raise ValidationError(key,'店舗名・地域は200文字以内で指定してください。')
             request[key]=normalize_text(val)
+        if 'address' in request:
+            request['address']=normalize_merchant_address(request['address'])
+            if request['address'] is None: request.pop('address')
         if not isinstance(request.get('query'),str): raise ValidationError('query','検索語が必要です。')
         if not isinstance(request.get('place_id'),str) or not 1<=len(request['place_id'])<=100: raise ValidationError('placeId','仮地点IDが必要です。')
         if request.get('country_code') and request['country_code'] not in ISO_COUNTRIES: raise ValidationError('country_code','国コードが不正です。')
@@ -49,10 +53,10 @@ class EvidenceResolver:
         users={m.get('id'):m.get('text','') for m in self.messages if m.get('role')=='user'}
         values={}; region=None; saved_region_data=None
         for e in evidence:
-            if not isinstance(e,dict) or set(e)!={'field','source','source_id','value'} or e['field'] not in ('brand','branch','locality','landmark','country_code') or not all(isinstance(v,str) for v in e.values()):
+            if not isinstance(e,dict) or set(e)!={'field','source','source_id','value'} or e['field'] not in ('brand','branch','locality','landmark','country_code','address') or not all(isinstance(v,str) for v in e.values()):
                 raise ValidationError('evidence','根拠の形式が不正です。')
-            source=e['source']; sid=e['source_id']; value=normalize_text(e['value'])
-            if not value or len(value)>200: raise ValidationError('evidence','根拠が空か長すぎます。')
+            source=e['source']; sid=e['source_id']; value=normalize_merchant_address(e['value']) if e['field']=='address' else normalize_text(e['value'])
+            if not value or len(value)>(500 if e['field']=='address' else 200): raise ValidationError('evidence','根拠が空か長すぎます。')
             if source=='user_message': data=users.get(sid)
             elif source=='transaction': data=state['transactions'].get(sid)
             elif source=='saved_place': data=state['timeline']['places'].get(sid)
@@ -66,6 +70,8 @@ class EvidenceResolver:
                 if isinstance(d,dict): return [s for v in d.values() for s in strings(v)]
                 if isinstance(d,list): return [s for v in d for s in strings(v)]
                 return []
+            if e['field']=='address' and source=='transaction' and normalize_merchant_address(data.get('merchantAddress'))!=value:
+                raise ValidationError('evidence','取引に保存された住所と引用が一致しません。')
             if not any(compact(value) in compact(s) for s in strings(data)): raise ValidationError('evidence','引用された根拠が一致しません。')
             values.setdefault(e['field'],set()).add(value)
             if source=='saved_place' and coordinates_valid(data.get('coordinates')):
@@ -92,7 +98,7 @@ class EvidenceResolver:
             return {'request':request,'saved_places':[],'region':None,'category':None,'clarification':{'status':'needs_clarification','message':'地域や店舗の指定と過去の根拠が異なります。今回の店舗・地域を確認してください。'}}
         for key in ('brand','branch','landmark'):
             if request.get(key) and key not in values and compact(request[key]) not in compact(request['query']): raise ValidationError(key,'店舗名から確認できる名称か、その根拠を指定してください。')
-        for key in ('locality','country_code'):
+        for key in ('locality','country_code','address'):
             if request.get(key) and key not in values: raise ValidationError(key,'地域の根拠を指定してください。')
         saved=[{**p,'id':str(uuid.uuid4()),'savedPlaceId':sid} for sid,p in state['timeline']['places'].items()]
         name=request['query']+' '+request.get('brand','')
@@ -152,6 +158,7 @@ def match_candidates(places,request,region):
         name=compact(p.get('name','')); address=compact(p.get('address',''))
         if not name or brand not in name: reasons.append('name_mismatch')
         if branch and branch not in name and name.endswith('店'): reasons.append('different_branch')
+        if request.get('address') and not addresses_match(request['address'],p.get('address')): reasons.append('address_mismatch')
         if request.get('locality') and not locality_matches(request['locality'],p): reasons.append('locality_unconfirmed')
         if region:
             for key in ('country_code','city'):

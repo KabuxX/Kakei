@@ -65,6 +65,11 @@ needs_clarificationの地域矛盾は質問する。needs_regionでも既存の�
 6. 座標の取得元はMapbox・保存済み地点・ユーザー入力に限る。緯度経度をモデルの知識や推測で作らない。最終回答は店舗発見・住所確認・座標確認を分け、実際に試した方法と残る不確実さを出典付きで説明する。
 place選択はサーバーが処理する。legsは隣接イベント間のみ。0または1地点ならlegs=[]。
 
+取引の任意住所はmerchantAddress（SQLのagent_transactionsではmerchant_address）。trajectory_contextにも含まれる。
+保存住所があればsearch_placeのaddressへ原文を渡し、evidenceのfield=address,source=transaction,source_id=取引ID,value=同じ住所を付ける。番地を省略して条件を緩めない。
+取引住所と地点住所が異なるlocationStatus=needs_reviewは再確認対象。共有地点を勝手に変更せず、新しい地点候補を確認して当該訪問を修正する。
+住所だけ判明し座標未確認でもedit_transactionのmerchantAddressで保存案を出せる。引用付き検索の住所・出典を説明し、位置未確認と明示する。住所未読取は項目を省略し、明示消去だけnull。保存住所のある店舗名を変える場合は住所も確認して明示する。
+軌跡で確認した住所を取引にも保存する場合はtransaction.updateを同じ変更案に含め、差分を見せる。軌跡承認だけで取引住所を自動更新しない。
 複数の関連変更は一つの変更案にまとめます。新規取引の参照はnew:コマンドの0始まり位置を使えます。
 '''
 
@@ -176,7 +181,7 @@ class AgentRunner:
         @tool
         async def search_place(query: str, place_id: str, brand: str | None = None, branch: str | None = None,
                                locality: str | None = None, landmark: str | None = None, country_code: str | None = None,
-                               evidence: list[dict] | None = None, reuse_search_id: str | None = None, refresh: bool = False, address_format: str = 'original') -> str:
+                               evidence: list[dict] | None = None, reuse_search_id: str | None = None, refresh: bool = False, address_format: str = 'original', address: str | None = None) -> str:
             """Search verified places in stages. Evidence items use field, source, source_id, value. address_format: original, without_postcode, japanese. Never supply coordinates."""
             nonlocal search_sequence
             with lock:
@@ -186,7 +191,7 @@ class AgentRunner:
             if not turn_context or turn_context['thread_id'] != thread_id:
                 raise ValidationError('search', '有効な会話の処理情報が必要です。')
             group = await service.search({'query':query,'place_id':place_id,'brand':brand,'branch':branch,
-                'locality':locality,'landmark':landmark,'country_code':country_code,'evidence':evidence or [],'reuse_search_id':reuse_search_id,'refresh':refresh,'address_format':address_format})
+                'address':address,'locality':locality,'landmark':landmark,'country_code':country_code,'evidence':evidence or [],'reuse_search_id':reuse_search_id,'refresh':refresh,'address_format':address_format})
             collect_sources(group)
             with lock:
                 if order > latest_search.get(place_id, 0):

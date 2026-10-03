@@ -86,3 +86,10 @@ class MatchingTests(unittest.TestCase):
                 self.resolver.messages=[{'id':'old','role':'user','text':'東京で探して'},{'id':'new','role':'user','text':text}]
                 request={**SEARCH,'locality':'東京','evidence':[{'field':'locality','source':'user_message','source_id':'old','value':'東京'}]}
                 self.assertIsNotNone(self.resolver.resolve(request)['clarification'])
+    def test_address_evidence_reads_only_merchant_address(self):
+        from test_merchant_address import DRAFT
+        record=self.store.create_transaction({**DRAFT,'merchantAddress':'福岡市中央区天神2-11-3'})
+        request={'query':'店','place_id':'p','address':record['merchantAddress'],'evidence':[{'field':'address','source':'transaction','source_id':record['id'],'value':record['merchantAddress']}]}
+        self.assertEqual(self.resolver.resolve(request)['request']['address'],record['merchantAddress'])
+        self.store.update_transaction(record['id'],{**DRAFT,'merchant':record['merchantAddress'],'merchantAddress':None})
+        with self.assertRaises(ValidationError):self.resolver.resolve(request)

@@ -5,6 +5,7 @@ from agent.place_matching import compact,coordinates_valid,locality_matches,dist
 from agent.place_http import PlaceProviderError
 from db.store import TrajectoryConflict
 from services.validation import ValidationError
+from services.merchant_address import addresses_match
 
 class SearchLimit(Exception):pass
 
@@ -56,6 +57,7 @@ def store_reasons(place,request,region):
     if brand not in name:reasons.append('name_mismatch')
     branch=compact(request.get('branch'))
     if branch and branch not in name:reasons.append('branch_unconfirmed')
+    if request.get('address') and not addresses_match(request['address'],place.get('address')):reasons.append('address_mismatch')
     if not locality_matches(request.get('locality'),place):reasons.append('locality_unconfirmed')
     if request.get('country_code') and place.get('country_code')!=request['country_code']:reasons.append('country_unconfirmed')
     if region and region.get('coordinates') and coordinates_valid(place.get('coordinates')) and distance(place['coordinates'],region['coordinates'])>1000:reasons.append('outside_region')
