@@ -7,6 +7,10 @@ from config.runtime import require_supported_python
 
 require_supported_python()
 
+from config.environment import load_environment
+
+load_environment()
+
 from api.app import create_app
 from config.paths import DEFAULT_DB_PATH, FRONT_DIST_DIR
 

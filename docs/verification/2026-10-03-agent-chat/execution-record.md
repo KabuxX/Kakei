@@ -76,3 +76,17 @@ The browser configuration starts its own temporary database and fake runner. The
 ## Setup
 
 Set server-only `OPENAI_API_KEY`, `KAKEI_AGENT_MODEL`, and optionally `GEOAPIFY_API_KEY` as documented in `backend/README.md`. No real provider keys were configured during implementation. `Trajectory.jsx` now reads saved date/day APIs; the previous production component directly imported the fixed JSON fixture, which was why API changes did not appear.
+
+
+## Live provider verification follow-up
+
+User supplied the root `.env` and selected `gpt-6-luna`. The ignored local file now includes `KAKEI_AGENT_MODEL=gpt-6-luna`; no credentials are committed or printed. Server startup now loads root `.env`, independently of the current working directory, while preserving exported values. Two environment-loading tests failed before implementation and passed afterward.
+
+- OpenAI `gpt-6-luna`: actual LangChain agent tool call generated a valid transaction proposal in a temporary DB; zero business records existed before approval.
+- Image input and structured extraction: a synthetic receipt matched all seven checks (merchant, date, time, total, currency, payment method, item sum). This does not establish accuracy for real-world receipts.
+- Geoapify: HTTP 200 with coordinates and attribution. The production adapter returned five candidates after increasing the request timeout to 15 seconds.
+- Diagnosis: the identical provider query repeatedly exceeded the original 5-second read timeout; changing only the timeout to 15 seconds succeeded. The turn remains bounded at 60 seconds, and the response limit remains 64 KiB.
+- Ruling: increase the Geoapify request timeout from 5 to 15 seconds based on live evidence. Cost: a failed search can take up to 10 seconds longer to report.
+- The earlier no-live-provider limitation records the initial implementation phase and is superseded by these targeted smoke checks. Real receipt quality, PDF extraction with this model, and live Mapbox rendering remain unverified.
+
+Final follow-up verification: backend 176/176 passed; git diff --check passed. Worktree `.env` is an ignored symlink to the main checkout `.env`, so local startup uses the same settings without copying secrets.

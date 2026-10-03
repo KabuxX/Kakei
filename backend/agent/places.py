@@ -16,9 +16,9 @@ def search_places(query, *, bias=None, client=None):
             raise ValidationError('bias','検索の中心座標が不正です。')
         params['bias']=f'proximity:{bias[0]},{bias[1]}'
     own=client is None
-    client=client or httpx.Client(timeout=5,follow_redirects=False)
+    client=client or httpx.Client(timeout=15,follow_redirects=False)
     try:
-        with client.stream('GET','https://api.geoapify.com/v1/geocode/search',params=params,timeout=5) as response:
+        with client.stream('GET','https://api.geoapify.com/v1/geocode/search',params=params,timeout=15) as response:
             response.raise_for_status();data=bytearray()
             for chunk in response.iter_bytes():
                 data.extend(chunk)
