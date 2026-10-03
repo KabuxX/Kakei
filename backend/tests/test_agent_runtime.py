@@ -31,7 +31,7 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
     async def test_runtime_registers_three_tools_and_stages_edits(self):
         model = ScriptModel(replies=[AIMessage(content='', tool_calls=[{'name':'edit_transaction','args':{'operation':'create','data':DRAFT},'id':'1','type':'tool_call'}]), AIMessage(content='確認してください')])
         result = await AgentRunner(self.store, model=model).run_turn('thread', [{'role':'user','text':'給与を記録'}])
-        self.assertEqual(set(model._names), {'read_sql','edit_transaction','edit_trajectory'})
+        self.assertEqual(set(model._names), {'read_sql','edit_transaction','edit_trajectory','trajectory_context','search_place'})
         self.assertEqual(result['commands'][0]['data'], DRAFT)
         self.assertEqual(self.store.list_transactions(), [])
 

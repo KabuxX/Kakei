@@ -98,3 +98,8 @@ def register_agent(app, store, runner_factory=None):
     async def manual_place(proposal_id: str, request: Request):
         payload = await body(request)
         return json_response(200, {'proposal': repository.select_place_candidate(proposal_id, payload.get('revision'), manual=payload.get('place'), place_id=payload.get('placeId'))})
+
+    @app.post('/api/agent/proposals/{proposal_id}/order/confirmation')
+    async def confirm_order(proposal_id: str, request: Request):
+        payload = await body(request)
+        return json_response(200, {'proposal': repository.confirm_trajectory_order(proposal_id, payload.get('revision'))})

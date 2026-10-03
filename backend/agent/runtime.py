@@ -34,7 +34,16 @@ agent_trajectory_events, agent_trajectory_legs, agent_trajectory_places。
 支出にはmerchant,paymentMethod(cash/credit_card/e_money/bank_account),items([{name,amount}])。
 カテゴリ: 支出は食費/住まい/日用品/交通/娯楽/その他、収入は収入。品目合計はamountと一致が必要。
 時刻が不明なら確認してください。編集は全フィールドを指定し、時刻を確認した場合confirmTime=true。
-軌跡identityはkind(day/event/leg/place)、date、必要に応じid/from/to。座標は根拠がある地点のみ。
+軌跡はtrajectory_contextで指定日の取引と保存済み日を読んで作成・編集する。
+基本はidentity={kind:day,date:YYYY-MM-DD},data={events:[...],legs:[...]}。
+event={id,time:HH:mmまたはnull,placeId,transactionId任意,timeEvidence:exact/estimated/unknown,timeEvidenceNote}。
+仮設定の取引時刻(timeEstimated=true)はestimatedとし説明を付ける。完全に不明ならnull+unknown。
+leg={fromEventId,toEventId,modeHint:walk/train/bus任意,modeEvidence:fare/user/inferred,modeEvidenceNote,transportTransactionId任意}。
+fareには同日の交通費IDが必要。推定には説明が必要。複数の不明時刻の訪問順はユーザー確認を必要とする。
+既存placeIdは再利用できる。未知の店舗はsearch_place(queryに店舗名と地域,place_idに一意の仮ID)を呼び、eventsでその仮IDを参照する。
+検索失敗でも仮IDで案を作り、ユーザーに地点選択を求める。座標やplaceコマンドをモデルで生成しない。
+place選択はサーバーが処理する。legsは隣接イベント間のみ。0または1地点ならlegs=[]。
+
 複数の関連変更は一つの変更案にまとめます。新規取引の参照はnew:コマンドの0始まり位置を使えます。
 '''
 
@@ -69,6 +78,7 @@ class AgentRunner:
                 matches = find_receipt_matches(c, candidate, asset['sha256'])
             receipt_context = {**receipt_review(candidate, matches, receipt_id), 'mimeType': asset['mime_type']}
         commands, lock = [], threading.Lock()
+        place_groups = []
         count = 1 if receipt_context else 0
         exceeded = False
 
@@ -106,7 +116,40 @@ class AgentRunner:
             """Stage a create/update day, event, leg or place. Identity has kind/date/id as needed."""
             return stage('trajectory', operation, identity, data)
 
-        registered_tools = [read_sql, edit_transaction, edit_trajectory]
+        @tool
+        def trajectory_context(day: str) -> str:
+            """Read transactions and saved trajectory for exactly one YYYY-MM-DD date (max 100 transactions)."""
+            from agent.trajectory import build_trajectory_context
+            with lock:
+                tick()
+            with self.store._connection() as connection:
+                return json.dumps(build_trajectory_context(connection, day), ensure_ascii=False)
+
+        @tool
+        def search_place(query: str, place_id: str) -> str:
+            """Collect saved and Geoapify place candidates for a placeholder place_id. User must choose; never invent coordinates."""
+            from agent.places import search_places
+            from services.agent_changes import read_state
+            from services.validation import ValidationError
+            import uuid
+            with lock:
+                tick()
+            if not isinstance(place_id, str) or not 1 <= len(place_id) <= 100:
+                raise ValidationError('placeId', '地点IDを指定してください。')
+            with self.store._connection() as connection:
+                saved = read_state(connection)['timeline']['places']
+            candidates = [{**p, 'id': str(uuid.uuid4()), 'savedPlaceId': key} for key, p in saved.items() if query.casefold() in p['name'].casefold()][:5]
+            error = None
+            try:
+                candidates.extend(search_places(query))
+            except HTTPFailure as failure:
+                error = failure.message
+            group = {'placeId': place_id, 'query': query, 'candidates': candidates, 'error': error}
+            with lock:
+                place_groups[:] = [g for g in place_groups if g['placeId'] != place_id] + [group]
+            return json.dumps(group, ensure_ascii=False)
+
+        registered_tools = [read_sql, edit_transaction, edit_trajectory, trajectory_context, search_place]
         if receipt_context:
             @tool
             def read_receipt() -> str:
@@ -122,7 +165,9 @@ class AgentRunner:
         if exceeded:
             raise TurnLimit('ツールの利用上限に達しました。対象を絞ってください。')
         if commands:
+            from services.agent_places import preview, validate_bound_places
+            validate_bound_places(commands, {})
             with self.store._connection() as connection:
-                prepare_changes(connection, commands)
+                preview(connection, commands, {'placeCandidates': place_groups})
         reply = result['messages'][-1].text
-        return {'text': reply[:16000] or '変更案を確認してください。', 'commands': commands, **({'receiptReview': receipt_context} if receipt_context else {})}
+        return {'text': reply[:16000] or '変更案を確認してください。', 'commands': commands, 'placeCandidates': place_groups, **({'receiptReview': receipt_context} if receipt_context else {})}

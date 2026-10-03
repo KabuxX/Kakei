@@ -286,3 +286,5 @@ curl http://localhost:8765/api/trajectory/2026-09-19
 ### 地点選択
 
 未解決の地点を含む変更案は `metadata.placeCandidates` に `{placeId,query,candidates,selectedCandidateId?}` を持ち、承認できません。`POST /api/agent/proposals/{id}/places/selection` に `{revision,candidateId}` を送るとサーバー保存の座標を使って案を改訂します。クライアント座標は受け付けません。手動指定は `/places/manual` に `{revision,placeId,place:{name,coordinates:[longitude,latitude]}}`。どちらも `{proposal}` を返し、版が増えます。元データの変更や古い版は409です。
+
+時刻不明・推定の訪問が複数ある案は `metadata.orderRequired=true` です。`POST /api/agent/proposals/{id}/order/confirmation` に `{revision}` を送ると表示順の確認を記録し、版を増やします。案の修正で確認は解除されます。地点・順序が未確認なら承認は409です。指定日だけの読み取りは `trajectory_context` ツール（100取引、64 KiBまで）が提供します。

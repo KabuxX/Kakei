@@ -46,10 +46,11 @@ def prepare_changes(connection, commands):
     commands = command_dicts(commands)
     original = read_state(connection)
     state = copy.deepcopy(original)
-    before, after, keys = [], [], set()
+    before, after, keys = [None] * len(commands), [None] * len(commands), set()
     changed_days, changed_transactions = set(), set()
     trajectory_days = {c['identity'].get('date') for c in commands if c['kind'].startswith('trajectory.')}
-    for index, command in enumerate(commands):
+    indexed = sorted(enumerate(commands), key=lambda pair: pair[1]['identity'].get('kind') != 'place')
+    for index, command in indexed:
         domain, action = command['kind'].split('.')
         identity, draft = command['identity'], copy.deepcopy(command['data'])
         if domain == 'transaction':
@@ -69,10 +70,10 @@ def prepare_changes(connection, commands):
             record = {'id': identifier, **normalize_transaction(draft)}
             if old and old['date'] == record['date'] and not confirm:
                 record['timeEstimated'] = old['timeEstimated']
-            before.append(copy.deepcopy(old))
+            before[index] = copy.deepcopy(old)
             if receipt_ids:
                 record['receiptIds'] = receipt_ids
-            after.append(record)
+            after[index] = record
             state['transactions'][identifier] = record
             changed_transactions.add(identifier)
             if old:
@@ -95,9 +96,9 @@ def prepare_changes(connection, commands):
                 key = 'day:' + parsed.date
                 changed_days.add(parsed.date)
             keys.add(key)
-            before.append(copy.deepcopy(baseline_value(state, key)))
+            before[index] = copy.deepcopy(baseline_value(state, key))
             _apply_trajectory_command(state['timeline'], parsed, action)
-            after.append(copy.deepcopy(baseline_value(state, key)))
+            after[index] = copy.deepcopy(baseline_value(state, key))
     try:
         validate_timeline(state['timeline'], require_complete=False)
     except ValueError as error:
@@ -107,8 +108,12 @@ def prepare_changes(connection, commands):
         day = baseline_value(state, 'day:' + date)
         if day is None:
             continue
+        old_day = baseline_value(original, 'day:' + date) or {'events': [], 'legs': []}
         used = set()
         for event in day['events']:
+            old_event = next((e for e in old_day['events'] if e['id'] == event['id']), None)
+            if event.get('timeEvidence', 'legacy') == 'legacy' and event != old_event:
+                raise ValidationError('timeEvidence', '新規・変更した訪問には時刻の根拠を指定してください。')
             keys.add('place:' + event['placeId'])
             identifier = event.get('transactionId')
             if not identifier:
@@ -122,6 +127,8 @@ def prepare_changes(connection, commands):
             if not identifier.startswith('new:'):
                 keys.add('transaction:' + identifier)
         for leg in day['legs']:
+            if leg.get('modeEvidence', 'legacy') == 'legacy' and leg not in old_day['legs']:
+                raise ValidationError('modeEvidence', '新規・変更した区間には移動手段の根拠を指定してください。')
             keys.update('place:' + p for p in leg.get('viaPlaceIds', []))
             identifier = leg.get('transportTransactionId')
             if identifier:
@@ -167,6 +174,8 @@ def apply_proposal(connection, proposal_id, revision):
         raise TrajectoryConflict('この変更案は期限切れか却下済みです。新しい案を作成してください。')
     from services.agent_places import unresolved, validate_bound_places
     metadata = json.loads(row['metadata_json'])
+    if metadata.get('orderRequired') and not metadata.get('orderConfirmed'):
+        raise TrajectoryConflict('時刻が不明・推定の訪問順序を確認してください。')
     if unresolved(metadata):
         raise TrajectoryConflict('未確定の地点があります。候補または座標を選んでください。')
     validate_bound_places(json.loads(row['commands_json']), metadata)
