@@ -49,7 +49,7 @@ function buildTrajectoryDays(transactions, timeline) {
       const transaction = event.transactionId
         ? matchTransaction(event.transactionId, transactionsById, day.date)
         : null;
-      return { ...event, place, transaction, transactionMissing: !!event.transactionId && !transaction, coordinates: place.coordinates };
+      return { ...event, place, transaction, transactionMissing: !!event.transactionId && !transaction, coordinates: event.locationStatus === 'needs_review' ? null : place.coordinates };
     });
     const knownTimes = events.filter(event => event.time !== null);
     if (knownTimes.some((event, index) => index > 0 && event.time <= knownTimes[index - 1].time)) {
@@ -104,6 +104,8 @@ function buildTrajectoryDays(transactions, timeline) {
         .filter((transaction) => transaction.type === 'expense')
         .reduce((sum, transaction) => sum + transaction.amount, 0),
       stopCount: events.length,
+      unconfirmedLocationCount: events.filter(e=>e.locationStatus==='needs_review').length,
+      distanceIncomplete: segments.some(s=>!s.coordinates),
       modes: [...new Set(segments.map((segment) => segment.mode))],
       distanceKm: segments.reduce((sum, segment) => sum + segment.distanceKm, 0),
       bounds: features.length ? bbox(featureCollection(features)) : null,

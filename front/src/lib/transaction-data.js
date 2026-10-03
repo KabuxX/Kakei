@@ -67,13 +67,13 @@ import { isValidTransactionDateTime } from './transaction-datetime.js';
     return { merchant: cleanMerchant, paymentMethod, items, amount, ...(merchantAddress !== undefined ? {merchantAddress: normalizeMerchantAddress(merchantAddress)} : {}) };
   }
 
-  function serializeTransactionsCsv(records) {
+  function serializeTransactionsCsv(records, addressContexts = []) {
     const quote = (value) => {
       const text = String(value);
-      const safe = /^[=+\-@]/.test(text) && typeof value !== 'number' ? `'${text}` : text;
+      const safe = /^[=+\-@\t\r]/.test(text) && typeof value !== 'number' ? `'${text}` : text;
       return `"${safe.replace(/"/g, '""')}"`;
     };
-    const rows = [['日付', '時刻の精度', '種類', '内容', 'カテゴリ', '金額', '店名・取引先', '支払方法', '品目']];
+    const rows = [['日付', '時刻の精度', '種類', '内容', 'カテゴリ', '金額', '店名・取引先', '支払方法', '品目', '取引先住所', '関連軌跡住所']];
     for (const record of records) {
       const details = readExpenseDetails(record);
       rows.push([
@@ -86,6 +86,8 @@ import { isValidTransactionDateTime } from './transaction-datetime.js';
         details.merchant || '',
         PAYMENT_METHOD_LABELS[details.paymentMethod] || '',
         details.items.length ? JSON.stringify(details.items) : '',
+        record.type === 'expense' ? record.merchantAddress || '' : '',
+        record.type === 'expense' ? [...new Set((addressContexts.find(c=>c.transactionId===record.id)?.places || []).map(p=>p.address).filter(Boolean))].join('\n') : '',
       ]);
     }
     return `\uFEFF${rows.map((row) => row.map(quote).join(',')).join('\r\n')}`;

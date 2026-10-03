@@ -87,3 +87,18 @@ it('keeps confirmation and the transaction visible after a failed deletion', asy
   expect(screen.getByRole('heading', { name: '給与' })).toBeTruthy();
   expect(screen.getByRole('button', { name: '削除する' }).disabled).toBe(false);
 });
+
+it('does not download a partial CSV when address loading fails and allows retry',async()=>{
+ const response=(body,ok=true)=>({ok,status:ok?200:503,json:async()=>body});
+ let failed=true;
+ vi.stubGlobal('fetch',vi.fn(async()=>failed?response({error:{message:'offline'}},false):response({addresses:[]})));
+ URL.createObjectURL=vi.fn().mockReturnValue('blob:test');URL.revokeObjectURL=vi.fn();
+ const click=vi.spyOn(HTMLAnchorElement.prototype,'click').mockImplementation(()=>{});
+ render(<App/>);
+ fireEvent.click(screen.getByRole('button',{name:'取引をCSVで保存'}));
+ await screen.findByText(/住所を取得できませんでした/);
+ expect(URL.createObjectURL).not.toHaveBeenCalled();
+ failed=false;fireEvent.click(screen.getByRole('button',{name:'取引をCSVで保存'}));
+ await waitFor(()=>expect(URL.createObjectURL).toHaveBeenCalledTimes(1));
+ click.mockRestore();vi.unstubAllGlobals();
+});

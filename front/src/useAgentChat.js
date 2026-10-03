@@ -84,5 +84,6 @@ export function useAgentChat(enabled) {
   const change=proposal=>setThread(current=>({...current,proposals:current.proposals.map(p=>p.id===proposal.id?proposal:p)}));
   const proposed=proposal=>setThread(current=>({...current,proposals:[...current.proposals,proposal]}));
   return {status,threads,thread,messages,sending,busy,setBusy,loading,error,draft,load,send,select,upload,removeThread,change,proposed,
+    prefillMessage:text=>setDrafts(current=>{const prior=current[key]||emptyDraft;return {...current,[key]:{...prior,text:[prior.text,text].filter(Boolean).join('\n')}};}),
     setText:text=>patchDraft({text}),removeReceipt:()=>patchDraft({receipt:null})};
 }

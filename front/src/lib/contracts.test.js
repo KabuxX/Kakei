@@ -138,7 +138,7 @@ it('exports quoted items and leaves legacy columns empty', () => {
   expect(csv.startsWith('\uFEFF')).toBe(true);
   expect(csv).toContain("'=店名");
   expect(csv).toContain('パン,');
-  expect(csv).toContain('"300","","",""');
+  expect(csv).toContain('"300","","","","",""');
 });
 
 it('exports minute date and precision', () => {
@@ -148,10 +148,10 @@ it('exports minute date and precision', () => {
     { id: 'legacy', date: '2026-10-03', type: 'income', title: '旧日付', category: '収入', amount: 800 },
   ]);
   const rows = csv.slice(1).split('\r\n');
-  expect(rows[0]).toBe('"日付","時刻の精度","種類","内容","カテゴリ","金額","店名・取引先","支払方法","品目"');
-  expect(rows[1]).toBe('"2026-10-03T09:17","入力時刻","収入","給与","収入","1000","","",""');
-  expect(rows[2]).toBe('"2026-10-03T08:00","仮設定","収入","旧給与","収入","900","","",""');
-  expect(rows[3]).toBe('"2026-10-03","仮設定","収入","旧日付","収入","800","","",""');
+  expect(rows[0]).toBe('"日付","時刻の精度","種類","内容","カテゴリ","金額","店名・取引先","支払方法","品目","取引先住所","関連軌跡住所"');
+  expect(rows[1]).toBe('"2026-10-03T09:17","入力時刻","収入","給与","収入","1000","","","","",""');
+  expect(rows[2]).toBe('"2026-10-03T08:00","仮設定","収入","旧給与","収入","900","","","","",""');
+  expect(rows[3]).toBe('"2026-10-03","仮設定","収入","旧日付","収入","800","","","","",""');
 });
 
 it('ignores non-detail and malformed hash values', () => {

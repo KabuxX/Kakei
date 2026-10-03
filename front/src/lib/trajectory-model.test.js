@@ -157,3 +157,16 @@ it('keeps unknown times and unresolved places without fabricated map points',asy
  expect(day.events[0].time).toBeNull();expect(day.events[1].coordinates).toBeNull();
  expect(day.segments[0].distanceKm).toBeNull();expect(day.bounds).toEqual([-73,40,-73,40]);
 });
+
+it('keeps an unconfirmed middle visit without bridging its neighbours', async () => {
+  const {buildTrajectoryDays}=await import('./trajectory-model.js');
+  const modelTimeline=structuredClone(timelineFixture);
+  const day=modelTimeline.days.find(d=>d.events.length===3);
+  day.events[1].locationStatus='needs_review';
+  const result=buildTrajectoryDays(transactionsFixture,modelTimeline).get(day.date);
+  expect(result.events).toHaveLength(3);
+  expect(result.events[1].coordinates).toBeNull();
+  expect(result.segments.every(s=>s.coordinates===null)).toBe(true);
+  expect(result.unconfirmedLocationCount).toBe(1);
+  expect(result.distanceIncomplete).toBe(true);
+});

@@ -31,7 +31,7 @@ export default function TransactionAddress({record,busy=false,onSave,onReviewAdd
     } catch(cause){setError(cause.message);} finally{pending.current=false;setSaving(false);}
   };
   const needsReview=places.some(p=>p.status==='needs_review');
-  return <><dt className="detail-address-label">{record.merchantAddress?'住所':'軌跡に保存された住所'}</dt><dd className="detail-address">
+  return <><dt className="detail-address-label" hidden={!record.merchantAddress && !places.some(p=>p.address)}>{record.merchantAddress?'住所':'軌跡に保存された住所'}</dt><dd className="detail-address">
     {record.merchantAddress && <p>{record.merchantAddress}</p>}
     {needsReview && <p role="status">住所が変わったため、位置の再確認が必要です</p>}
     {needsReview && onReviewAddress && <button className="secondary-button" onClick={()=>onReviewAddress({transactionId:record.id,date:record.date.slice(0,10)})}>Agentで位置を再確認</button>}
