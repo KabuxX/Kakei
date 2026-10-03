@@ -12,6 +12,21 @@ from services.validation import ValidationError
 CANDIDATE={'id':'candidate-a','name':'同名店','address':'New York','coordinates':[-73.9,40.7],'sourceUrl':'https://www.openstreetmap.org/copyright','attribution':'© OpenStreetMap contributors'}
 COMMAND={'kind':'trajectory.create','identity':{'kind':'day','date':'2027-01-04'},'data':{'events':[{'id':'e','time':None,'timeEvidence':'unknown','placeId':'unknown-store'}],'legs':[]}}
 class PlacesTests(unittest.TestCase):
+ def test_requests_japanese_and_preserves_provider_names_addresses_and_coordinates(self):
+  def handle(request):
+   self.assertEqual(request.url.params.get('lang'),'ja')
+   self.assertEqual(request.url.params['text'],'東京駅')
+   self.assertEqual(request.url.params['bias'],'proximity:139.767,35.681')
+   return httpx.Response(200,json={'results':[
+    {'name':'東京駅','formatted':'日本、東京都千代田区丸の内','lon':139.767,'lat':35.681},
+    {'name':'Tokyo Station','formatted':'Tokyo, Japan','lon':139.768,'lat':35.682}]})
+  with patch.dict('os.environ',{'GEOAPIFY_API_KEY':'secret'}),httpx.Client(transport=httpx.MockTransport(handle)) as client:
+   result=search_places('東京駅',bias=[139.767,35.681],client=client)
+  self.assertEqual(result[0]['name'],'東京駅')
+  self.assertEqual(result[0]['address'],'日本、東京都千代田区丸の内')
+  self.assertEqual(result[0]['coordinates'],[139.767,35.681])
+  self.assertEqual(result[1]['name'],'Tokyo Station')
+  self.assertEqual(result[1]['address'],'Tokyo, Japan')
  def test_geoapify_search_returns_distinct_same_name_results(self):
   requests=[]
   def handle(request):

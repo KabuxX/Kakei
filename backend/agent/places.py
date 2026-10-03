@@ -10,7 +10,7 @@ def search_places(query, *, bias=None, client=None):
         raise ValidationError('query','店舗名と地域を200文字以内で指定してください。')
     key=os.environ.get('GEOAPIFY_API_KEY','').strip()
     if not key:raise HTTPFailure(503,'places_unavailable','サーバーで GEOAPIFY_API_KEY を設定してください。既存地点や座標指定も利用できます。')
-    params={'text':query.strip(),'format':'json','limit':5,'apiKey':key}
+    params={'text':query.strip(),'format':'json','lang':'ja','limit':5,'apiKey':key}
     if bias is not None:
         if len(bias)!=2 or not all(type(v) in (int,float) and math.isfinite(v) for v in bias) or not -180<=bias[0]<=180 or not -90<=bias[1]<=90:
             raise ValidationError('bias','検索の中心座標が不正です。')
