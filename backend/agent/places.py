@@ -36,10 +36,7 @@ def search_places(query, *, bias=None, client=None):
         if own:client.close()
 
 
-class PlaceProviderError(Exception):
-    def __init__(self, code, *, stop_turn=False):
-        self.code, self.stop_turn = code, stop_turn
-        super().__init__(code)
+from agent.place_http import PlaceProviderError
 
 
 def normalize_place(item):
