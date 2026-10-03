@@ -47,4 +47,11 @@
 - 判断: distはレビュー対象外だったため、修正後の生成物をブラウザ20件で検証し、main統合後にも再生成する。誤りがあれば配信画面がソースとずれる。
 - 判断: 稼働環境への反映はレビュー後の工程として、DBバックアップ・再起動・読取検証を行う。誤りがあれば実アプリに未反映となる。
 
-mainへの反映結果は作業完了時に追記する。
+## main反映・再起動
+
+- `feat/merchant-address` の `d0f0558` までmainへfast-forward統合。
+- mainで再検証: Backend260件・Front117件成功。dist再ビルド成功。
+- DBバックアップ: `.superpowers/merchant-address-deploy/before-20261004-010529.sqlite3`。
+- 処理中agent会話0件を確認し、旧backendを停止してmainから再起動（port8765）。
+- 8765・5173の取引API、住所API、軌跡APIとassetsを読取で確認。既存取引38件を維持。merchant_address列追加済み、既存住所は全てnullのまま。既存データへの自動住所補完は実施していない。
+- `.env` は未変更。OpenAI画像1回・会話1回の限定検証以外に追加API消費はない。
