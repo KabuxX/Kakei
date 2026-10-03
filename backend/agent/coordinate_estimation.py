@@ -6,18 +6,24 @@ from services.coordinate_math import destination
 from services.coordinate_evidence import validate_coordinate_evidence,valid_coordinates
 from services.validation import ValidationError
 DIRECTIONS={0:'北',45:'北東',90:'東',135:'南東',180:'南',225:'南西',270:'西',315:'北西'}
+ENGLISH_DIRECTIONS={0:'north',45:'northeast',90:'east',135:'southeast',180:'south',225:'southwest',270:'west',315:'northwest'}
 
 def relation_valid(row,hint):
     excerpt=compact(hint.get('relationExcerpt',''));method=hint.get('method')
     if not excerpt or compact(row['name']) not in excerpt or compact(hint['anchorName']) not in excerpt:return False
-    if method=='same_building':return bool(re.search(r'(内|同じ建物|同一施設|inside|within)',excerpt))
-    if method=='area_anchor':return hint.get('areaScope') in ('block','neighborhood','district') and bool(re.search(r'(地区内|街区内|区域内|町内|in|within)',excerpt))
+    # A presence of "inside" or a direction alone does not establish a relation.
+    if re.search(r'(では(?:あり)?ません|ではない|でない|ありません|ない|なく|not|outside|no longer)',excerpt):return False
+    target,anchor=map(re.escape,(compact(row['name']),compact(hint['anchorName'])))
+    subject=target+r'(?:は|が|の店舗は)?'+anchor
+    if method=='same_building':return bool(re.search(subject+r'(?:の)?(?:建物|施設)?内',excerpt) or re.search(target+r'と'+anchor+r'(?:は)?(?:同じ建物|同一施設)',excerpt) or re.search(target+r'is(?:inside|within)'+anchor,excerpt))
+    if method=='area_anchor':return hint.get('areaScope') in ('block','neighborhood','district') and bool(re.search(subject+r'(?:の)?(?:地区内|街区内|区域内|町内)',excerpt) or re.search(target+r'iswithin'+anchor+r'(?:district|neighborhood|block)',excerpt))
     if method!='relative_offset':return False
     d,b=hint.get('distanceMeters'),hint.get('bearingDegrees')
     if type(d)!=int or not 1<=d<=5000 or type(b)!=int or b not in DIRECTIONS:return False
     if re.search(r'(徒歩|経路|道のり|約\d+分|walking|route)',excerpt):return False
-    direction=re.search(r'(北東|南東|南西|北西|北|東|南|西)(?:へ|に|方向|方)',excerpt)
-    return bool(direction and direction[1]==DIRECTIONS[b] and re.search(r'(?:直線|straight).*?'+str(d)+r'(?:m|メートル)(?!\d)',excerpt))
+    relation=re.search(subject+r'から(北東|南東|南西|北西|北|東|南|西)(?:へ|に|方向|方)(?:約)?直線(?:約)?'+str(d)+r'(?:m|メートル)(?!\d)',excerpt)
+    english=re.search(target+r'is'+ENGLISH_DIRECTIONS[b]+r'of'+anchor+r'by(?:a)?straightdistanceof'+str(d)+r'(?:m|meters)(?!\d)',excerpt)
+    return bool(relation and relation[1]==DIRECTIONS[b] or english)
 
 def estimate_coordinates(row,anchors):
     candidates=[]

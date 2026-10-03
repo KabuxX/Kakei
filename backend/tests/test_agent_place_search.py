@@ -31,6 +31,47 @@ class Verifier:
 
 
 class SearchTests(unittest.IsolatedAsyncioTestCase):
+    async def test_visit_date_is_grounded_and_warns_before_selection(self):
+        self.resolver.messages=[{'id':'dated','role':'user','text':'2026年10月2日の軌跡を作成して'}]
+        dated={**self.req,'visit_date':'2026-10-02','evidence':[{'field':'visit_date','source':'user_message','source_id':'dated','value':'2026-10-02'}]}
+        out=await self.service.search(dated)
+        evidence=out['candidates'][0]['coordinateEvidence']
+        self.assertIn('2026-10-02',evidence['note']);self.assertIn('当時の所在地は未確認',evidence['note'])
+        self.assertEqual(evidence['verification'],'needs_confirmation')
+        self.assertEqual(self.provider.calls[0][1]['visit_date'],'2026-10-02')
+        self.assertEqual((await self.service.search({**dated,'visit_date':'2026-10-03'}))['status'],'needs_clarification')
+        with self.assertRaises(ValidationError):await self.service.search({**self.req,'visit_date':'2026-10-02'})
+
+    async def test_verification_deadline_preserves_page_result_and_history(self):
+        from agent.web_coordinates import WebCoordinateVerifier
+        from test_web_coordinates import page,article
+        from coordinate_fixtures import STORE_ROW
+        from web_place_fixtures import SOURCE
+        budget=SearchBudget(time.monotonic()+15.02)
+        class Pages:
+            async def fetch(self,url,**kwargs):
+                async def get(timeout):
+                    if url==SOURCE['url']:return page(article())
+                    await asyncio.sleep(1)
+                return await budget.run('page',url,get)
+        row={**STORE_ROW,'sources':[SOURCE,{**SOURCE,'id':'s2','url':'https://second.example/store'}]}
+        try:
+            out=await budget.verify('partial',lambda t:WebCoordinateVerifier(Pages(),budget).verify(row,timeout=t))
+            self.assertEqual(len(out['candidates']),1);self.assertIn('timeout',out['unresolved'])
+            self.assertEqual(out['pages'][1]['result'],'timeout')
+        finally:await budget.close()
+
+    async def test_verification_page_history_is_persisted(self):
+        original=self.verifier.verify
+        async def verify(*args,**kwargs):
+            out=await original(*args,**kwargs)
+            out['pages']=[{'url':'https://example.com/store','finalUrl':'https://example.com/map','redirects':['https://example.com/map'],'result':'verified','sourceId':'s1'}]
+            return out
+        self.verifier.verify=verify
+        out=await self.service.search(self.req)
+        attempt=next(a for a in self.searches.get(self.ctx['thread_id'],out['searchId'])['attempts'] if a['stage']=='verify')
+        self.assertEqual(attempt['pages'][0]['finalUrl'],'https://example.com/map')
+
     async def asyncSetUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
         self.store,self.agent,self.ctx=active_turn(Path(self.tmp.name)/'db')
@@ -201,3 +242,28 @@ class SearchTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(out['candidates'][0]['coordinateEvidence']['status'],'estimated')
         self.assertEqual(out['pipelineVersion'],'web-coordinates-v1')
         self.assertEqual([call[1]['strategy'] for call in self.provider.calls if call[0]=='web'],['store','maps','address','anchor'])
+    async def test_same_url_relationship_discovered_later_keeps_resolvable_ids(self):
+        from agent.place_search import unique_stores
+        from coordinate_fixtures import STORE_ROW,BUILDING_HINT,ANCHOR
+        from agent.coordinate_estimation import estimate_coordinates
+        first=copy.deepcopy(STORE_ROW)
+        later={**copy.deepcopy(STORE_ROW),'sources':[{**first['sources'][0],'id':'s2'}],'verifiedHints':[{**copy.deepcopy(BUILDING_HINT),'relationSourceIds':['s2']}]}
+        merged=unique_stores([first,later])[0]
+        self.assertEqual(merged['verifiedHints'][0]['relationSourceIds'],['s1'])
+        self.assertEqual(len(estimate_coordinates(merged,[ANCHOR])),1)
+
+    async def test_same_url_estimate_sources_rebind_and_remain_selectable(self):
+        from coordinate_fixtures import ESTIMATED_PLACE,SOURCE
+        from services.coordinate_evidence import validate_coordinate_evidence
+        from services.agent_places import choose
+        candidate=copy.deepcopy(ESTIMATED_PLACE)
+        candidate['sources'].append({**SOURCE,'id':'s2'})
+        candidate['coordinateEvidence']['sourceIds'].append('s2')
+        candidate['coordinateEvidence']['observations'][0]['sourceId']='s2'
+        self.store.sync_trajectory({'places':{'saved':{**candidate,'placeEvidence':'provider'}},'days':[]})
+        result=await self.service.search(self.req)
+        selected=result['candidates'][0];validate_coordinate_evidence(selected)
+        self.assertEqual(len(selected['coordinateEvidence']['sourceIds']),1)
+        with self.store._connection() as c:
+            commands,_=choose(c,[],{'placeCandidates':[result]},candidate_id=selected['id'],confirmed=True)
+        self.assertEqual(commands,[])

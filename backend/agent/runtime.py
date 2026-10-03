@@ -42,7 +42,7 @@ event={id,time:HH:mmまたはnull,placeId,transactionId任意,timeEvidence:exact
 leg={fromEventId,toEventId,modeHint:walk/train/bus任意,modeEvidence:fare/user/inferred,modeEvidenceNote,transportTransactionId任意}。
 fareには同日の交通費IDが必要。推定には説明が必要。複数の不明時刻の訪問順はユーザー確認を必要とする。
 既存placeIdは再利用できる。未知の店舗はsearch_place(queryに店舗名と地域,place_idに一意の仮ID)を呼び、eventsでその仮IDを参照する。
-search_placeはWebで引用付き店舗住所を調べ、公開ページ・地図リンクで店舗座標を検証し、掲載値がなければ根拠付きで位置を推定する。正式店名を優先し、主要名称と地域も使う。再検索を明示されたらrefresh=true。refreshとreuse_search_idは併用不可。
+search_placeはWebで引用付き店舗住所を調べ、公開ページ・地図リンクで店舗座標を検証し、掲載値がなければ根拠付きで位置を推定する。正式店名を優先し、主要名称と地域も使う。軌跡作成ではvisit_dateに対象取引日（YYYY-MM-DD）を必ず渡し、evidenceのfield=visit_dateで取引または利用者の日付指定を参照する。当時の所在地が未確認なら現在の掲載位置を過去の位置と断定せず、移転履歴を含めて確認を求める。再検索を明示されたらrefresh=true。refreshとreuse_search_idは併用不可。
 出典のある説明には [source:出典id] を文の近くに添える。出典IDはツール/検索記録のsourcesだけから引用し、URLを自作しない。unlocatedCandidatesは位置未確認で、店舗が見つかっても軌跡の地点には選べない。失敗理由を調べ、下記の再検索方針を試しても未確認なら補足または手動座標を案内する。
 queryとplace_idに加え、店舗名から取り出せるbrand,branch,landmarkを指定する。例: ドトールコーヒーショップ 西鉄福岡駅店ならbrand=ドトール,branch=西鉄福岡駅店,landmark=西鉄福岡駅。
 localityやcountry_codeは根拠がある場合のみ指定し、evidence=[{field,source,source_id,value}]を添える。
@@ -183,7 +183,7 @@ class AgentRunner:
         @tool
         async def search_place(query: str, place_id: str, brand: str | None = None, branch: str | None = None,
                                locality: str | None = None, landmark: str | None = None, country_code: str | None = None,
-                               evidence: list[dict] | None = None, reuse_search_id: str | None = None, refresh: bool = False, address_format: str = 'original', address: str | None = None) -> str:
+                               evidence: list[dict] | None = None, reuse_search_id: str | None = None, refresh: bool = False, address_format: str = 'original', address: str | None = None, visit_date: str | None = None) -> str:
             """Search verified places in stages. Evidence items use field, source, source_id, value. address_format: original, without_postcode, japanese. Never supply coordinates."""
             nonlocal search_sequence
             with lock:
@@ -193,7 +193,7 @@ class AgentRunner:
             if not turn_context or turn_context['thread_id'] != thread_id:
                 raise ValidationError('search', '有効な会話の処理情報が必要です。')
             group = await service.search({'query':query,'place_id':place_id,'brand':brand,'branch':branch,
-                'address':address,'locality':locality,'landmark':landmark,'country_code':country_code,'evidence':evidence or [],'reuse_search_id':reuse_search_id,'refresh':refresh,'address_format':address_format})
+                'address':address,'visit_date':visit_date,'locality':locality,'landmark':landmark,'country_code':country_code,'evidence':evidence or [],'reuse_search_id':reuse_search_id,'refresh':refresh,'address_format':address_format})
             collect_sources(group)
             with lock:
                 if order > latest_search.get(place_id, 0):

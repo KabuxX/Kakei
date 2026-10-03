@@ -93,3 +93,25 @@ class DiscoveryTests(unittest.IsolatedAsyncioTestCase):
                 return page(article(),url)
         result=await WebCoordinateVerifier(Pages(),None).verify({**STORE_ROW,'sources':[SOURCE,other]},timeout=5)
         self.assertEqual(result['candidates'][0]['coordinates'],[130.4,33.59])
+
+    async def test_limit_after_success_preserves_verified_coordinates(self):
+        from agent.place_search import SearchLimit
+        other={**SOURCE,'id':'s2','url':'https://second.example/store'}
+        class Pages:
+            async def fetch(self,url,**kwargs):
+                if url==SOURCE['url']:return page(article())
+                raise SearchLimit('request_limit')
+        result=await WebCoordinateVerifier(Pages(),None).verify({**STORE_ROW,'sources':[SOURCE,other]},timeout=5)
+        self.assertEqual(len(result['candidates']),1);self.assertIn('request_limit',result['unresolved'])
+
+class CrossStoreRegressionTests(unittest.TestCase):
+    def test_boolean_geo_is_not_a_coordinate(self):
+        value={'name':NAME,'address':ADDRESS,'geo':{'latitude':True,'longitude':False}}
+        body='<script type="application/ld+json">'+json.dumps(value)+'</script>'
+        self.assertEqual(verify_page(STORE_ROW,page(body),SOURCE)['candidates'],[])
+
+    def test_nested_and_div_only_stores_do_not_lend_coordinates(self):
+        target=article(extra='座標未確認');other=article(name='別店舗')
+        bodies=['<section>'+target+other+'</section>','<body>'+target.replace('article','div')+other.replace('article','div')+'</body>','<body>'+target.replace('<article>','').replace('</article>','')+other.replace('<article>','').replace('</article>','')+'</body>']
+        for body in bodies:
+            with self.subTest(body=body):self.assertEqual(verify_page(STORE_ROW,page(body),SOURCE)['candidates'],[])

@@ -34,6 +34,14 @@ class Backend(httpcore.AsyncNetworkBackend):
     async def sleep(self,seconds):await asyncio.sleep(seconds)
 
 class PublicPageTests(unittest.IsolatedAsyncioTestCase):
+    async def test_failed_redirect_keeps_bounded_request_history(self):
+        backend=Backend({'/shop':(302,{'Location':'/two'},b''),'/two':(200,{'Content-Type':'image/png'},b'x')})
+        with self.assertRaises(PlaceProviderError) as got:await self.fetch(backend)
+        trace=got.exception.page_requests
+        self.assertEqual([r['url'] for r in trace],['https://example.com/shop','https://example.com/two'])
+        self.assertEqual(trace[0]['result'],'redirect');self.assertEqual(trace[1]['result'],'unsupported_content')
+        self.assertNotIn('body',trace[1])
+
     async def fetch(self,backend,url='https://example.com/shop',ips=None,timeout=5):
         async def resolve(host):return ips or ['93.184.216.34']
         budget=FakeBudget()

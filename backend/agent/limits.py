@@ -5,3 +5,6 @@ SEARCH_SECONDS=145
 FINAL_REPLY_RESERVE=15
 STAGE_LIMITS={'web':(6,35),'extract':(6,15),'page':(16,5)}
 PIPELINE_VERSION='web-coordinates-v1'
+
+class SearchLimit(Exception):
+    """The shared search deadline or request count has been reached."""

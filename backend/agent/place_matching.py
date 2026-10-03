@@ -3,6 +3,7 @@ import math
 import re
 import unicodedata
 import uuid
+from datetime import date
 from services.validation import ValidationError
 from services.merchant_address import normalize_merchant_address, addresses_match
 from services.agent_changes import read_state
@@ -42,6 +43,12 @@ class EvidenceResolver:
         if 'address' in request:
             request['address']=normalize_merchant_address(request['address'])
             if request['address'] is None: request.pop('address')
+        if 'visit_date' in request:
+            value=request['visit_date']
+            try:
+                if not isinstance(value,str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}',value):raise ValueError()
+                date.fromisoformat(value)
+            except ValueError:raise ValidationError('visit_date','訪問日はYYYY-MM-DDの実在する日付で指定してください。') from None
         if not isinstance(request.get('query'),str): raise ValidationError('query','検索語が必要です。')
         if not isinstance(request.get('place_id'),str) or not 1<=len(request['place_id'])<=100: raise ValidationError('placeId','仮地点IDが必要です。')
         if request.get('country_code') and request['country_code'] not in ISO_COUNTRIES: raise ValidationError('country_code','国コードが不正です。')
@@ -53,7 +60,7 @@ class EvidenceResolver:
         users={m.get('id'):m.get('text','') for m in self.messages if m.get('role')=='user'}
         values={}; region=None; saved_region_data=None
         for e in evidence:
-            if not isinstance(e,dict) or set(e)!={'field','source','source_id','value'} or e['field'] not in ('brand','branch','locality','landmark','country_code','address') or not all(isinstance(v,str) for v in e.values()):
+            if not isinstance(e,dict) or set(e)!={'field','source','source_id','value'} or e['field'] not in ('brand','branch','locality','landmark','country_code','address','visit_date') or not all(isinstance(v,str) for v in e.values()):
                 raise ValidationError('evidence','根拠の形式が不正です。')
             source=e['source']; sid=e['source_id']; value=normalize_merchant_address(e['value']) if e['field']=='address' else normalize_text(e['value'])
             if not value or len(value)>(500 if e['field']=='address' else 200): raise ValidationError('evidence','根拠が空か長すぎます。')
@@ -72,7 +79,13 @@ class EvidenceResolver:
                 return []
             if e['field']=='address' and source=='transaction' and normalize_merchant_address(data.get('merchantAddress'))!=value:
                 raise ValidationError('evidence','取引に保存された住所と引用が一致しません。')
-            if not any(compact(value) in compact(s) for s in strings(data)): raise ValidationError('evidence','引用された根拠が一致しません。')
+            if e['field']=='visit_date':
+                def dates(s):
+                    normalized=normalize_text(s)
+                    return {f'{int(y):04d}-{int(m):02d}-{int(d):02d}' for y,m,d in re.findall(r'(?<!\d)(\d{4})(?:年|-|/)(\d{1,2})(?:月|-|/)(\d{1,2})(?:日)?(?!\d)',normalized)}
+                supported=value in dates(data.get('date','')) if source=='transaction' else any(value in dates(s) for s in strings(data))
+            else:supported=any(compact(value) in compact(s) for s in strings(data))
+            if not supported:raise ValidationError('evidence','引用された根拠が一致しません。')
             values.setdefault(e['field'],set()).add(value)
             if source=='saved_place' and coordinates_valid(data.get('coordinates')):
                 region={'kind':'point','coordinates':data['coordinates'],'source_id':sid}
@@ -98,7 +111,7 @@ class EvidenceResolver:
             return {'request':request,'saved_places':[],'region':None,'category':None,'clarification':{'status':'needs_clarification','message':'地域や店舗の指定と過去の根拠が異なります。今回の店舗・地域を確認してください。'}}
         for key in ('brand','branch','landmark'):
             if request.get(key) and key not in values and compact(request[key]) not in compact(request['query']): raise ValidationError(key,'店舗名から確認できる名称か、その根拠を指定してください。')
-        for key in ('locality','country_code','address'):
+        for key in ('locality','country_code','address','visit_date'):
             if request.get(key) and key not in values: raise ValidationError(key,'地域の根拠を指定してください。')
         saved=[{**p,'id':str(uuid.uuid4()),'savedPlaceId':sid} for sid,p in state['timeline']['places'].items()]
         name=request['query']+' '+request.get('brand','')

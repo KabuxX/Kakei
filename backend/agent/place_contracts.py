@@ -13,6 +13,7 @@ class Evidence(TypedDict):
     value: str
 
 class SearchInput(TypedDict):
+    visit_date: NotRequired[str | None]
     query: str
     place_id: str
     brand: NotRequired[str | None]

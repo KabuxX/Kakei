@@ -9,6 +9,11 @@ from coordinate_fixtures import STORE_ROW,BUILDING_HINT,ANCHOR
 
 def row(hint):return {**copy.deepcopy(STORE_ROW),'verifiedHints':[hint]}
 class EstimateTests(unittest.TestCase):
+    def test_english_relationships_keep_the_store_as_subject(self):
+        cases=[('same_building',STORE_ROW['name']+' is inside テスト施設.',{}),('area_anchor',STORE_ROW['name']+' is within テスト施設 district.',{'areaScope':'district'}),('relative_offset',STORE_ROW['name']+' is east of テスト施設 by a straight distance of 100m.',{'distanceMeters':100,'bearingDegrees':90})]
+        for method,excerpt,extra in cases:
+            with self.subTest(method=method):self.assertEqual(len(estimate_coordinates(row({**BUILDING_HINT,'method':method,'relationExcerpt':excerpt,**extra}),[ANCHOR])),1)
+
     def test_building_is_grounded_and_stays_estimated(self):
         result=estimate_coordinates(row(copy.deepcopy(BUILDING_HINT)),[ANCHOR])
         self.assertEqual(result[0]['coordinates'],ANCHOR['coordinates']);self.assertEqual(result[0]['coordinateEvidence']['status'],'estimated')
@@ -33,4 +38,9 @@ class EstimateTests(unittest.TestCase):
         self.assertEqual(estimate_coordinates(row({**hint,'areaScope':'city'}),[ANCHOR]),[])
     def test_walking_distance_does_not_become_straight_distance(self):
         hint={**BUILDING_HINT,'method':'relative_offset','relationExcerpt':STORE_ROW['name']+' はテスト施設から東へ徒歩100m。','distanceMeters':100,'bearingDegrees':90}
+        self.assertEqual(estimate_coordinates(row(hint),[ANCHOR]),[])
+    def test_negated_building_and_reverse_relative_relationship_are_rejected(self):
+        for excerpt in (STORE_ROW['name']+' はテスト施設内ではありません。',STORE_ROW['name']+' はテスト施設内ではない。'):
+            self.assertEqual(estimate_coordinates(row({**BUILDING_HINT,'relationExcerpt':excerpt}),[ANCHOR]),[])
+        hint={**BUILDING_HINT,'method':'relative_offset','relationExcerpt':'テスト施設は '+STORE_ROW['name']+' から東へ直線100m。','distanceMeters':100,'bearingDegrees':90}
         self.assertEqual(estimate_coordinates(row(hint),[ANCHOR]),[])

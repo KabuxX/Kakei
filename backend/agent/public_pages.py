@@ -7,6 +7,7 @@ from urllib.parse import urlsplit, urljoin
 import httpcore
 import httpx
 from agent.place_http import PlaceProviderError
+from agent.limits import SearchLimit
 from services.place_evidence import safe_source_url
 from services.validation import ValidationError
 
@@ -74,13 +75,22 @@ class PublicPageClient:
             try:allowed.add(page_url(source))
             except PlaceProviderError:pass
         if current not in allowed:raise PlaceProviderError('unsafe_url')
-        redirects=[]
-        for hop in range(4):
-            result=await budget.run('page',current,lambda t:self._get(current,min(timeout,t)))
-            if result['status']==200:
-                return {'url':url,'final_url':current,'redirects':redirects,'content_type':result['headers']['content-type'].split(';')[0].strip().lower(),'body':result['body'],'retrieved_at':time.time()}
-            if hop==3:raise PlaceProviderError('redirect_limit')
-            location=result['headers'].get('location')
-            if not location:raise PlaceProviderError('network')
-            current=page_url(urljoin(current,location));redirects.append(current)
+        redirects=[];requests=[]
+        try:
+            for hop in range(4):
+                entry={'url':current,'startedAt':time.time(),'result':'running'};requests.append(entry)
+                result=await budget.run('page',current,lambda t:self._get(current,min(timeout,t)))
+                entry.update(httpStatus=result['status'],finishedAt=time.time())
+                if result['status']==200:
+                    entry['result']='read'
+                    return {'url':url,'final_url':current,'redirects':redirects,'requests':requests,'content_type':result['headers']['content-type'].split(';')[0].strip().lower(),'body':result['body'],'retrieved_at':time.time()}
+                entry['result']='redirect'
+                if hop==3:raise PlaceProviderError('redirect_limit')
+                location=result['headers'].get('location')
+                if not location:raise PlaceProviderError('network')
+                current=page_url(urljoin(current,location));entry['redirectTo']=current;redirects.append(current)
+        except (PlaceProviderError,SearchLimit) as error:
+            requests[-1].update(result=error.code if isinstance(error,PlaceProviderError) else str(error),finishedAt=time.time())
+            error.page_requests=requests
+            raise
         raise PlaceProviderError('redirect_limit')

@@ -16,6 +16,14 @@ def extraction(sid,**patches):
     return {'status':'completed','output':[{'type':'message','content':[{'type':'output_text','text':json.dumps({'places':[row]})}]}]}
 
 class WebTests(unittest.IsolatedAsyncioTestCase):
+    async def test_research_includes_visit_date_and_historical_location_instruction(self):
+        sent=[]
+        async def handle(req):sent.append(json.loads(req.content));return httpx.Response(200,json=payload())
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as c:
+            await WebPlaceProvider(c).research({'query':NAME,'visit_date':'2026-10-02'},timeout=1)
+        self.assertEqual(json.loads(sent[0]['input'])['request']['visit_date'],'2026-10-02')
+        self.assertIn('取引日当時',sent[0]['instructions'])
+
     def setUp(self):
         e=patch.dict(os.environ,{'OPENAI_API_KEY':'secret','KAKEI_AGENT_MODEL':'test-model'});e.start();self.addCleanup(e.stop)
     async def test_research_requires_search_and_returns_real_sources(self):

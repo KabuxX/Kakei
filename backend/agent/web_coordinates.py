@@ -5,6 +5,7 @@ from urllib.parse import urljoin
 from agent.map_links import parse_map_link
 from agent.place_matching import compact
 from agent.place_http import PlaceProviderError
+from agent.limits import SearchLimit
 from services.coordinate_evidence import valid_coordinates
 from services.merchant_address import addresses_match, normalize_address
 from services.place_evidence import safe_source_url
@@ -31,7 +32,7 @@ def matches(row,name,address):
     expected=compact(row['name']);branch=compact(row.get('branch',''))
     return expected in compact(name) and (not branch or branch in compact(name)) and (addresses_match(row['address'],address) or bool(re.search(re.escape(normalize_address(row['address']))+r'(?![\d-])',normalize_address(address))))
 
-def empty():return {'candidates':[],'anchors':[],'unresolved':[],'identityVerified':False,'verifiedHints':[],'links':[]}
+def empty():return {'candidates':[],'anchors':[],'unresolved':[],'identityVerified':False,'verifiedHints':[],'links':[],'pages':[]}
 
 def emit(out,row,source,kind,excerpt,coords):
     observation={'sourceId':source['id'],'kind':kind,'excerpt':excerpt[:2048],'coordinates':coords}
@@ -51,7 +52,9 @@ def verify_page(row,page,source):
             if matches(row,str(value.get('name','')),str(addr)):
                 out['identityVerified']=True;geo=value.get('geo',{})
                 if isinstance(geo,dict):
-                    try:coords=[float(geo['longitude']),float(geo['latitude'])]
+                    try:
+                        values=[geo['longitude'],geo['latitude']]
+                        coords=[float(v) for v in values] if all(type(v) in (str,int,float) for v in values) else None
                     except (KeyError,ValueError,TypeError):coords=None
                     if valid_coordinates(coords):emit(out,row,source,'structured_geo',json.dumps({k:value[k] for k in ('name','address','geo') if k in value},ensure_ascii=False),coords)
             if '@graph' in value:structured(value['@graph'])
@@ -62,10 +65,24 @@ def verify_page(row,page,source):
         if n.tag=='script' and n.attrs.get('type')=='application/ld+json':
             try:structured(json.loads(''.join(n.parts)))
             except ValueError:pass
-    # Semantic sections keep a neighbouring business from lending its coordinates.
-    units=[n for n in doc.root.walk() if n.tag in ('article','section','li','tr')]
-    if not units:units=[n for n in doc.root.walk() if n.tag in ('main','body')][:1] or [doc.root]
-    for n in units:
+    # Only the smallest matching record may supply coordinates or outgoing links.
+    # A matching ancestor also contains neighbouring stores and is not authority.
+    matching=[n for n in doc.root.walk() if n.tag in ('root','body','main','div','article','section','li','tr') and matches(row,n.text(),n.text())]
+    matching_set=set(matching)
+    units=[n for n in matching if not any(child in matching_set for child in list(n.walk())[1:])]
+    records=[]
+    for unit in units:
+        headings=[child for child in unit.children if child.tag in ('h1','h2','h3','h4','h5','h6')]
+        if len(headings)<2:records.append(unit);continue
+        # Bare sibling headings are also record boundaries on simple listings.
+        section=Node('record')
+        for child in unit.children:
+            if child in headings:
+                if section.children:records.append(section)
+                section=Node('record')
+            section.children.append(child)
+        if section.children:records.append(section)
+    for n in records:
         text=n.text()
         if not matches(row,text,text):continue
         out['identityVerified']=True
@@ -100,8 +117,16 @@ class WebCoordinateVerifier:
             try:
                 if url not in self.cache:self.cache[url]=await self.pages.fetch(url,allowed_urls=seen,budget=self.budget,timeout=timeout)
                 page=self.cache[url]
-            except PlaceProviderError as e:result['unresolved'].append(e.code);continue
+            except (PlaceProviderError,SearchLimit) as e:
+                code=e.code if isinstance(e,PlaceProviderError) else str(e)
+                records=getattr(e,'page_requests',[{'url':url,'result':code}])
+                result['pages'].extend({**record,'sourceId':source['id']} for record in records)
+                result['unresolved'].append(code)
+                if isinstance(e,SearchLimit):break
+                continue
             verified=verify_page(row,page,source)
+            records=page.get('requests',[{'url':url,'finalUrl':page['final_url'],'redirects':page['redirects'],'result':'read'}])
+            result['pages'].extend({**record,'sourceId':source['id'],'verification':'verified' if verified['identityVerified'] or context else 'identity_unverified'} for record in records)
             if context:
                 parsed=parse_map_link(page['final_url'])
                 if parsed and (not parsed['targetName'] or compact(parsed['targetName']) in compact(row['name'])):

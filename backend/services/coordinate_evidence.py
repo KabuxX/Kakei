@@ -60,9 +60,10 @@ def validate_coordinate_evidence(place: dict) -> None:
 def rebind_candidate_sources(candidate: dict, mapping: dict[str,str]) -> dict:
     result=copy.deepcopy(candidate)
     for source in result.get('sources',[]):source['id']=mapping.get(source['id'],source['id'])
+    if 'sources' in result:result['sources']=list({s['id']:s for s in result['sources']}.values())
     evidence=result.get('coordinateEvidence')
     if evidence:
-        evidence['sourceIds']=[mapping.get(i,i) for i in evidence['sourceIds']]
+        evidence['sourceIds']=list(dict.fromkeys(mapping.get(i,i) for i in evidence['sourceIds']))
         for observation in evidence['observations']:observation['sourceId']=mapping.get(observation['sourceId'],observation['sourceId'])
-        if 'basis' in evidence:evidence['basis']['relationSourceIds']=[mapping.get(i,i) for i in evidence['basis']['relationSourceIds']]
+        if 'basis' in evidence:evidence['basis']['relationSourceIds']=list(dict.fromkeys(mapping.get(i,i) for i in evidence['basis']['relationSourceIds']))
     return result

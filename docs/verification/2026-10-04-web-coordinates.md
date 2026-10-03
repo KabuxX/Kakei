@@ -8,7 +8,7 @@
 
 ## 自動検証
 
-- backend: 288 tests PASS（Python 3.14、共有venv、すべてfixture/一時DB）。
+- backend: 300 tests PASS（Python 3.14、共有venv、すべてfixture/一時DB）。既存テストでSQLite ResourceWarningあり、失敗なし。
 - front: 131 tests PASS。
 - browser: 22 tests PASS（一時DB）。1440×900 / 375×812で確認解除、位置確認、選択、保存、再読込、推定表示、出典、距離説明と横スクロールなしを検証。
 - build PASS。地図helperの破線リング作成・削除と住所再確認時の座標除外も検証。
@@ -40,3 +40,28 @@
 - 検証結果に店舗同一性、検証済みhint、ページ内リンクを内部項目として追加。推定と短縮リンクへ原文の根拠を渡すため。誤りなら内部呼出側の修正が必要。
 - HTML/JSONの小さな生成fixtureをテスト内に置いた。別店舗の混在ケースを読みやすくするため。複雑な実ページでは追加fixtureが必要になる可能性がある。
 - 推定関数はモデルのhintsではなく内部verifiedHintsを受け取る。ページ検証を省略できないようにするため。呼出側には明示の検証段階が必要。
+- 外部サイトの互換性・DNS・モデルの変動は、既存の実通信記録と今回の固定テストを根拠に判断。レビュー自体はネット接続なし。サイト変更で取得できなくなる可能性は残る。
+- 画面とMapboxの表示は実装者のdesktop/phone実画面検証を根拠に判断。レビュー担当の独立ブラウザー検証はなし。未検証の端末で差が出る可能性は残る。
+- 生成されたdistはビルドとブラウザーテストで判断し、全ファイルの手動レビューは省略。生成ツール固有の問題を見逃す可能性は残る。
+- 地理APIの禁止は既知ホスト・パスと公開HTTPSの接続制限で判断。世界中の全エンドポイントの判別は保証しない。未知のAPI形式には禁止規則の追加が必要になる可能性がある。
+- 計画の検索入力に欠けていたvisit_dateとその根拠を追加。仕様3.3の過去の所在地の区別を満たすため。日付ごとに別の検索になり、探索回数が増える可能性がある。
+- 検証全体の外側タイムアウトを外し、各公開ページ要求の共有予算・期限とターン上限で制限。外側キャンセルで取得済み根拠が消えるため。追加の外部処理は同じ予算へ必ず登録する必要がある。
+
+## 最終レビューと修正
+
+独立レビューを1回実施し、重要な8指摘を1回の修正工程で対応。bool座標とページ別履歴の欠落も、誤った位置・原因調査への影響から重要に引き上げた。保留した軽微指摘なし。再レビューは行わず、各再現テストの失敗→成功と全体テストで検証。
+
+| 指摘 | RED→GREENのテスト |
+| --- | --- |
+| 親section・div・複数見出しから別店舗の座標を借用 | test_nested_and_div_only_stores_do_not_lend_coordinates |
+| 否定された施設内・相対方向の主体を誤認 | test_negated_building_and_reverse_relative_relationship_are_rejected（英語の肯定関係も別テストで維持） |
+| 同一URLの出典ID統合で座標根拠が無効化 | test_same_url_estimate_sources_rebind_and_remain_selectable |
+| 後から取得した施設hintの出典IDが消失 | test_same_url_relationship_discovered_later_keeps_resolvable_ids |
+| 上限・期限で取得済み候補を喪失 | test_limit_after_success_preserves_verified_coordinates / test_verification_deadline_preserves_page_result_and_history |
+| 過去の取引日が検索へ渡らない | test_visit_date_is_grounded_and_warns_before_selection / test_research_includes_visit_date_and_historical_location_instruction |
+| JSONのboolを緯度経度として採用 | test_boolean_geo_is_not_a_coordinate |
+| ページ別要求・リダイレクト・失敗の履歴が欠落 | test_failed_redirect_keeps_bounded_request_history / test_verification_page_history_is_persisted |
+
+保存前の候補は、visit_dateを渡した場合に「訪問日当時の所在地は未確認」と明記し、既存の確認済み地点を再利用する場合も再確認を求める。推定関係は明示的な施設内、地区内、直線距離と方角のみを採用。曖昧なページ構造や文章は位置未確認になる場合がある。
+
+最終修正後: backend 300 / front 131 / browser 22件成功、build・git diff --check成功。フロント全テストの初回はsandboxのlisten EPERMで失敗し、許可された一時サーバーで再実行して成功。ブラウザーも別ポートの一時DBを使用し、実アプリのDBは変更していない。

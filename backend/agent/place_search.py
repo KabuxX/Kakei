@@ -1,15 +1,13 @@
 """Bounded Web discovery, coordinate verification and grounded estimation."""
 import asyncio,copy,json,time,uuid
-from agent.limits import SEARCH_SECONDS,FINAL_REPLY_RESERVE,STAGE_LIMITS,PIPELINE_VERSION
+from agent.limits import SEARCH_SECONDS,FINAL_REPLY_RESERVE,STAGE_LIMITS,PIPELINE_VERSION,SearchLimit
 from agent.place_matching import compact,coordinates_valid,locality_matches,distance
 from agent.place_http import PlaceProviderError
 from db.store import TrajectoryConflict
 from services.validation import ValidationError
 from services.merchant_address import addresses_match
-from services.coordinate_evidence import rebind_candidate_sources
+from services.coordinate_evidence import rebind_candidate_sources,validate_coordinate_evidence
 from agent.coordinate_estimation import estimate_coordinates
-
-class SearchLimit(Exception):pass
 
 class SearchBudget:
     def __init__(self,turn_deadline,*,clock=time.monotonic):
@@ -52,9 +50,9 @@ class SearchBudget:
                 async def invoke():
                     remaining=(self.deadline or min(self.clock()+SEARCH_SECONDS,self.turn_deadline-FINAL_REPLY_RESERVE))-self.clock()
                     if remaining<=0:raise SearchLimit('time_limit')
-                    try:
-                        async with asyncio.timeout(remaining):return await call(5)
-                    except TimeoutError:raise PlaceProviderError('timeout') from None
+                    # Each external page hop has its own deadline in run(). An
+                    # enclosing timeout would discard already verified evidence.
+                    return await call(5)
                 self.tasks[identity]=asyncio.create_task(invoke())
             task=self.tasks[identity]
         return copy.deepcopy(await asyncio.shield(task))
@@ -83,10 +81,18 @@ def unique_stores(rows):
     for row in rows:
         key=(compact(row['name']),compact(row['address']))
         if key not in merged:merged[key]=copy.deepcopy(row);continue
-        current=merged[key];urls={s['url'] for s in current.get('sources',[])}
+        current=merged[key];urls={s['url']:s['id'] for s in current.get('sources',[])};mapping={}
         for s in row.get('sources',[]):
-            if s['url'] not in urls and len(current['sources'])<3:current['sources'].append(s);urls.add(s['url'])
-        current['verifiedHints']=current.get('verifiedHints',[])+[h for h in row.get('verifiedHints',[]) if h not in current.get('verifiedHints',[])]
+            if s['url'] not in urls and len(current['sources'])<6:current['sources'].append(copy.deepcopy(s));urls[s['url']]=s['id']
+            if s['url'] in urls:mapping[s['id']]=urls[s['url']]
+        for field in ('hints','verifiedHints'):
+            hints=current.setdefault(field,[])
+            for original in row.get(field,[]):
+                hint=copy.deepcopy(original)
+                if not all(i in mapping for i in hint['relationSourceIds']):continue
+                hint['relationSourceIds']=list(dict.fromkeys(mapping[i] for i in hint['relationSourceIds']))
+                if hint not in hints:hints.append(hint)
+        for field in ('urls','discoveredUrls'):current[field]=list(dict.fromkeys(current.get(field,[])+row.get(field,[])))[:50]
         current['unresolved']=list(dict.fromkeys(current.get('unresolved',[])+row.get('unresolved',[])))
     return list(merged.values())
 
@@ -105,14 +111,19 @@ class PlaceSearchService:
             for original in rows:
                 mapping={source['id']:source_ids.setdefault(source['url'],sid+':'+str(len(source_ids)+1)) for source in original.get('sources',[])}
                 row=rebind_candidate_sources(original,mapping);row['id']=str(uuid.uuid4())
-                for hint in row.get('hints',[])+row.get('verifiedHints',[]):hint['relationSourceIds']=[mapping.get(i,i) for i in hint['relationSourceIds']]
-                row['sources']=list({s['id']:s for s in row.get('sources',[])}.values());result.append(row)
+                for hint in row.get('hints',[])+row.get('verifiedHints',[]):hint['relationSourceIds']=list(dict.fromkeys(mapping.get(i,i) for i in hint['relationSourceIds']))
+                if 'coordinateEvidence' in row:validate_coordinate_evidence(row)
+                result.append(row)
             return result
         def finish(status):
             out['status']=status
             all_sources={}
             for c in out['candidates']+out['unlocatedCandidates']:
                 c['searchId']=sid
+                if request.get('visit_date') and c.get('coordinateEvidence'):
+                    evidence=c['coordinateEvidence'];warning=' 訪問日'+request['visit_date']+'当時の所在地は未確認。現在の掲載位置と異なる可能性があるため、移転履歴も確認してください。'
+                    if warning not in evidence['note']:evidence['note']=evidence['note'][:500-len(warning)]+warning
+                    evidence['verification']='needs_confirmation'
                 for s in c.get('sources',[]):all_sources[s['id']]=s
             out['sources']=list(all_sources.values())
             self.searches.finish(self.context,sid,out)
@@ -149,6 +160,7 @@ class PlaceSearchService:
                     rows=await self.budget.run('extract',stage_key,lambda t:self.web.extract(report,timeout=t))
                     rows=unique_stores(rows)[:5];record(a,status='complete',candidates=rows,finishedAt=time.time())
                     a=start('verify',{'strategy':strategy,'stores':[p['name'] for p in rows]})
+                    page_records=[]
                     async def locate(p):
                         if p.get('role')=='anchor':
                             hints=[h for store in stores for h in store.get('verifiedHints',[])]
@@ -165,6 +177,7 @@ class PlaceSearchService:
                             if p.get('role')!='anchor':stores.append({**p,'unresolved':[failures[-1]]})
                             return
                         failures.extend(result.get('unresolved',[]))
+                        page_records.extend(result.get('pages',[]))
                         if p.get('role')=='anchor':anchors.extend(result['anchors']);return
                         stores.append({**p,'verifiedHints':result.get('verifiedHints',[])})
                         for c in result['candidates']:
@@ -172,7 +185,7 @@ class PlaceSearchService:
                     children=[asyncio.create_task(locate(p)) for p in rows]
                     await asyncio.gather(*children)
                     stores=unique_stores(stores)[:5]
-                    record(a,status='complete',candidates=out['candidates'],unresolved=list(dict.fromkeys(failures)),finishedAt=time.time())
+                    record(a,status='complete',candidates=out['candidates'],pages=page_records[:80],unresolved=list(dict.fromkeys(failures)),finishedAt=time.time())
                     if anchors:
                         a=start('estimate',{'anchors':[p['name'] for p in anchors]})
                         for store in stores:

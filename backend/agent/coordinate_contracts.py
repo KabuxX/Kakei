@@ -3,6 +3,7 @@ from typing import TypedDict, NotRequired
 from agent.place_contracts import Source, WebPlace
 
 class PublicPage(TypedDict):
+    requests: NotRequired[list[dict]]
     url: str
     final_url: str
     redirects: list[str]
@@ -46,6 +47,7 @@ class VerifiedAnchor(TypedDict):
     observations: list[dict]
 
 class VerificationResult(TypedDict):
+    pages: list[dict]
     candidates: list[CoordinateCandidate]
     anchors: list[VerifiedAnchor]
     unresolved: list[str]
