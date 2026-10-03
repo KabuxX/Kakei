@@ -194,7 +194,7 @@
 - [x] **Step 4: 実APIを限定検証する。** `.env`を表示せず必要キーの存在だけ確認。OpenAI＋Mapboxが利用可能なら新サービスと一時DBで対象店舗を調査し、Web調査最大3回・Mapbox最大5住所を厳守。Web内蔵call/usage、モデル、取得時刻、住所一致、座標精度を記録。設定不足・権限不足・住所未確定を成功と記さない。追加課金設定を勝手に変更しない。
 - [x] **Step 5: 全体を検証する。** `backend/.venv/bin/python -m unittest discover -s backend/tests`、`npm --prefix front test`、`npm --prefix front run build`、Step 2のブラウザテスト、`git diff --check`。件数・実検索と固定テストの区別・残る制限を検証文書へ保存する。
 - [x] **Step 6: 検証記録をコミットする。** `git commit -m "test: verify web place search migration and approval flow"`。
-- [ ] **Step 7: 独立レビューを1回行う。** native実行スキルに従い全変更とReview Focusをレビューし、重要指摘をRED→GREENで修正して関連テストと全体を再実行。軽微な保留を記録し、mainへの統合方法を利用者の指示に合わせる。
+- [x] **Step 7: 独立レビューを1回行う。** native実行スキルに従い全変更とReview Focusをレビューし、重要指摘をRED→GREENで修正して関連テストと全体を再実行。軽微な保留を記録し、mainへの統合方法を利用者の指示に合わせる。
 
 ## 計画の自己レビュー
 

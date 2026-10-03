@@ -90,3 +90,14 @@ class WebTests(unittest.IsolatedAsyncioTestCase):
                 rows=await WebPlaceProvider(c).extract(report,timeout=1)
             if name=='別の店舗':self.assertEqual(rows,[])
             else:self.assertEqual(rows[0]['name'],NAME)
+    async def test_citation_cannot_bind_another_branch_or_later_address(self):
+        texts=[f'{NAME}の住所は未確認です。ドトールコーヒーショップ 博多駅店は{ADDRESS}、jp、福岡市です。 [1]',f'{NAME}の営業時間です。[1] 住所は別途推定: {ADDRESS}、jp、福岡市。']
+        for index,body in enumerate(texts):
+            async def handle(req):
+                data=json.loads(req.content)
+                if data.get('tools'):return httpx.Response(200,json=payload(body))
+                sid=json.loads(data['input'])['sources'][0]['id']
+                return httpx.Response(200,json=extraction(sid,evidenceText=body.replace('[1]','').strip() if index==0 else body))
+            async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as c:
+                p=WebPlaceProvider(c);report=await p.research({'query':NAME},timeout=1)
+                self.assertEqual(await p.extract(report,timeout=1),[])

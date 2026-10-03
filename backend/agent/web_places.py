@@ -46,7 +46,7 @@ class WebPlaceProvider:
                 except ValidationError:continue
                 # Tie a citation to its paragraph, not to every address in the report.
                 left=body.rfind('\n\n',0,start)+2 if '\n\n' in body[:start] else 0
-                right=body.find('\n\n',end);segment=body[left:right if right>=0 else len(body)]
+                segment=body[left:end]  # A citation cannot support text written after it.
                 sid=str(uuid.uuid4());sources.append({'id':sid,'title':title,'url':url,'kind':'unknown','retrievedAt':now});supports[sid]=segment
                 if len(sources)>=15:break
         actions=[]
@@ -86,6 +86,13 @@ class WebPlaceProvider:
                     full_name=row['name']+' '+row['branch']
                     if full_name not in evidence:continue
                     row['name']=text(full_name,200,'name')
+                # Require a direct name/address pair, not two unrelated facts
+                # somewhere in the same paragraph (e.g. two different branches).
+                name_end=evidence.find(row['name'])+len(row['name'])
+                address_start=evidence.find(row['address'],name_end)
+                gap=evidence[name_end:address_start] if address_start>=name_end else None
+                if gap is None or not re.fullmatch(r'[\s*_|｜:：—–-]*(?:(?:住所|所在地|Address)[\s:：]*)?[\s*_|｜:：—–-]*',gap,re.IGNORECASE):continue
+                if re.search(r'未確認|推定|未確定|住所不明',evidence):continue
                 row['country_code']=row['country_code'].lower()
                 if not re.fullmatch('[a-z]{2}',row['country_code']) or not re.search(r'\b'+re.escape(row['country_code'])+r'\b',evidence,re.IGNORECASE):continue
                 if not row['locality'] or row['locality'] not in evidence:continue

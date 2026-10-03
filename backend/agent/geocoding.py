@@ -33,10 +33,11 @@ def match_address(place,feature):
     matched=p.get('full_address')
     if not isinstance(matched,str) or not matched or len(matched)>500:reasons.append('address_missing');return reasons
     query=normalize_address(place['address']);actual=normalize_address(matched)
-    # Permit only a clearly separated building/floor suffix, never a partial house number.
+    # Only an explicitly separated building/floor may be omitted. An arbitrary
+    # suffix (notably Japanese house-number continuations such as の3) is unsafe.
     if query!=actual:
-        suffix=query[len(actual):] if query.startswith(actual) else None
-        if suffix is None or not suffix or suffix[0].isdigit() or suffix[0]=='-':reasons.append('address_mismatch')
+        building=re.fullmatch(r'(.+?)\s+(?:[^\s]+(?:ビル|ビルディング|タワー|マンション|building|tower)(?:\s*\d+(?:階|f|号室))?|\d+(?:階|f|号室))',place['address'],re.IGNORECASE)
+        if not building or normalize_address(building[1])!=actual:reasons.append('address_mismatch')
     if not re.search(r'\d',actual):reasons.append('address_number_missing')
     if not place.get('locality') or normalize_address(place['locality']) not in actual:reasons.append('locality_unconfirmed')
     return list(dict.fromkeys(reasons))

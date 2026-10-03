@@ -32,3 +32,8 @@ it('unlocated_store_cannot_be_selected',()=>{
  expect(screen.queryByRole('radio')).toBeNull();expect(screen.getByRole('link',{name:/店舗情報/})).toBeTruthy();
  expect(screen.getByText(/番地まで/)).toBeTruthy();
 });
+it('shows result truncation even when a legacy result has no error message',()=>{
+ const proposal={id:'p',revision:1,status:'pending',expiresAt:Date.now()/1000+86400,commands:[],before:[],after:[],metadata:{placeCandidates:[{placeId:'x',query:'店舗',candidates:[],truncated:true,omittedCandidates:3,omittedSources:2}]}};
+ render(<AgentProposal proposal={proposal} onChange={vi.fn()} onCommitted={vi.fn()} busy={false} setBusy={vi.fn()}/>);
+ expect(screen.getByText(/候補3件・出典2件を省略/)).toBeTruthy();
+});

@@ -62,6 +62,38 @@ def bounded_candidates(node):
         for v in node: bounded_candidates(v)
 
 
+def bounded_result(result,maximum=40*1024):
+    """Bound whole results without silently dropping candidates or citation identity."""
+    clean=copy.deepcopy(result)
+    groups=('candidates','unlocatedCandidates')
+    originals=[c for key in groups for c in result.get(key,[])]
+    original_refs=sum(len(c.get('sources',[])) for c in originals)
+    bounded_candidates(clean)
+    def refresh():
+        rows=[c for key in groups for c in clean.get(key,[])]
+        refs=[s for c in rows for s in c.get('sources',[])]
+        if 'sources' in result or refs:clean['sources']=list({s['id']:s for s in refs}.values())
+        lost_candidates=len(originals)-len(rows)
+        lost_sources=original_refs-len(refs)
+        clean['omittedCandidates']=result.get('omittedCandidates',0)+lost_candidates
+        clean['omittedSources']=result.get('omittedSources',0)+lost_sources
+        if lost_candidates or lost_sources or clean.get('truncated'):
+            clean.update(truncated=True,status='partial',omissionReason='size_limit',error='一部の候補・出典を省略しました。検索条件を絞って再検索してください。')
+        return rows
+    rows=refresh()
+    while size(clean)>maximum:
+        secondary=[c for c in rows if len(c.get('sources',[]))>1]
+        if secondary:
+            largest=max(secondary,key=lambda c:size(c['sources'][-1]))
+            largest['sources'].pop();largest['truncated']=True
+        else:
+            group=next((clean[k] for k in reversed(groups) if clean.get(k)),None)
+            if group is None:raise ValidationError('search','検索記録が大きすぎます。')
+            group.pop()
+        rows=refresh()
+    return clean
+
+
 def cancel_searches(connection, context, *, now):
     rows=connection.execute("SELECT id,attempts_json FROM agent_place_searches WHERE thread_id=? AND client_message_id=? AND run_token=? AND status='running'", tuple(context[k] for k in ('thread_id','client_message_id','run_token'))).fetchall()
     for row in rows:
@@ -118,10 +150,7 @@ class AgentSearchStore:
 
     def finish(self,context,search_id,result):
         if result.get('status') not in END_STATES: raise ValidationError('search','検索状態が不正です。')
-        clean=copy.deepcopy(result); bounded_candidates(clean); clean=bound(clean,40*1024)
-        if clean.get('omittedCandidates'):
-            clean['status']='partial'
-            clean['error']='大きすぎる候補を省略しました。検索条件を絞って再検索してください。'
+        clean=bounded_result(result)
         with self.store._connection() as c:
             c.execute('BEGIN IMMEDIATE'); self._running(c,context,search_id)
             c.execute('UPDATE agent_place_searches SET result_json=?,status=?,finished_at=? WHERE id=?',(encoded(clean),clean['status'],time.time(),search_id))

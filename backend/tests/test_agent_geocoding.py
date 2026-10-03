@@ -43,3 +43,8 @@ class GeocodeTests(unittest.IsolatedAsyncioTestCase):
         async with httpx.AsyncClient(transport=httpx.MockTransport(lambda req:self.fail('unexpected request'))) as c:
             for p in ({**WEB_PLACE,'country_code':''},{**WEB_PLACE,'address':'長'*257}):
                 out=await MapboxGeocoder(c).geocode(p,timeout=1);self.assertEqual(out['candidates'],[])
+    async def test_address_suffix_cannot_hide_a_missing_house_number(self):
+        partial=ADDRESS.replace('2-3','2')
+        self.assertIn('address_mismatch',match_address({**WEB_PLACE,'address':partial+'の3'},feature(partial)))
+        self.assertIn('address_mismatch',match_address({**WEB_PLACE,'address':partial+'番外地3'},feature(partial)))
+        self.assertEqual(match_address({**WEB_PLACE,'address':ADDRESS+' 天神ビル'},feature()),[])

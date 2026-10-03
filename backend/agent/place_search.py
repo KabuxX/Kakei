@@ -85,8 +85,11 @@ class PlaceSearchService:
         def sources_for(rows):
             for row in rows:
                 row['id']=str(uuid.uuid4())
+                refs={}
                 for source in row.get('sources',[]):
                     source['id']=source_ids.setdefault(source['url'],sid+':'+str(len(source_ids)+1))
+                    refs.setdefault(source['url'],source)
+                if 'sources' in row:row['sources']=list(refs.values())
             return rows
         def finish(status):
             out['status']=status

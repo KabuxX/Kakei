@@ -120,3 +120,32 @@ class SearchTests(unittest.IsolatedAsyncioTestCase):
         second=await self.service.search({**request,'reuse_search_id':first['searchId']})
         self.assertEqual(second['status'],'needs_clarification')
         self.assertEqual(second['candidates'],[])
+    async def test_duplicate_url_citations_remain_selectable(self):
+        from services.place_evidence import validate_sources
+        from services.agent_places import choose
+        self.provider.rows[0]['sources'].append({**self.provider.rows[0]['sources'][0],'id':'another'})
+        out=await self.service.search(self.req)
+        candidate=out['candidates'][0]
+        self.assertEqual(len(candidate['sources']),1)
+        validate_sources(candidate['sources'])
+        with self.store._connection() as c:
+            commands,metadata=choose(c,[],{'placeCandidates':[out]},candidate_id=candidate['id'])
+        self.assertEqual(commands[0]['data']['name'],candidate['name'])
+
+    async def test_result_size_omissions_are_partial_and_explicit(self):
+        from web_place_fixtures import SOURCE
+        from services.place_evidence import validate_sources
+        from db.agent_search_store import size
+        self.provider.rows=[]
+        for i in range(5):
+            refs=[{**SOURCE,'id':f's{i}{j}','title':'日本語の店舗出典'*20,'url':f'https://example.com/{i}/{j}?data='+'x'*1400} for j in range(3)]
+            validate_sources(refs)
+            self.provider.rows.append({**copy.deepcopy(WEB_PLACE),'name':f'店舗{i}','sources':refs})
+        out=await self.service.search({'query':'店舗','place_id':'p'})
+        self.assertLessEqual(size(out),40*1024)
+        self.assertTrue(out['truncated'])
+        self.assertEqual(out['status'],'partial')
+        self.assertIn('省略',out['error'])
+        self.assertGreater(out.get('omittedCandidates',0)+out.get('omittedSources',0),0)
+        self.assertEqual({s['id'] for s in out['sources']},{s['id'] for c in out['candidates'] for s in c['sources']})
+        for c in out['candidates']:validate_sources(c['sources'])

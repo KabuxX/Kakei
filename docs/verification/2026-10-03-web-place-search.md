@@ -4,8 +4,8 @@
 
 ## 検証結果
 
-- Backend: `python -m unittest discover -s backend/tests` — 233件成功。
-- Front: `npm --prefix front test` — 21ファイル、102件成功。
+- Backend: `python -m unittest discover -s backend/tests` — 237件成功。
+- Front: `npm --prefix front test` — 21ファイル、103件成功。
 - Build: `npm --prefix front run build` — 成功。既存Mapboxチャンクの500 kB警告あり。生成distはコミットしない。
 - Browser: `playwright.agent-search.config.cjs`、一時SQLite、port8767 — 15件成功。
 - `git diff --check` 成功。製品コードからGeoapify通信・環境依存がなくなったことを検索確認。
@@ -47,4 +47,15 @@ turn120秒・リース130秒。検索85秒かつturn終了10秒前。Web3回/抽
 
 - Task 5: `test_agent_places.py` のprovider非依存テストとfixtureは残した。削除すると候補選択・改ざん拒否の既存検証と旧履歴fixtureのimportが失われるため。判断が誤りなら旧名のテストファイルが残ることがコストで、製品のGeoapify依存は残らない。
 
-独立レビューはこの検証後に実施し、結果を追記する。
+## 独立レビューと修正
+
+独立レビュアー（gpt-6-astra）による全ブランチレビューを1回実施。Criticalなし、Important4件、Minorなし、判断保留なし。4件とも修正し、各回帰テストの失敗を確認してから修正を適用した。再レビューは行わず、全体のテストとビルド・ブラウザ操作を再実行した。
+
+1. 別支店の住所／引用の後に書かれた住所を根拠にできる問題。支持範囲は引用位置までとし、店名と住所が直接対応する表記だけを受理。未確認・推定を含む根拠は不採用。`test_citation_cannot_bind_another_branch_or_later_address` RED→GREEN。
+2. 番地末尾の「の3」を建物名として省略できる問題。住所が完全一致するか、空白で明確に区切られた建物名・階だけを省略可能にした。`test_address_suffix_cannot_hide_a_missing_house_number` RED→GREEN。
+3. 同一URLの引用が重複IDとなり選択できない問題。候補ごとのsourcesをURLで重複排除。選択処理まで確認。`test_duplicate_url_citations_remain_selectable` RED→GREEN。
+4. 結果40 KiBの上限で候補が無言で消える問題。副次出典→候補の順で丸ごと省略し、集約出典を残る候補と同期。候補・出典の省略件数、partial、理由を保持し画面に表示。`test_result_size_omissions_are_partial_and_explicit` とフロント省略表示テスト RED→GREEN。
+
+最終結果: Backend237件、Front103件、Browser15件成功、build・diff check成功。記録済み実APIの引用・抽出結果も通信なしで再処理し、住所付き店舗が維持されることを確認した。追加の実API通信なし。
+
+保留した軽微指摘: なし。
