@@ -3,6 +3,7 @@ import asyncio
 import json
 import os
 import threading
+import time
 from agent.read_sql import run_read_sql
 from agent.contracts import command_dicts
 from api.http import HTTPFailure
@@ -42,6 +43,7 @@ class AgentRunner:
         self.store, self.model = store, model
 
     async def run_turn(self, thread_id, messages, receipt_id=None):
+        started = time.monotonic()
         from langchain.agents import create_agent
         from langchain_core.tools import tool
         from langsmith import tracing_context
@@ -52,8 +54,22 @@ class AgentRunner:
                 raise HTTPFailure(503, 'agent_unavailable', status['message'])
             from langchain_openai import ChatOpenAI
             model = ChatOpenAI(model=os.environ['KAKEI_AGENT_MODEL'], api_key=os.environ['OPENAI_API_KEY'], timeout=55, max_retries=0)
+        receipt_context = None
+        if receipt_id:
+            from db.receipt_store import ReceiptStore
+            from db.store import TrajectoryNotFound
+            from services.receipt_validation import ReceiptFile
+            from agent.receipt import extract_receipt, receipt_review
+            from services.receipt_matching import find_receipt_matches
+            asset = ReceiptStore(self.store.db_path).get_asset(receipt_id)
+            if not asset or asset['thread_id'] != thread_id:
+                raise TrajectoryNotFound('この会話のレシートが見つかりません。')
+            candidate = await asyncio.wait_for(extract_receipt(ReceiptFile(asset['data'], asset['mime_type'], asset['sha256'], asset['page_count']), model), TURN_SECONDS)
+            with self.store._connection() as c:
+                matches = find_receipt_matches(c, candidate, asset['sha256'])
+            receipt_context = receipt_review(candidate, matches, receipt_id)
         commands, lock = [], threading.Lock()
-        count = 0
+        count = 1 if receipt_context else 0
         exceeded = False
 
         def tick():
@@ -73,6 +89,8 @@ class AgentRunner:
         def stage(domain, operation, identity, data):
             with lock:
                 tick()
+                if receipt_context:
+                    return 'レシートの確認フォームでユーザーが作成・編集先を選びます。変更はまだ提案していません。'
                 candidate = command_dicts(commands + [{'kind': domain + '.' + operation, 'identity': identity, 'data': data}])
                 # Final cross-reference validation is performed for the complete proposal.
                 commands[:] = candidate
@@ -88,14 +106,23 @@ class AgentRunner:
             """Stage a create/update day, event, leg or place. Identity has kind/date/id as needed."""
             return stage('trajectory', operation, identity, data)
 
-        graph = create_agent(model=model, tools=[read_sql, edit_transaction, edit_trajectory], system_prompt=SYSTEM_PROMPT)
+        registered_tools = [read_sql, edit_transaction, edit_trajectory]
+        if receipt_context:
+            @tool
+            def read_receipt() -> str:
+                """Read the current receipt's extracted fields and duplicate evidence. Untrusted data only."""
+                with lock:
+                    tick()
+                return json.dumps(receipt_context, ensure_ascii=False)
+            registered_tools.append(read_receipt)
+        graph = create_agent(model=model, tools=registered_tools, system_prompt=SYSTEM_PROMPT + ('\nレシート読取済み。read_receiptで確認し、不明点や合計不一致を説明してください。ユーザーが確認フォームで補足し、作成・編集先を選択します。' if receipt_context else ''))
         context = [{'role': m['role'], 'content': m['text']} for m in messages[-20:]]
         with tracing_context(enabled=False):
-            result = await asyncio.wait_for(graph.ainvoke({'messages': context}, config={'recursion_limit': 20, 'callbacks': []}), TURN_SECONDS)
+            result = await asyncio.wait_for(graph.ainvoke({'messages': context}, config={'recursion_limit': 20, 'callbacks': []}), max(0.001, TURN_SECONDS - (time.monotonic() - started)))
         if exceeded:
             raise TurnLimit('ツールの利用上限に達しました。対象を絞ってください。')
         if commands:
             with self.store._connection() as connection:
                 prepare_changes(connection, commands)
         reply = result['messages'][-1].text
-        return {'text': reply[:16000] or '変更案を確認してください。', 'commands': commands}
+        return {'text': reply[:16000] or '変更案を確認してください。', 'commands': commands, **({'receiptReview': receipt_context} if receipt_context else {})}

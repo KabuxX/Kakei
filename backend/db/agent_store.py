@@ -73,7 +73,8 @@ class AgentStore:
                              'SELECT * FROM agent_messages WHERE thread_id = ? ORDER BY created_at, rowid', (thread_id,))]
             proposals = [proposal_record(p) for p in c.execute(
                 'SELECT * FROM agent_proposals WHERE thread_id = ? ORDER BY created_at', (thread_id,))]
-            return {'id': row['id'], 'title': row['title'], 'createdAt': row['created_at'], 'messages': messages, 'proposals': proposals}
+            reviews = [json.loads(r[0])['receiptReview'] for r in c.execute("SELECT result_json FROM agent_turns WHERE thread_id=? AND status='complete' ORDER BY started_at", (thread_id,)) if json.loads(r[0]).get('receiptReview')]
+            return {'id': row['id'], 'title': row['title'], 'createdAt': row['created_at'], 'messages': messages, 'proposals': proposals, 'receiptReviews': reviews}
 
     def append_message(self, thread_id, client_message_id, role, text):
         if (not isinstance(client_message_id, str) or not 1 <= len(client_message_id) <= 200
@@ -161,6 +162,8 @@ class AgentStore:
             message = {'id': str(uuid.uuid4()), 'role': 'assistant', 'text': text, 'createdAt': time.time()}
             c.execute('INSERT INTO agent_messages VALUES (?, ?, ?, ?, ?, ?)', (message['id'], thread_id, 'assistant:'+client_id, 'assistant', text, message['createdAt']))
             response = {'message': message, 'proposal': proposal}
+            if result.get('receiptReview'):
+                response['receiptReview'] = result['receiptReview']
             c.execute("UPDATE agent_turns SET status='complete', result_json=? WHERE thread_id=? AND client_message_id=?", (dumps(response), thread_id, client_id))
             return response
 
