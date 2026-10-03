@@ -51,7 +51,7 @@ def choose(connection,commands,metadata,candidate_id=None,manual=None,place_id=N
         group=next((g for g in groups if any(c['id']==candidate_id for c in g['candidates'])),None)
         if not group:raise ValidationError('candidateId','この変更案の候補を選んでください。')
         candidate=next(c for c in group['candidates'] if c['id']==candidate_id)
-        requires_confirmation=candidate.get('geocoding',{}).get('verification')=='needs_confirmation'
+        requires_confirmation=('coordinateEvidence' in candidate and candidate['coordinateEvidence'].get('verification')!='user_confirmed') or candidate.get('geocoding',{}).get('verification')=='needs_confirmation'
         if requires_confirmation and confirmed is not True:raise ValidationError('confirmed','住所と地図を確認してから、この地点を選んでください。')
         if candidate.get('savedPlaceId'):
             identifier=candidate['savedPlaceId']
@@ -60,8 +60,10 @@ def choose(connection,commands,metadata,candidate_id=None,manual=None,place_id=N
             group['selectedPlaceId']=identifier;place=None
         else:
             place={k:candidate[k] for k in ('name','address','coordinates','sourceUrl','attribution')};place['placeEvidence']='provider'
-            place.update({k:candidate[k] for k in ('sources','geocoding') if k in candidate})
-            if requires_confirmation:place['geocoding']={**place['geocoding'],'verification':'user_confirmed'}
+            place.update({k:candidate[k] for k in ('sources','geocoding','coordinateEvidence') if k in candidate})
+            if requires_confirmation:
+                key='coordinateEvidence' if 'coordinateEvidence' in place else 'geocoding'
+                place[key]={**place[key],'verification':'user_confirmed'}
     # Remove this group's previously staged place only; preserve edits to the
     # day and all other selections. Rebase new:<index> links after removal.
     retained=[(i,c) for i,c in enumerate(commands) if not (c['kind'].startswith('trajectory.') and c['identity'].get('kind')=='place' and c['identity'].get('id')==group['placeId'])]

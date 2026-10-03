@@ -91,7 +91,7 @@ class AgentAPITests(unittest.TestCase):
     def test_web_search_to_approval_and_thread_deletion(self):
         from agent.runtime import AgentRunner
         from test_agent_runtime import ScriptModel
-        from test_agent_place_search import Provider, Geocoder
+        from test_agent_place_search import Provider, Verifier
         from langchain_core.messages import AIMessage
         from agent_search_fixtures import SEARCH, SHOP
         from db.agent_search_store import AgentSearchStore
@@ -104,23 +104,23 @@ class AgentAPITests(unittest.TestCase):
         def call(name,args,identifier): return AIMessage(content='',tool_calls=[{'name':name,'args':args,'id':identifier,'type':'tool_call'}])
         model=ScriptModel(replies=[call('search_place',{**SEARCH,'query':'ドトールコーヒーショップ 西鉄福岡駅店'},'s'),call('edit_trajectory',args,'e'),AIMessage(content='支店未確認の候補です。保存前に確認してください。'),call('read_place_search_history',{},'h'),AIMessage(content='福岡市の候補を取得しました。支店は未確認です。')])
         app=create_app(self.app.state.store.db_path,Path(self.temp.name),runner_factory=lambda store:AgentRunner(store,model=model))
-        with TestClient(app,base_url='http://localhost:8765',headers={'Origin':'http://localhost:8765'}) as client, patch('agent.web_places.WebPlaceProvider',FakeProvider), patch('agent.geocoding.MapboxGeocoder',Geocoder):
+        with TestClient(app,base_url='http://localhost:8765',headers={'Origin':'http://localhost:8765'}) as client, patch('agent.web_places.WebPlaceProvider',FakeProvider), patch('agent.web_coordinates.WebCoordinateVerifier',lambda *args:Verifier()):
             thread=client.post('/api/agent/threads',json={}).json()['thread']['id'];url=f'/api/agent/threads/{thread}'
             response=client.post(url+'/messages',json={'clientMessageId':'one','text':'2026年10月2日の取引記録によって、軌跡を作成して'})
             self.assertEqual(response.status_code,200,response.text)
             proposal=response.json()['proposal'];purl='/api/agent/proposals/'+proposal['id']
             candidates=proposal['metadata']['placeCandidates'][0]['candidates']
-            self.assertIn('address_verified',candidates[0]['matchReasons'])
+            self.assertIn('store_and_address_verified',candidates[0]['matchReasons'])
             follow=client.post(url+'/messages',json={'clientMessageId':'two','text':'探した候補を教えて'})
             self.assertEqual(follow.status_code,200,follow.text);self.assertIsNone(follow.json()['proposal'])
             self.assertEqual(client.post(purl+'/places/selection',json={'revision':1,'candidateId':'forged'}).status_code,400)
-            selected=client.post(purl+'/places/selection',json={'revision':1,'candidateId':candidates[0]['id']})
+            selected=client.post(purl+'/places/selection',json={'revision':1,'candidateId':candidates[0]['id'],'confirmed':True})
             self.assertEqual(selected.status_code,200,selected.text)
             version=selected.json()['proposal']['revision']
             self.assertEqual(client.post(purl+'/approve',json={'revision':version}).status_code,200)
             day=app.state.store.get_trajectory_day('2026-10-02')
             self.assertEqual(day['places']['p']['coordinates'],[130.4,33.59])
-            self.assertEqual(day['places']['p']['geocoding']['provider'],'mapbox')
+            self.assertEqual(day['places']['p']['coordinateEvidence']['verification'],'user_confirmed')
             self.assertEqual(client.delete(url).status_code,204)
             with app.state.store._connection() as c: self.assertEqual(c.execute('SELECT COUNT(*) FROM agent_place_searches').fetchone()[0],0)
             self.assertEqual(len(app.state.store.list_transactions()),1)

@@ -70,7 +70,7 @@ class SearchStoreTests(unittest.TestCase):
         with self.assertRaises(TrajectoryNotFound): self.searches.history(other,before_id=sid)
         with self.store._connection() as c:
             self.assertEqual(source_version(c),before)
-            c.execute('UPDATE agent_turns SET started_at=?',(time.time()-131,))
+            c.execute('UPDATE agent_turns SET started_at=?',(time.time()-191,))
         AgentStore(self.path)
         self.assertEqual(self.searches.get(self.thread,sid)['status'],'cancelled')
 
@@ -105,3 +105,27 @@ class SearchStoreTests(unittest.TestCase):
         self.searches.finish(self.ctx,sid,result(sid,[candidate]))
         saved=self.searches.get(self.thread,sid)['result']['candidates']
         self.assertEqual(saved[0]['sources'][0]['url'],candidate['sources'][0]['url'])
+
+    def test_new_evidence_is_atomic_under_size_limits(self):
+        from coordinate_fixtures import ESTIMATED_PLACE
+        from db.agent_search_store import bounded_result,size
+        from services.coordinate_evidence import validate_coordinate_evidence
+        import copy
+        rows=[]
+        for i in range(15):
+            c=copy.deepcopy(ESTIMATED_PLACE);c['id']=str(i);c['name']+='店'+str(i)
+            c['sources'][0]['url']='https://example.com/'+str(i)+'/'+'x'*1700
+            c['coordinateEvidence']['observations'][0]['excerpt']='あ'*600
+            rows.append(c)
+        saved=bounded_result({'status':'found','candidates':rows,'sources':[]})
+        self.assertLessEqual(size(saved),40*1024);self.assertTrue(saved['truncated'])
+        for c in saved['candidates']:validate_coordinate_evidence(c)
+        too_big=copy.deepcopy(rows[0]);too_big['coordinateEvidence']['observations'][1]['excerpt']='い'*2000
+        out=bounded_result({'status':'found','candidates':[too_big]})
+        self.assertEqual(out['candidates'],[])
+    def test_twenty_stages_and_idempotent_updates(self):
+        from services.validation import ValidationError
+        sid=self.searches.start(self.ctx,REQUEST)
+        for i in range(20):self.searches.record_attempt(self.ctx,sid,{'id':str(i),'stage':'verify','status':'complete'})
+        self.searches.record_attempt(self.ctx,sid,{'id':'0','stage':'verify','status':'complete'})
+        with self.assertRaises(ValidationError):self.searches.record_attempt(self.ctx,sid,{'id':'21','stage':'verify','status':'complete'})

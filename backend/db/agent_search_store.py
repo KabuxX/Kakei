@@ -49,7 +49,7 @@ def bounded_candidates(node):
         for k,v in list(node.items()):
             if k in ('candidates','unlocatedCandidates') and isinstance(v,list):
                 for c in v:
-                    while size(c)>8192 and len(c.get('sources',[]))>1:
+                    while 'coordinateEvidence' not in c and size(c)>8192 and len(c.get('sources',[]))>1:
                         c['sources'].pop();c['truncated']=True
                 node[k] = [c for c in v[:20] if size(c)<=8192]
                 omitted=len(v)-len(node[k])
@@ -82,7 +82,7 @@ def bounded_result(result,maximum=40*1024):
         return rows
     rows=refresh()
     while size(clean)>maximum:
-        secondary=[c for c in rows if len(c.get('sources',[]))>1]
+        secondary=[c for c in rows if 'coordinateEvidence' not in c and len(c.get('sources',[]))>1]
         if secondary:
             largest=max(secondary,key=lambda c:size(c['sources'][-1]))
             largest['sources'].pop();largest['truncated']=True

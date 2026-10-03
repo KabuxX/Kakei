@@ -57,3 +57,24 @@ class PlacesTests(unittest.TestCase):
    self.assertEqual(saved['geocoding']['verification'],'user_confirmed')
    self.assertEqual(saved['geocoding']['matchCode']['address_number'],'unmatched')
    self.assertEqual(saved['coordinates'],PLACE['coordinates'])
+
+class WebCoordinateSelectionTests(unittest.TestCase):
+    def test_new_published_and_estimated_require_explicit_confirmation(self):
+        from coordinate_fixtures import PUBLISHED_PLACE,ESTIMATED_PLACE
+        from services.agent_places import choose
+        from services.validation import ValidationError
+        from db.store import Store
+        import tempfile,copy
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as d:
+            store=Store(Path(d)/'db')
+            with store._connection() as c:
+                for original in (PUBLISHED_PLACE,ESTIMATED_PLACE):
+                    candidate={**copy.deepcopy(original),'id':'candidate'}
+                    metadata={'placeCandidates':[{'placeId':'p','candidates':[candidate]}]}
+                    with self.assertRaises(ValidationError):choose(c,[],metadata,candidate_id='candidate')
+                    commands,_=choose(c,[],metadata,candidate_id='candidate',confirmed=True)
+                    evidence=commands[0]['data']['coordinateEvidence']
+                    self.assertEqual(evidence['verification'],'user_confirmed')
+                    self.assertEqual(evidence['status'],original['coordinateEvidence']['status'])
+                    self.assertEqual(candidate['coordinateEvidence']['verification'],'needs_confirmation')
