@@ -255,3 +255,12 @@
 .detail-address-place+.detail-address-place{margin-top:16px}
 .detail-map-link{display:inline-flex;align-items:center;min-height:44px;color:var(--ink);text-decoration:underline;text-underline-offset:4px}
 .detail-map-link:focus-visible{outline:2px solid var(--ink);outline-offset:3px;border-radius:4px}
+
+.merchant-address-field { display: grid; gap: 8px; min-width: 0; }
+.merchant-address-field textarea { width: 100%; box-sizing: border-box; min-height: 88px; resize: vertical; border: 1px solid #cbd3df; border-radius: 12px; padding: 12px; font: inherit; color: var(--ink, #222326); background: #fff; }
+.merchant-address-field textarea:focus-visible { outline: 2px solid #415eee; outline-offset: 2px; }
+.merchant-address-field small { font-size: 12px; line-height: 1.5; }
+.address-editor { margin-top: 16px; }
+.address-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.detail-address p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.detail-address button { min-height: 44px; margin: 8px 8px 0 0; }

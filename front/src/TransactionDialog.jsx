@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import MerchantAddressField from './MerchantAddressField.jsx';
 import { Icon } from './AppShell.jsx';
 import { categories } from './lib/dashboard.js';
 import { ApiError } from './lib/api.js';
@@ -6,7 +7,7 @@ import { parseExpenseDraft, ValidationError } from './lib/transaction-data.js';
 import { dateTimeLocalValue, isValidTransactionDateTime } from './lib/transaction-datetime.js';
 
 const maxAmount = 999999999;
-const fieldIds = { title: 'title-input', amount: 'amount-input', date: 'date-input', merchant: 'merchant-input', paymentMethod: 'payment-method-input', itemRows: 'item-rows' };
+const fieldIds = { title: 'title-input', amount: 'amount-input', date: 'date-input', merchant: 'merchant-input', merchantAddress: 'merchant-address-input', paymentMethod: 'payment-method-input', itemRows: 'item-rows' };
 
 export default function TransactionDialog({ open, selectedMonth, busy, onClose, onSubmit }) {
   const dialog = useRef(null);
@@ -16,6 +17,7 @@ export default function TransactionDialog({ open, selectedMonth, busy, onClose, 
   const [manualAmount, setManualAmount] = useState('');
   const [date, setDate] = useState(dateTimeLocalValue);
   const [category, setCategory] = useState(categories[0].name);
+  const [merchantAddress, setMerchantAddress] = useState('');
   const [merchant, setMerchant] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('');
   const [itemRows, setItemRows] = useState([]);
@@ -33,7 +35,7 @@ export default function TransactionDialog({ open, selectedMonth, busy, onClose, 
     if (!element) return;
     if (open && !element.open) {
       setType('expense'); setTitle(''); setManualAmount(''); setDate(dateTimeLocalValue());
-      setCategory(categories[0].name); setMerchant(''); setPaymentMethod(''); setItemRows([]);
+      setCategory(categories[0].name); setMerchant(''); setMerchantAddress(''); setPaymentMethod(''); setItemRows([]);
       setErrors({}); setFormError(''); sequence.current = 0;
       if (element.showModal) element.showModal();
       else element.setAttribute('open', '');
@@ -80,7 +82,7 @@ export default function TransactionDialog({ open, selectedMonth, busy, onClose, 
     let details = {};
     if (type === 'expense') {
       try {
-        details = parseExpenseDraft({ merchant, paymentMethod, itemRows, manualAmount });
+        details = parseExpenseDraft({ merchant, merchantAddress, paymentMethod, itemRows, manualAmount });
         parsedAmount = details.amount;
       } catch (cause) {
         if (cause instanceof ValidationError) { showError(cause.field, cause.message); return; }
@@ -95,7 +97,7 @@ export default function TransactionDialog({ open, selectedMonth, busy, onClose, 
       await onSubmit({ title: cleanTitle, amount: parsedAmount, date, type, category, ...details });
       onClose();
     } catch (cause) {
-      if (cause instanceof ApiError && cause.status === 400 && ['title', 'date', 'amount', 'merchant', 'paymentMethod', 'items'].includes(cause.field)) {
+      if (cause instanceof ApiError && cause.status === 400 && ['title', 'date', 'amount', 'merchant', 'merchantAddress', 'paymentMethod', 'items'].includes(cause.field)) {
         showError(cause.field === 'items' ? 'itemRows' : cause.field, cause.message);
       } else {
         setFormError('保存できませんでした。サーバーへの接続を確認して再試行してください。');
@@ -117,6 +119,7 @@ export default function TransactionDialog({ open, selectedMonth, busy, onClose, 
       </div>
       <div id="expense-fields" className="expense-fields" hidden={type !== 'expense'}>
         <div className="form-grid"><label className="field full"><span>店名・取引先 <em>必須</em></span><input id="merchant-input" name="merchant" type="text" maxLength="60" placeholder="例：スーパー○○" aria-describedby="merchant-error" aria-invalid={!!errors.merchant || undefined} required={type === 'expense'} disabled={type !== 'expense'} value={merchant} onChange={(event) => setMerchant(event.target.value)} /><small id="merchant-error" className="field-error" hidden={!errors.merchant}>{errors.merchant}</small></label><label className="field full"><span>支払方法 <em>必須</em></span><select id="payment-method-input" name="paymentMethod" aria-describedby="payment-method-error" aria-invalid={!!errors.paymentMethod || undefined} required={type === 'expense'} disabled={type !== 'expense'} value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}><option value="">選択してください</option><option value="cash">現金</option><option value="credit_card">クレジットカード</option><option value="e_money">電子マネー</option><option value="bank_account">銀行口座</option></select><small id="payment-method-error" className="field-error" hidden={!errors.paymentMethod}>{errors.paymentMethod}</small></label></div>
+        <MerchantAddressField id="merchant-address-input" value={merchantAddress} onChange={setMerchantAddress} error={errors.merchantAddress} disabled={type !== 'expense' || blocked}/>
         <div className="item-section" aria-labelledby="item-section-title"><div className="item-section-head"><strong id="item-section-title">品目 <span>任意</span></strong><button id="add-item" type="button" className="item-add" onClick={addItem} disabled={type !== 'expense'}>＋ 品目を追加</button></div><div id="item-rows" className="item-rows">{itemRows.map((row) => <div className="item-row" key={row.key} data-item-key={row.key}><label><span>品目名</span><input data-item-name type="text" maxLength="60" aria-label={`品目${row.key}の名前`} aria-describedby="items-error" placeholder="例：パン" value={row.name} onChange={(event) => updateItem(row.key, 'name', event.target.value)} disabled={type !== 'expense'} /></label><label><span>金額</span><input data-item-amount type="number" inputMode="numeric" min="1" max="999999999" aria-label={`品目${row.key}の金額（円）`} aria-describedby="items-error" placeholder="0" value={row.amount} onChange={(event) => updateItem(row.key, 'amount', event.target.value)} disabled={type !== 'expense'} /></label><button className="remove-item" type="button" aria-label={`品目${row.key}を削除`} onClick={() => removeItem(row.key)} disabled={type !== 'expense'}>×</button></div>)}</div><small id="items-error" className="field-error" role="status" hidden={!errors.itemRows}>{errors.itemRows}</small></div>
       </div>
       <p id="form-error" className="field-error form-error" role="alert" hidden={!formError}>{formError}</p>

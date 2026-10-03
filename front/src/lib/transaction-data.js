@@ -16,6 +16,14 @@ import { isValidTransactionDateTime } from './transaction-datetime.js';
     }
   }
 
+  export function normalizeMerchantAddress(value) {
+    if (value == null) return null;
+    if (typeof value !== 'string') throw new ValidationError('merchantAddress', '住所は文字列で入力してください。');
+    const result = value.replace(/\r\n?/g, '\n').trim();
+    if ([...result].length > 500) throw new ValidationError('merchantAddress', '住所は500文字以内で入力してください。');
+    return result || null;
+  }
+
   function paymentMethodIsValid(value) {
     return typeof value === 'string' && Object.hasOwn(PAYMENT_METHOD_LABELS, value);
   }
@@ -31,7 +39,7 @@ import { isValidTransactionDateTime } from './transaction-datetime.js';
         items = record.items.map((item) => ({ name: item.name, amount: item.amount }));
       }
     }
-    return { merchant, paymentMethod, items };
+    return { merchant, paymentMethod, items, ...(record.merchantAddress !== undefined ? {merchantAddress: normalizeMerchantAddress(record.merchantAddress)} : {}) };
   }
 
   function parseAmount(value, field) {
@@ -43,7 +51,7 @@ import { isValidTransactionDateTime } from './transaction-datetime.js';
     return amount;
   }
 
-  function parseExpenseDraft({ merchant, paymentMethod, itemRows, manualAmount }) {
+  function parseExpenseDraft({ merchant, merchantAddress, paymentMethod, itemRows, manualAmount }) {
     const cleanMerchant = typeof merchant === 'string' ? merchant.trim() : '';
     if (!cleanMerchant) throw new ValidationError('merchant', '店名・取引先を入力してください。');
     if (!paymentMethodIsValid(paymentMethod)) throw new ValidationError('paymentMethod', '支払方法を選んでください。');
@@ -56,7 +64,7 @@ import { isValidTransactionDateTime } from './transaction-datetime.js';
     }
     const amount = items.length ? items.reduce((sum, item) => sum + item.amount, 0) : parseAmount(manualAmount, 'amount');
     if (amount > maxAmount) throw new ValidationError('itemRows', '品目の合計は999,999,999円以下にしてください。');
-    return { merchant: cleanMerchant, paymentMethod, items, amount };
+    return { merchant: cleanMerchant, paymentMethod, items, amount, ...(merchantAddress !== undefined ? {merchantAddress: normalizeMerchantAddress(merchantAddress)} : {}) };
   }
 
   function serializeTransactionsCsv(records) {

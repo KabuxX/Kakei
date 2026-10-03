@@ -78,6 +78,7 @@ export function useTransactions() {
   return {
     transactions, status, error, writePending, refreshing, staleAfterWrite, load, refresh,
     addTransaction: (draft) => write(() => api.addTransaction(draft, fetch)),
+    updateMerchantAddress: (id, address, expected) => write(() => api.updateMerchantAddress(id, address, expected, fetch)),
     deleteTransaction: (id) => write(() => api.removeTransaction(id, fetch)),
     deleteSamples: () => write(() => api.removeSamples(fetch)),
   };

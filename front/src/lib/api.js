@@ -78,3 +78,19 @@ export async function loadTrajectoryDay(date, fetchImpl = fetch) {
 }
 
 export { ApiError, request, listTransactions, loadInitialTransactions, addTransaction, removeTransaction, removeSamples };
+
+export async function getTransactionAddress(id, fetchImpl = fetch) {
+  const result = await request('GET', `/api/transaction-addresses/${encodeURIComponent(id)}`, undefined, fetchImpl);
+  if (!Array.isArray(result?.address?.places)) throw new ApiError(200, {message:'住所を読み込めませんでした。'});
+  return result.address;
+}
+export async function listTransactionAddresses(fetchImpl = fetch) {
+  const result = await request('GET', '/api/transaction-addresses', undefined, fetchImpl);
+  if (!Array.isArray(result?.addresses)) throw new ApiError(200, {message:'住所を読み込めませんでした。'});
+  return result.addresses;
+}
+export async function updateMerchantAddress(id, merchantAddress, expected, fetchImpl = fetch) {
+  const result = await request('PATCH', `/api/transaction-addresses/${encodeURIComponent(id)}`, {merchantAddress,expected}, fetchImpl);
+  if (!result?.transaction?.id) throw new ApiError(200, {message:'保存結果を確認できませんでした。'});
+  return result.transaction;
+}
