@@ -85,3 +85,9 @@ Agent Chat は `#agent` で開きます。会話履歴、変更前後の確認�
 住所と保存地点が一致しない場合は地図リンク・訪問ピン・接続区間を非表示にし、「Agentで位置を再確認」で依頼文を準備します。自動送信はしません。CSVの末尾に「取引先住所」「関連軌跡住所」を追加し、住所API失敗時は再試行を案内します。mockモードでも住所のGET/PATCHとCSVを利用できます。
 
 軌跡の通常地図はGoogle Maps JavaScript APIとAdvanced Markerを使います。`/api/map-config`の`googleMapsBrowserKey`と`googleMapId`を読みます。サーバーのPlacesキーをフロントへ組み込まないでください。キーの用途・制限はbackend/README.mdを参照してください。地図が使えない場合も訪問時系列を表示します。利用・データ取扱説明は`/google-maps-usage.html`から常時閲覧できます。旧`TrajectoryMap.jsx`とMapbox依存は保存しています。
+
+## GitHub Pagesの閲覧専用DEMO
+
+`npm run dev:demo`と`npm run build:demo`は通常APIから分離したDEMOです。公開先はhttps://kabuxx.github.io/Kakei/（所有者によるPages有効化・初回公開後）。出力先は`dist-demo/`、baseは`/Kakei/`です。通常`build`の`dist/`、実API、保存先、`dev:mock`は従来どおりです。
+
+snapshot時刻、対象件数、地図範囲・zoom・license、手動エクスポートと地図再梱包は[ルートREADME](../README.md)にまとめています。`build:demo`はコミット済み素材のhashと参照、秘密情報の混入を検証し、再生成しません。`node scripts/serve-demo-check.mjs --port 8770`で外部通信をCSPで禁止した静的確認ができます。`--no-range`は地図の全体取得fallback用です。

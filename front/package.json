@@ -5,11 +5,12 @@
   "scripts": {
     "dev:mock": "vite --mode mock --host 127.0.0.1",
     "dev:api": "vite --mode api --host 127.0.0.1",
-    "build": "vite build",
+    "build": "vite build && node scripts/validate-demo.mjs normal",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "dev:demo": "vite --mode demo",
-    "build:demo": "vite build --mode demo"
+    "build:demo": "node scripts/validate-demo.mjs source && vite build --mode demo && node scripts/validate-demo.mjs build",
+    "validate:demo": "node scripts/validate-demo.mjs source"
   },
   "dependencies": {
     "@deck.gl/layers": "^9.4.0",

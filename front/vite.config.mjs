@@ -7,6 +7,7 @@ export default defineConfig(({ mode }) => {
   const apiTarget = process.env.KAKEI_API_TARGET || 'http://127.0.0.1:8765';
   return {
     envDir: mode === 'demo' ? 'demo' : '..',
+    envPrefix: mode === 'demo' ? [] : 'VITE_',
     base: mode === 'demo' ? '/Kakei/' : '/',
     publicDir: mode === 'demo' ? 'demo/public' : 'public',
     resolve: {alias: {'@kakei/runtime': fileURLToPath(new URL(mode === 'demo' ? './demo/runtime.js' : './src/lib/runtime.js', import.meta.url))}},
