@@ -11,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 
 from api.http import HTTPFailure, error_response, json_response
 from api.transactions import register_transactions
+from api.budget import register_budget
 from api.transaction_addresses import register_transaction_addresses
 from api.agent import register_agent
 from api.receipts import register_receipts
@@ -54,7 +55,7 @@ def create_app(db_path: Path, front_dir: Path, *, port: int = 8765,
             if request.headers.get("origin") != f"http://{host}":
                 return error_response(403, "forbidden_origin", "同じアドレスの画面から操作してください。")
         path = request.url.path
-        if (path.startswith("/api/") and path not in ("/api/status", "/api/initialize", "/api/trajectory", "/api/agent/status", "/api/map-config")
+        if (path.startswith("/api/") and path not in ("/api/status", "/api/initialize", "/api/trajectory", "/api/agent/status", "/api/map-config", "/api/budget")
                 and not path.startswith("/api/trajectory/")):
             try:
                 if not store.is_initialized():
@@ -94,6 +95,7 @@ def create_app(db_path: Path, front_dir: Path, *, port: int = 8765,
     register_receipts(app, store)
     register_agent(app, store, runner_factory)
     register_transactions(app, store)
+    register_budget(app, store)
     register_transaction_addresses(app, store)
     from api.google_places import register_google_places
     register_google_places(app)
@@ -108,7 +110,7 @@ def create_app(db_path: Path, front_dir: Path, *, port: int = 8765,
     @app.api_route("/api/{remaining:path}", methods=["GET", "POST", "DELETE", "PUT", "PATCH", "OPTIONS", "HEAD"])
     def unknown_api(request: Request, remaining: str):
         path = request.url.path
-        if (path in ("/api/status", "/api/initialize", "/api/transactions", "/api/samples", "/api/trajectory", "/api/map-config")
+        if (path in ("/api/status", "/api/initialize", "/api/transactions", "/api/samples", "/api/trajectory", "/api/map-config", "/api/budget")
                 or path.startswith(("/api/transactions/", "/api/trajectory/"))):
             raise HTTPFailure(405, "method_not_allowed", "この操作は利用できません。")
         raise HTTPFailure(404, "not_found", "APIが見つかりません。")
