@@ -1,5 +1,7 @@
 import React, {useEffect, useRef, useState} from 'react';
 import AgentProposal from './AgentProposal.jsx';
+import AgentTrajectoryResult from './AgentTrajectoryResult.jsx';
+import GooglePlaceResults from './GooglePlaceResults.jsx';
 import PlaceSources,{renderCitedText} from './PlaceSources.jsx';
 import ReceiptReview from './ReceiptReview.jsx';
 import {ChatButton,ChatIcon} from './AgentControls.jsx';
@@ -11,11 +13,12 @@ function useGreeting(){
   return greeting;
 }
 
-export default function AgentChat({session,onCommitted}) {
+export default function AgentChat({session,onCommitted,onOpenTrajectory}) {
   const {status,thread,messages=thread?.messages||[],sending=false,busy,setBusy,loading,error,draft,load,send,upload,change,proposed,setText,removeReceipt}=session;
   const greeting=useGreeting(), composer=useRef(null), file=useRef(null), conversation=useRef(null);
   const composing=useRef(false), [viewportInset,setViewportInset]=useState(0);
   const active=messages.length>0;
+  const [refreshError,setRefreshError]=useState('');
   const latestMessage=useRef(null), progress=useRef(null);
   const receipt=draft.receipt;
   const unavailable=loading||!status?.available;
@@ -28,14 +31,14 @@ export default function AgentChat({session,onCommitted}) {
   useEffect(()=>{
     if(active)(sending?progress.current:latestMessage.current)?.scrollIntoView?.({block:sending?'end':'start',behavior:'instant'});
   },[thread?.id,messages.length,sending,active]);
-  const submit=async e=>{e?.preventDefault();if(await send())composer.current?.focus({preventScroll:true});};
+  const submit=async e=>{e?.preventDefault();setRefreshError('');const reply=await send();if(reply){composer.current?.focus({preventScroll:true});if(reply.trajectoryCreation?.counts.saved>0){try {if(await onCommitted?.()===false)setRefreshError('軌跡は保存済みですが、一覧を更新できませんでした。');}catch(error){setRefreshError('軌跡は保存済みです。'+(error.message||'一覧を更新できませんでした。'));}}}};
   const shortcut=e=>{if(e.key==='Enter'&&(e.metaKey||e.ctrlKey)&&!e.nativeEvent.isComposing&&!composing.current&&e.keyCode!==229){e.preventDefault();submit();}};
   const receiptUrl=receipt?`/api/agent/threads/${encodeURIComponent(thread.id)}/receipts/${encodeURIComponent(receipt.id)}`:null;
   return <section className={`agent-page${active?' agent-active':' agent-empty'}`} aria-label="Agent Chat" style={{'--keyboard-inset':`${viewportInset}px`}}>
     <h1 id="agent-heading" className="sr-only" tabIndex="-1">Agent Chat</h1>
     {active&&<div className="agent-history-content" ref={conversation}>
       <div className="agent-conversation" aria-label="会話の内容" aria-live="polite">
-        {messages.map((m,i)=><article ref={i===messages.length-1?latestMessage:null} key={m.id} className={`agent-message ${m.role}`}><strong>{m.role==='user'?'あなた':'Agent'}</strong><p>{m.role==='assistant'?renderCitedText(m.text,m.sources):m.text}</p>{m.role==='assistant'&&<PlaceSources sources={m.sources}/>}{m.state==='failed'&&<small>応答を確認できませんでした。入力欄から再送できます。</small>}</article>)}
+        {messages.map((m,i)=><article ref={i===messages.length-1?latestMessage:null} key={m.id} className={`agent-message ${m.role}`}><strong>{m.role==='user'?'あなた':'Agent'}</strong><p>{m.role==='assistant'?renderCitedText(m.text,m.sources):m.text}</p>{m.role==='assistant'&&<><PlaceSources sources={m.sources}/>{m.trajectoryCreation&&<AgentTrajectoryResult result={m.trajectoryCreation} onOpenTrajectory={onOpenTrajectory}/>} {!!m.placeSearch?.placeIds?.length&&<GooglePlaceResults placeIds={m.placeSearch.placeIds}/>}</>}{m.state==='failed'&&<small>応答を確認できませんでした。入力欄から再送できます。</small>}</article>)}
       </div>
       {sending&&<div ref={progress} className="agent-message agent-processing" role="status" aria-label="Agentが処理中"><span className="agent-loading-dots" aria-hidden="true"><i/><i/><i/></span><span>Agentが処理中</span></div>}
       {thread?.receiptReviews?.filter(r=>!thread.proposals?.some(p=>p.metadata?.receiptId===r.receiptId)).map(r=><ReceiptReview key={r.receiptId} review={r} threadId={thread.id} busy={busy} setBusy={setBusy} onProposed={proposed}/>)}
@@ -59,6 +62,7 @@ export default function AgentChat({session,onCommitted}) {
           <ChatButton type="submit" label={draft.retry&&!sending?'再送':'送信'} icon={busy&&!sending?'spinner':draft.retry&&!sending?'retry':'send'} className="agent-send" disabled={busy||unavailable||!draft.text.trim()}/>
         </div>
       </form>
+      {refreshError&&<p role="alert">{refreshError}</p>}
       {error&&<div role="alert" className="agent-error">{error}<ChatButton label="状態を再読み込み" icon="retry" onClick={load} disabled={busy}/></div>}
       <div className="agent-input-help" id="agent-input-help"><span>AIへの送信に使用します · ⌘ / Ctrl + Enter で送信</span><details><summary>添付できるファイル</summary><p>JPEG・PNG・WebP・PDF / 10 MiBまで、PDFは3ページまで</p></details></div>
     </div>

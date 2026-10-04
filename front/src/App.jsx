@@ -31,6 +31,7 @@ export default function App() {
   const model = useMemo(() => dashboardForMonth(data.transactions, month), [data.transactions, month]);
   const isAgent = route === '#agent';
   const agent = useAgentChat(isAgent && ['ready','stale'].includes(data.status));
+  const [requestedTrajectoryDate,setRequestedTrajectoryDate]=useState(null);
   const [trajectoryRevision, setTrajectoryRevision] = useState(0);
   const isTrajectory = route === '#trajectory';
   const isDetail = ['ready', 'stale'].includes(data.status) && (route === '#transaction' || route.startsWith('#transaction/'));
@@ -168,8 +169,8 @@ export default function App() {
     <AppShell agent={isAgent && ['ready','stale'].includes(data.status) ? agent : null} route={route} onAdd={openDialog} addDisabled={data.status !== 'ready' || data.writePending || data.refreshing}>
       <div id="sync-status" className="sync-status" role="alert" hidden={isTrajectory || data.status !== 'stale'}><span id="sync-status-message">{data.staleAfterWrite ? 'サーバーへの保存は完了しましたが、表示を更新できませんでした。再読み込みしてください。' : '最新の取引を読み込めませんでした。再読み込みしてください。'}</span><button id="retry-sync" className="secondary-button" type="button" onClick={() => data.refresh()}>表示を再読み込み</button></div>
       <Dashboard month={month} model={model} transactions={data.transactions} status={data.status} error={data.error} onMonthChange={changeMonth} onAdd={openDialog} onRetry={data.load} onClearSamples={deleteSamples} onExport={exportCsv} exporting={exporting} onOpenDetail={(id) => { listReturn.current = { id, scrollY: window.scrollY }; }} writePending={data.writePending || data.refreshing} hidden={isDetail || isTrajectory || isAgent} />
-      <div id="trajectory-view" hidden={!isTrajectory}>{isTrajectory && <Trajectory onReviewAddress={reviewAddress} transactions={data.transactions} refreshKey={trajectoryRevision} />}</div>
-      {isAgent && (['ready','stale'].includes(data.status) ? <AgentChat session={agent} onCommitted={async () => { setTrajectoryRevision(v => v + 1); return await data.refresh(true); }} /> : <section><h1 id="agent-heading" tabIndex="-1">Agent Chat</h1>{data.status === 'loading' ? <p role="status">家計データを準備しています…</p> : <div role="alert"><p>家計データを読み込めませんでした。</p><button type="button" className="secondary-button" onClick={data.load}>再試行</button></div>}</section>)}
+      <div id="trajectory-view" hidden={!isTrajectory}>{isTrajectory && <Trajectory requestedDate={requestedTrajectoryDate} onReviewAddress={reviewAddress} transactions={data.transactions} refreshKey={trajectoryRevision} />}</div>
+      {isAgent && (['ready','stale'].includes(data.status) ? <AgentChat session={agent} onOpenTrajectory={date=>{setRequestedTrajectoryDate(date);window.location.hash='trajectory';}} onCommitted={async () => { setTrajectoryRevision(v => v + 1); return await data.refresh(true); }} /> : <section><h1 id="agent-heading" tabIndex="-1">Agent Chat</h1>{data.status === 'loading' ? <p role="status">家計データを準備しています…</p> : <div role="alert"><p>家計データを読み込めませんでした。</p><button type="button" className="secondary-button" onClick={data.load}>再試行</button></div>}</section>)}
       {isDetail && (isDelete
         ? <TransactionDelete record={detailRecord} onConfirm={deleteTransaction} error={deleteError} busy={deletePending || data.writePending || data.refreshing || data.status !== 'ready'} />
         : isEdit ? <TransactionEdit record={detailRecord} onSubmit={updateTransaction} onCancel={cancelEdit} busy={data.writePending || data.refreshing} saveDisabled={data.status !== 'ready'}/>

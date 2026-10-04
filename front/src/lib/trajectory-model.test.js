@@ -170,3 +170,9 @@ it('keeps an unconfirmed middle visit without bridging its neighbours', async ()
   expect(result.unconfirmedLocationCount).toBe(1);
   expect(result.distanceIncomplete).toBe(true);
 });
+it('keeps_visits_with_unavailable_coordinates_and_equal_times',async()=>{
+ const {buildTrajectoryDays}=await import('./trajectory-model.js');
+ const google={name:'店A',provider:'google',providerPlaceId:'fixture-a',placeEvidence:'google_places',address:null,sourceUrl:null,coordinates:null};
+ const day=buildTrajectoryDays([],{places:{a:google,b:{...google,providerPlaceId:'fixture-b'}},days:[{date,events:[{id:'a',placeId:'a',time:'12:00',timeEvidence:'exact'},{id:'b',placeId:'b',time:'12:00',timeEvidence:'exact'}],legs:[{fromEventId:'a',toEventId:'b',modeEvidence:'inferred'}]}]}).get(date);
+ expect(day.events).toHaveLength(2);expect(day.segments[0].distanceKm).toBeNull();expect(day.distanceKm).toBeNull();expect(day.bounds).toBeNull();
+});

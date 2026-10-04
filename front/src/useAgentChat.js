@@ -42,6 +42,7 @@ export function useAgentChat(enabled) {
   };
   const send=()=>{
     if(!draft.text.trim()||!status?.available)return Promise.resolve(false);
+    let completion;
     return act(async()=>{
       const body=draft.retry?.text===draft.text&&draft.retry?.receiptId===draft.receipt?.id?draft.retry:
         {clientMessageId:crypto.randomUUID(),text:draft.text,...(draft.receipt?{receiptId:draft.receipt.id}:{})};
@@ -51,9 +52,7 @@ export function useAgentChat(enabled) {
       patchDraft({...emptyDraft,retry:body},target);
       try {
         const current=await ensureThread();target=current.id;
-        await api.sendMessage(target,body);
-        const latest=await api.getThread(target);
-        setThread(latest);
+        completion=await api.sendMessage(target,body);
         setOutgoing(items=>({...items,[target]:(items[target]||[]).filter(m=>m.id!==message.id)}));
         patchDraft(emptyDraft,target);
       } catch(e) {
@@ -61,9 +60,12 @@ export function useAgentChat(enabled) {
         patchDraft({...draft,retry:body},target);
         throw e;
       }
+      // A completed response is authoritative even if subsequent reads fail.
+      if(completion?.message)setThread(current=>({...current,messages:[...(current?.messages||[]).filter(m=>m.clientMessageId!==message.clientMessageId),{...message,id:message.id,state:'complete'},completion.message],proposals:completion.proposal?[...(current?.proposals||[]),completion.proposal]:(current?.proposals||[])}));
+      try {setThread(await api.getThread(target));} catch(e){setError(e.message||'会話の表示を更新できませんでした。');}
       // A sidebar refresh failure must not turn a completed message into a retry.
       try {setThreads(await api.listThreads());} catch(e){setError(e.message||'会話一覧を更新できませんでした。');}
-    });
+    }).then(ok=>ok?(completion||true):false);
   };
   const select=id=>act(async()=>{setThread(id?await api.getThread(id):null);});
   const upload=file=>file&&act(async()=>{

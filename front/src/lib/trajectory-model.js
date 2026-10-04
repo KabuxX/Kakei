@@ -4,7 +4,11 @@ import { featureCollection, lineString, point } from '@turf/helpers';
 import { transactionCalendarDate } from './transaction-datetime.js';
 
 function checkPlace(placeId, place) {
-  if (!place || !place.name || (place.placeEvidence !== 'user' && (!place.address || !/^https:\/\//.test(place.sourceUrl || '')))) {
+  if(place?.provider==='google'){
+    if(!place.name||place.placeEvidence!=='google_places'||!/^[A-Za-z0-9_-]{1,512}$/.test(place.providerPlaceId||''))throw new Error(`Place ${placeId} needs a valid Google reference`);
+    if(place.coordinates==null)return;
+  }
+  if (!place || !place.name || (!['user','google_places'].includes(place.placeEvidence) && (!place.address || !/^https:\/\//.test(place.sourceUrl || '')))) {
     throw new Error(`Place ${placeId} needs a name, address, and source URL`);
   }
   const [longitude, latitude] = place.coordinates || [];
@@ -52,7 +56,7 @@ function buildTrajectoryDays(transactions, timeline) {
       return { ...event, place, transaction, transactionMissing: !!event.transactionId && !transaction, coordinates: event.locationStatus === 'needs_review' ? null : place.coordinates };
     });
     const knownTimes = events.filter(event => event.time !== null);
-    if (knownTimes.some((event, index) => index > 0 && event.time <= knownTimes[index - 1].time)) {
+    if (knownTimes.some((event, index) => index > 0 && event.time < knownTimes[index - 1].time)) {
       throw new Error(`Day ${day.date} events are not chronological`);
     }
     if (!Array.isArray(day.legs)) throw new Error(`Day ${day.date} needs legs`);
@@ -108,7 +112,7 @@ function buildTrajectoryDays(transactions, timeline) {
       distanceIncomplete: segments.some(s=>!s.coordinates),
       hasEstimatedCoordinates: events.some(e=>e.coordinates&&e.place.coordinateEvidence?.status==='estimated')||day.legs.some(l=>(l.viaPlaceIds||[]).some(id=>timeline.places[id]?.coordinateEvidence?.status==='estimated')),
       modes: [...new Set(segments.map((segment) => segment.mode))],
-      distanceKm: segments.reduce((sum, segment) => sum + segment.distanceKm, 0),
+      distanceKm: segments.length && segments.every(s=>s.distanceKm===null) ? null : segments.reduce((sum, segment) => sum + (segment.distanceKm||0), 0),
       bounds: features.length ? bbox(featureCollection(features)) : null,
     });
   }

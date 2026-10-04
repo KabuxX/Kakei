@@ -1,7 +1,7 @@
 import React from 'react';
 import CoordinateEvidence from './CoordinateEvidence.jsx';
 
-function safeUrl(value){
+export function safeUrl(value){
   if(typeof value!=='string'||/[\s\\]/.test(value))return null;
   try {const url=new URL(value);return url.protocol==='https:'&&!url.username&&!url.password?value:null;}catch{return null;}
 }

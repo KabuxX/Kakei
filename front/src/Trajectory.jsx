@@ -23,7 +23,7 @@ class MapErrorBoundary extends React.Component {
 }
 
 const EMPTY = [];
-export default function Trajectory({ transactions = EMPTY, refreshKey = 0, onReviewAddress }) {
+export default function Trajectory({ transactions = EMPTY, refreshKey = 0, requestedDate, onReviewAddress }) {
   const [dates, setDates] = useState(null);
   const [timeline, setTimeline] = useState(null);
   const [error, setError] = useState('');
@@ -36,10 +36,10 @@ export default function Trajectory({ transactions = EMPTY, refreshKey = 0, onRev
     listTrajectoryDates().then((saved) => {
       if (!active) return;
       setDates(saved);
-      setSelectedDate((previous) => saved.includes(previous) ? previous : saved[0] || '');
+      setSelectedDate((previous) => saved.includes(requestedDate) ? requestedDate : saved.includes(previous) ? previous : saved[0] || '');
     }).catch((failure) => { if (active) setError(failure.message); });
     return () => { active = false; };
-  }, [retry, refreshKey]);
+  }, [retry, refreshKey, requestedDate]);
   useEffect(() => {
     if (!selectedDate) return undefined;
     let active = true;
@@ -86,9 +86,9 @@ export default function Trajectory({ transactions = EMPTY, refreshKey = 0, onRev
       {day && <div className="trajectory-stats">
         <div><span>訪問地点</span><strong>{day.stopCount}地点</strong></div>
         <div><span>記録された支出</span><strong>{yen.format(day.expenseTotal)}</strong></div>
-        <div><span>{day.hasEstimatedCoordinates?'推定位置を含む概算':'地点間の直線距離'}</span><strong>約{day.distanceKm.toFixed(1)} km</strong></div>
+        <div><span>{day.hasEstimatedCoordinates?'推定位置を含む概算':'地点間の直線距離'}</span><strong>{day.distanceKm===null?'距離不明':`約${day.distanceKm.toFixed(1)} km`}</strong></div>
       </div>}
-      {day?.distanceIncomplete && <p role="status">位置が未確認の区間を除いた距離です。</p>}
+      {day?.distanceIncomplete && <p role="status">位置を取得できない区間があります。距離は位置がわかる区間のみの概算です。</p>}
       <p className="trajectory-summary-note">線と距離は地点間の概算です。実際に通った経路や移動距離ではありません。</p>
     </section>
 
@@ -113,10 +113,10 @@ export default function Trajectory({ transactions = EMPTY, refreshKey = 0, onRev
           {day.events.map((event, index) => {
             const before = day.segments.find(s => s.toEventId === event.id);
             return <li key={event.id}>
-              {before && <p className="trajectory-leg-label" style={{ '--stage-color': stageColor(before.stageNumber).hex }}><i className="trajectory-legend-line" aria-hidden="true" />区間{before.stageNumber} · {modeLabel[before.mode]} · 約{before.distanceKm === null ? '距離不明' : `${before.distanceKm.toFixed(1)} km`} · {evidenceLabel[before.modeEvidence]}{before.modeEvidenceNote && `（${before.modeEvidenceNote}）`}</p>}
+              {before && <p className="trajectory-leg-label" style={{ '--stage-color': stageColor(before.stageNumber).hex }}><i className="trajectory-legend-line" aria-hidden="true" />区間{before.stageNumber} · {modeLabel[before.mode]} · {before.distanceKm === null ? '距離不明' : `約${before.distanceKm.toFixed(1)} km`} · {evidenceLabel[before.modeEvidence]}{before.modeEvidenceNote && `（${before.modeEvidenceNote}）`}</p>}
               <button className="trajectory-event" type="button" aria-pressed={selectedEventId === event.id} onClick={() => setSelectedEventId(event.id)}>
                 <span className="trajectory-event-index">{index + 1}</span>
-                <span className="trajectory-event-main"><span className="trajectory-event-time">{event.time || '時刻不明'} · {evidenceLabel[event.timeEvidence || 'legacy']}</span>{event.timeEvidenceNote && <small>{event.timeEvidenceNote}</small>}<strong>{event.place.name}</strong>{event.place.coordinateEvidence?.status==='estimated'&&<span className="trajectory-coordinate-badge">位置は推定</span>}{event.locationStatus==='needs_review' && <small>住所と位置の再確認が必要</small>}<small>{event.locationStatus==='needs_review' && '軌跡に保存された住所: '}{event.place.address || '住所未登録'}</small>{event.transactionMissing && <small>関連取引は見つかりません</small>}
+                <span className="trajectory-event-main"><span className="trajectory-event-time">{event.time || '時刻不明'} · {evidenceLabel[event.timeEvidence || 'legacy']}</span>{event.timeEvidenceNote && <small>{event.timeEvidenceNote}</small>}<strong>{event.place.name}</strong>{event.place.coordinateEvidence?.status==='estimated'&&<span className="trajectory-coordinate-badge">位置は推定</span>}{event.locationStatus==='needs_review' && <small>住所と位置の再確認が必要</small>}<small>{event.locationStatus==='needs_review' && '軌跡に保存された住所: '}{event.place.address || '住所未登録'}</small>{!event.coordinates&&<small>位置を取得できませんでした。訪問記録は保存されています。</small>}{event.transactionMissing && <small>関連取引は見つかりません</small>}
                   {event.transaction && <span className="trajectory-purchase">{event.transaction.title} · {yen.format(event.transaction.amount)}<span>{event.transaction.items?.map((item) => item.name).join('・')}</span></span>}
                 </span>
               </button>

@@ -169,3 +169,14 @@ it('sources_survive_message_reload and user citation syntax stays plain',async()
  fireEvent.click(screen.getByRole('button',{name:'出典の会話'}));
  expect(await screen.findByRole('link',{name:/店舗情報/})).toBeTruthy();
 });
+const autoResult={date:'2026-10-01',status:'partial',counts:{saved:2,existing:0,excluded:1},saved:[],existing:[],excluded:[{transactionId:'c',label:'店C',message:'店舗を特定できませんでした。'}]};
+it('opens_created_date_and_refreshes_trajectory',async()=>{
+ const onCommitted=vi.fn().mockRejectedValue(new Error('一覧の取得失敗')),open=vi.fn();
+ api.sendMessage.mockResolvedValue({trajectoryCreation:autoResult,message:{id:'a',role:'assistant',text:'作成済み',trajectoryCreation:autoResult}});api.getThread.mockResolvedValue({id:'t',messages:[{id:'a',role:'assistant',text:'作成済み',trajectoryCreation:autoResult}],proposals:[]});
+ render(<AgentChat onCommitted={onCommitted} onOpenTrajectory={open}/>);await enterMessage('2026年10月1日の軌跡を作って');
+ await screen.findByText(/2件保存/);await vi.waitFor(()=>expect(onCommitted).toHaveBeenCalledTimes(1));expect(screen.queryByRole('button',{name:'再送'})).toBeNull();expect(screen.queryByRole('button',{name:'確認して保存'})).toBeNull();fireEvent.click(screen.getByRole('link',{name:'2026-10-01の軌跡を開く'}));expect(open).toHaveBeenCalledWith('2026-10-01');expect(await screen.findByText(/一覧の取得失敗/)).toBeTruthy();
+});
+it('restores_result_after_thread_reload',async()=>{
+ api.listThreads.mockResolvedValue([{id:'t',title:'作成の会話'}]);api.getThread.mockResolvedValue({id:'t',messages:[{id:'a',role:'assistant',text:'作成済み',trajectoryCreation:autoResult}],proposals:[]});
+ const refresh=vi.fn();render(<AgentChat onCommitted={refresh}/>);fireEvent.click(await screen.findByRole('button',{name:'作成の会話'}));await screen.findByText(/1件除外/);expect(refresh).not.toHaveBeenCalled();
+});
