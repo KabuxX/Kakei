@@ -7,6 +7,7 @@ test('confirms address coordinates and keeps provenance after save and reload',a
  await expect(page.getByText('住所に対応する座標',{exact:true})).toBeVisible();
  await expect(page.getByRole('radio')).toHaveCount(2);
  await page.getByRole('radio').first().check();
+ await expect(page.getByRole('link',{name:/地図で位置を確認/}).first()).toHaveAttribute('href','https://www.openstreetmap.org/?mlat=35.7&mlon=139.7#map=18/35.7/139.7');
  const confirm=page.getByRole('checkbox',{name:'住所・出典と地図の位置を確認しました'});
  await expect(page.getByRole('button',{name:'この地点を選ぶ'})).toBeDisabled();
  await expect(page.getByRole('link',{name:/座標データ/})).toBeVisible();
