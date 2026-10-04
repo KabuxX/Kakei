@@ -52,3 +52,5 @@ Agent Chat は `#agent` で開きます。会話履歴、変更前後の確認�
 取引追加の「住所（任意）」と取引詳細の「住所を追加／編集」から記録できます。空欄で保存すると取引の住所だけを消去します。関連軌跡の住所は別の表示として残り、選んで編集欄へ取り込み、保存できます。
 
 住所と保存地点が一致しない場合は地図リンク・訪問ピン・接続区間を非表示にし、「Agentで位置を再確認」で依頼文を準備します。自動送信はしません。CSVの末尾に「取引先住所」「関連軌跡住所」を追加し、住所API失敗時は再試行を案内します。mockモードでも住所のGET/PATCHとCSVを利用できます。
+
+軌跡の通常地図はGoogle Maps JavaScript APIとAdvanced Markerを使います。`/api/map-config`の`googleMapsBrowserKey`と`googleMapId`を読みます。サーバーのPlacesキーをフロントへ組み込まないでください。キーの用途・制限はbackend/README.mdを参照してください。地図が使えない場合も訪問時系列を表示します。利用・データ取扱説明は`/google-maps-usage.html`から常時閲覧できます。旧`TrajectoryMap.jsx`とMapbox依存は保存しています。

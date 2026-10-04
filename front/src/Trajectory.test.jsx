@@ -6,7 +6,7 @@ import transactions from './data/september-transactions.json';
 import { trajectoryResponse } from './trajectory-test-fixture.js';
 import Trajectory from './Trajectory.jsx';
 
-vi.mock('./TrajectoryMap.jsx', () => ({ default: ({ day, selectedEventId }) => <div data-testid="map-props">{day.date} {selectedEventId}</div> }));
+vi.mock('./GoogleTrajectoryMap.jsx', () => ({ default: ({ day, selectedEventId }) => <div data-testid="map-props">{day.date} {selectedEventId}</div> }));
 beforeEach(() => vi.stubGlobal('fetch', vi.fn(trajectoryResponse)));
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 

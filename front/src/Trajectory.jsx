@@ -5,7 +5,7 @@ import { buildTrajectoryDays } from './lib/trajectory-model.js';
 import { stageColor } from './lib/trajectory-display.js';
 import '../trajectory.css';
 
-const TrajectoryMap = lazy(() => import('./TrajectoryMap.jsx'));
+const TrajectoryMap = lazy(() => import('./GoogleTrajectoryMap.jsx'));
 const yen = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY', maximumFractionDigits: 0 });
 const dateLabel = (date) => `${Number(date.slice(5, 7))}月${Number(date.slice(8))}日`;
 const evidenceLabel = {exact:'確定',estimated:'推定',unknown:'不明',legacy:'既存記録',fare:'交通費の記録',user:'ユーザー指定',inferred:'推定'};

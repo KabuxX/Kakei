@@ -16,6 +16,6 @@ export default function GooglePlaceResults({placeIds=[]}) {
  return <div className="google-place-results" aria-label="Googleの地点情報">
   <a href="https://maps.google.com/" target="_blank" rel="noopener noreferrer" className="google-maps-attribution">Google Maps</a>
   {!items.length&&<p role="status">地点情報を読み込んでいます…</p>}
-  {items.map(item=><div key={item.id}>{item.unavailable?<p>地点情報を取得できませんでした。</p>:<><strong>{item.name}</strong><p>{item.address}</p>{safeUrl(item.mapsUri)&&<a href={item.mapsUri} target="_blank" rel="noopener noreferrer">Google Mapsで見る</a>}{item.attributions?.map((a,i)=>safeUrl(a.providerUri)?<a key={i} href={a.providerUri} target="_blank" rel="noopener noreferrer">{a.provider}</a>:<span key={i}>{a.provider}</span>)}</>}</div>)}
+  {items.map(item=><div key={item.id}>{item.unavailable?<p>地点情報を取得できませんでした。</p>:<><strong>{item.name}</strong><p>{item.address}</p>{safeUrl(item.googleMapsUri)&&<a href={item.googleMapsUri} target="_blank" rel="noopener noreferrer">Google Mapsで見る</a>}{item.attributions?.map((a,i)=>safeUrl(a.providerUri)?<a key={i} href={a.providerUri} target="_blank" rel="noopener noreferrer">{a.provider}</a>:<span key={i}>{a.provider}</span>)}</>}</div>)}
  </div>;
 }

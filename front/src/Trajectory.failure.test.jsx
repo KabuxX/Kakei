@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import transactions from './data/september-transactions.json';
 import { trajectoryResponse } from './trajectory-test-fixture.js';
 
-vi.mock('./TrajectoryMap.jsx', () => { throw new Error('map chunk unavailable'); });
+vi.mock('./GoogleTrajectoryMap.jsx', () => { throw new Error('map chunk unavailable'); });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
 it('keeps date controls and timeline usable when the map module cannot load', async () => {

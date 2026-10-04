@@ -116,3 +116,13 @@ agentには「指定日の軌跡を削除」「この訪問を削除」「この
 キーは`.env`に設定し、Places API (New)を有効にした課金プロジェクトのものを使います。
 Text Searchで名前・住所・座標を取得するため、Proの課金区分を使用します。
 サーバーのキーをブラウザや公開設定に渡さないでください。
+
+### Google Places / Google Maps の設定
+
+Places API (New)とMaps JavaScript APIをGoogle Cloudで有効にし、課金を設定してください。検索はサーバーの`GOOGLE_PLACES_API_KEY`を使います。API制限をPlaces API (New)、必要に応じて送信元IP制限にします。キーをブラウザへ返しません。
+
+地図表示には別の`GOOGLE_MAPS_BROWSER_API_KEY`を用意し、API制限をMaps JavaScript API、HTTPリファラー制限を利用するローカルURL（例: `http://localhost:8765/*`）にします。同じキーを両用途へ設定すると公開設定はキーを返しません。ブラウザ用キーがなくても検索・保存・時系列は動きます。
+
+任意の`GOOGLE_MAPS_MAP_ID`にJavaScript用Map IDを設定します。未設定の`DEMO_MAP_ID`はローカル検証用で、公開利用には自分のMap IDを設定してください。設定後にサーバーを再起動します。クラウドの設定やキー作成はアプリから実行しません。
+
+[Mapsのロード方法](https://developers.google.com/maps/documentation/javascript/load-maps-js-api)・[Advanced Marker移行](https://developers.google.com/maps/documentation/javascript/advanced-markers/migration)・[APIキーの制限](https://developers.google.com/maps/api-security-best-practices)。店舗検索はGoogleのみ。旧Geolonia/Web実装は`agent/legacy_place_tools.py`と各旧サービスに保存し、明示的なテスト注入だけで利用します。
