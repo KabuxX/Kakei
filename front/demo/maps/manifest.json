@@ -1,0 +1,79 @@
+{
+  "version": 1,
+  "tilesetVersion": "4.15.2",
+  "sourceBuild": "20261004",
+  "bounds": [
+    138.9,
+    35.45,
+    139.95,
+    35.95
+  ],
+  "tileMinZoom": 0,
+  "tileMaxZoom": 14,
+  "displayMaxZoom": 16,
+  "bytes": 44888591,
+  "sha256": "58fd640e5db40348f95435aa25914c7e935bb0c59184f46d3f1b9601dc8ffdb3",
+  "source": "https://build.protomaps.com/20261004.pmtiles",
+  "originalBytes": 67063138,
+  "originalSha256": "93308210ed545c54810892150d7c5fb69eedfe3bbf0455dfa8c7ffdc78b2b4b1",
+  "derivation": {
+    "removedLayers": [
+      "buildings",
+      "pois"
+    ],
+    "retainedLayers": [
+      "boundaries",
+      "earth",
+      "landcover",
+      "landuse",
+      "places",
+      "roads",
+      "water"
+    ],
+    "geometry": "Retained layers copied byte-for-byte before gzip recompression"
+  },
+  "licenses": [
+    "ODbL-1.0",
+    "Natural Earth public domain",
+    "OFL-1.1"
+  ],
+  "geography": {
+    "url": "https://nlftp.mlit.go.jp/ksj/gml/data/N03/N03-2025/N03-20250101_13_GML.zip",
+    "sha256": "e73a70ca903c5a37daba66158ee5de7c48bb7cd7d45f31f7fa4a178c9456702f",
+    "mainlandFilter": "polygon minimum latitude >35 degrees; excludes Izu/Ogasawara islands",
+    "polygonCount": 154,
+    "bounds": [
+      138.94286758776911,
+      35.50125222521018,
+      139.91890836582854,
+      35.89842399956808
+    ],
+    "withinProposed": true
+  },
+  "snapshotContainment": {
+    "referencedPlaces": 12,
+    "allReferencedCoordinatesWithinBounds": true,
+    "unconfirmedPlaces": [],
+    "unusedOutsidePlaces": [
+      "temp:doutor_nishitetsu_fukuoka_station"
+    ]
+  },
+  "fontSource": "https://github.com/google/fonts/tree/9710da1eacb3be272583c3224dcb70f9da6eadbb/ofl/notosansjp",
+  "resources": [
+    {
+      "path": "fonts/NotoSansJP.ttf",
+      "bytes": 9589900,
+      "sha256": "c2f3b4d463500a2ddcd3849cded1fceeb9fd6d1c32e6cbecd568453ba50fc68f"
+    },
+    {
+      "path": "licenses/OFL.txt",
+      "bytes": 4388,
+      "sha256": "1c05c68c34f9708415aada51f17e1b0092d2cea709bf4a94cd38114f9e73d7d9"
+    },
+    {
+      "path": "licenses/MAP-LICENSE.txt",
+      "bytes": 720,
+      "sha256": "164ed44ed282a5a49b1a01553a50aaa0f16dc927db0cc42305ad227a6a1e107e"
+    }
+  ]
+}

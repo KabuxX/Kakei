@@ -1,0 +1,9 @@
+Tokyo demo basemap: © OpenStreetMap contributors; Protomaps; Natural Earth.
+OpenStreetMap data is distributed under Open Database License (ODbL) 1.0.
+https://www.openstreetmap.org/copyright
+https://opendatacommons.org/licenses/odbl/1-0/
+Natural Earth data is public domain. https://www.naturalearthdata.com/about/terms-of-use/
+This derivative removes buildings and POI vector layers only; retained MVT layer bytes are unchanged before recompression.
+Japanese Noto Sans JP is distributed under SIL Open Font License 1.1; see OFL.txt.
+Administrative bounds evidence: MLIT National Land Numerical Information N03-2025, CC BY 4.0, not included as tile data.
+https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-N03-2025.html
