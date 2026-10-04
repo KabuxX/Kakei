@@ -5,9 +5,28 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import uvicorn
 from api.app import create_app
 
+class BrowserGoogle:
+    async def __aenter__(self): return self
+    async def __aexit__(self,*args): pass
+    async def search_text(self,query,**kwargs):
+        from agent.google_places import GoogleCandidate
+        from google_places_fixtures import place
+        name=next((name for name in ('合成店舗A','合成店舗B','合成店舗C') if name in query),'合成店舗A')
+        suffixes=('one','two') if name.endswith('C') else ('one',)
+        return [GoogleCandidate.from_payload(place('fixture-'+name[-1]+suffix,name)) for suffix in suffixes]
+    async def details(self,place_id):
+        from agent.google_places import GoogleCandidate
+        from google_places_fixtures import place
+        return GoogleCandidate.from_payload(place(place_id,'合成表示店舗'))
+
 class BrowserRunner:
     def __init__(self,store):self.store=store
     async def run_turn(self, thread_id, messages, receipt_id=None, *, turn_context=None):
+        if '2027-04-' in messages[-1]['text']:
+            from agent.runtime import AgentRunner
+            from unittest.mock import patch
+            with patch('agent.google_places.GooglePlacesClient',BrowserGoogle):
+                return await AgentRunner(self.store).run_turn(thread_id,messages,receipt_id,turn_context=turn_context)
         if 'Geolonia座標の確認' in messages[-1]['text']:
             import copy
             from geolonia_fixtures import GEOLONIA_PLACE

@@ -70,7 +70,7 @@ test('trajectory shows a dated Tokyo sample on desktop and phone', async ({ page
   await expect(page.getByRole('combobox', { name: '表示する日付' })).toHaveValue('2026-09-19');
   await expect(page.getByText('3地点')).toBeVisible();
   await expect(page.getByRole('heading', { name: '時系列' })).toBeVisible();
-  await expect(page.getByText(/Mapbox の公開トークン/)).toBeVisible();
+  await expect(page.getByText(/Google Mapsのブラウザ用キー/)).toBeVisible();
   await page.getByRole('button', { name: '次の記録日' }).click();
   await expect(page.getByRole('combobox', { name: '表示する日付' })).toHaveValue('2026-09-20');
   await page.getByRole('combobox', { name: '表示する日付' }).selectOption('2026-09-29');
@@ -319,7 +319,7 @@ test('trajectory proposal binds a place and confirms order then appears in live 
  await page.getByRole('button',{name:'確認して保存'}).click();await expect(page.getByText('保存済み',{exact:true})).toBeVisible();
  await page.getByRole('link',{name:'軌跡',exact:true}).click();await page.getByRole('combobox',{name:'表示する日付'}).selectOption('2027-01-04');
  await expect(page.getByText('時刻不明 · 不明')).toHaveCount(2);
- await expect(page.getByText(/Mapbox の公開トークン/)).toBeVisible();
+ await expect(page.getByText(/Google Mapsのブラウザ用キー/)).toBeVisible();
  await expect(page.getByText('© OpenStreetMap contributors',{exact:false})).toHaveCount(2);
  await expect(page.getByText(/実際に通った経路や移動距離ではありません/)).toBeVisible();
  await page.evaluate(()=>window.scrollTo({top:0,behavior:'instant'}));

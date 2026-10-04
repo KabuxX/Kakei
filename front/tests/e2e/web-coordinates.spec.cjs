@@ -34,7 +34,7 @@ test('reviews published and estimated coordinates, switches confirmation, saves 
  for(const [name,width,height] of [['desktop',1440,900],['phone',375,812]]){
   await page.setViewportSize({width,height});
   await page.getByText('位置は推定',{exact:true}).first().scrollIntoViewIfNeeded();
-  await expect(page.getByText('Mapbox の公開トークンを設定すると地図を表示できます。時系列はそのまま確認できます。')).toBeVisible();
+  await expect(page.getByText('Google Mapsのブラウザ用キーを設定すると地図を表示できます。時系列はそのまま確認できます。')).toBeVisible();
   await page.getByRole('navigation',{name:'メインナビゲーション'}).getByRole('link',{name:'軌跡',exact:true}).focus();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:`${shots}/trajectory-${name}.png`,fullPage:true,animations:'disabled'});
