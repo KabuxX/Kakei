@@ -46,8 +46,11 @@ def address_core(value):
     value=re.sub(r'(?<=\d)(丁目|番地|番(?!町)|号)','-',value)
     value=re.sub(r'(?<=\d)の(?=\d)','-',value)
     value=re.sub(r'[\s,、]+','',value).strip('-')
-    match=re.match(r'^(.*?\d+(?:-\d+)+)',value)
-    return match[1] if match else value
+    if re.match(r'^[^\d]*[都道府県市区町村][^\d]*\d',value):
+        match=re.match(r'^(.*?\d+(?:-\d+)+)',value)
+        if match:
+            return match[1]
+    return value
 
 
 def _brand(label):
@@ -61,6 +64,10 @@ def _matches(visit, candidate):
     if not identity or not candidate.types or all(t in {'street_address','premise','subpremise','locality','political','postal_code','route','sublocality'} for t in candidate.types):
         return False
     if visit.address:
+        expected_postal,_=japanese_parts(visit.address)
+        actual_postal,_=japanese_parts(candidate.formatted_address)
+        if expected_postal and actual_postal and expected_postal!=actual_postal:
+            return False
         return address_core(visit.address) == address_core(candidate.formatted_address)
     return True
 

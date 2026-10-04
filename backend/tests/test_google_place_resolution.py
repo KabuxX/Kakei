@@ -63,3 +63,11 @@ class ResolutionTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.reason,'provider_configuration');self.assertEqual(len(client.queries),1)
         result,_=await self.resolve('セブン-イレブン 千代田店',None,[[place(coordinates=None)]])
         self.assertEqual(result.reason,'missing_coordinates')
+
+    async def test_overseas_street_city_and_postal_identity_are_preserved(self):
+        result,_=await self.resolve('Starbucks','10-12 Oxford Street, London, UK',[[place('other-city','Starbucks','10-12 High Street, Oxford, UK')]])
+        self.assertEqual(result.reason,'identity_mismatch')
+        result,_=await self.resolve('Starbucks','10-12 Oxford Street, London, UK',[[place('correct','Starbucks','10-12 Oxford Street, London, UK')]])
+        self.assertEqual(result.provider_place_id,'correct')
+        result,_=await self.resolve('セブン-イレブン 千代田店','〒102-0084 東京都千代田区二番町8-8',[[place(address='〒999-9999 東京都千代田区二番町8-8')]])
+        self.assertEqual(result.reason,'identity_mismatch')

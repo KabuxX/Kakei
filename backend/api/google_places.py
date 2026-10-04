@@ -1,5 +1,5 @@
 """No-store Google display data, protected by the app's local-only middleware."""
-from agent.google_places import valid_place_id, GooglePlacesClient, GooglePlacesError
+from agent.google_places import valid_place_id, GooglePlacesError
 from api.http import HTTPFailure, json_response
 
 def register_google_places(app):
@@ -7,6 +7,7 @@ def register_google_places(app):
     async def google_place(place_id:str):
         if not valid_place_id(place_id):
             raise HTTPFailure(400,'invalid_place','地点の指定が正しくありません。')
+        from agent.google_places import GooglePlacesClient
         try:
             async with GooglePlacesClient() as client:
                 value=await client.details(place_id)

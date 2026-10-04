@@ -30,3 +30,7 @@ export function unresolvedReason(code){
  const reasons={position_unverified:'店舗の位置は未確認です。',coordinate_conflict:'出典間で座標が食い違っています。',page_too_large:'ページを取得上限内で確認できませんでした。',unsupported_content:'ページ本文を読み取れませんでした。',timeout:'確認が時間内に完了しませんでした。',network:'出典ページを取得できませんでした。',address_precision_unconfirmed:'番地までの位置を確認できません。',address_not_found:'住所に一致する位置が見つかりません。',ambiguous_address:'住所に複数の位置が一致しました。',name_mismatch:'店舗名の一致を確認できません。',branch_unconfirmed:'支店名を確認できません。',locality_unconfirmed:'地域の一致を確認できません。',country_unconfirmed:'国を確認できません。',country_mismatch:'住所の国が一致しません。',outside_region:'指定地域と離れています。',address_mismatch:'住所が一致しません。',address_match_unconfirmed:'番地を含む住所の一致を確認できません。',address_number_missing:'番地を確認できません。',accuracy_unconfirmed:'座標の精度を確認できません。'};
  return reasons[code]||'位置を確認できませんでした。地域や住所を補足して再検索できます。';
 }
+
+export function GoogleAttributions({attributions=[]}){
+ return <div className="google-place-attributions"><a href="https://maps.google.com/" target="_blank" rel="noopener noreferrer" className="google-maps-attribution">Google Maps</a>{attributions.map((a,i)=>safeUrl(a.providerUri)?<a key={i} href={a.providerUri} target="_blank" rel="noopener noreferrer">{a.provider}</a>:<span key={i}>{a.provider}</span>)}</div>;
+}

@@ -80,3 +80,18 @@ class GoogleStorageTests(unittest.IsolatedAsyncioTestCase):
     async def test_google_reference_rejects_durable_coordinates(self):
         bad=timeline();bad['places']['g']['coordinates']=[139,35]
         with self.assertRaises(ValueError):self.store.sync_trajectory(bad)
+
+    async def test_attributions_are_hydrated_on_cache_hit_without_persisting(self):
+        self.store.sync_trajectory(timeline());now=time.time()
+        attribution={'provider':'合成資料提供者','providerUri':'https://example.com/provider'}
+        class AttributedClient:
+            calls=0
+            async def details(self,identifier):
+                self.calls+=1;payload=place();payload['attributions']=[attribution]
+                return GoogleCandidate.from_payload(payload)
+        with self.store._connection() as connection:write_cached_coordinates(connection,'fixture-chiyoda',(139,35),now)
+        client=AttributedClient();hydrated=await GooglePlaceDisplay(self.store,client).hydrate(self.store.get_trajectory_day('2027-03-01'),now=now)
+        self.assertEqual(hydrated['places']['g']['attributions'],[attribution]);self.assertEqual(client.calls,1)
+        self.assertNotIn('attributions',self.store.get_trajectory_day('2027-03-01')['places']['g'])
+        missing=await GooglePlaceDisplay(self.store,Client(True)).hydrate(self.store.get_trajectory_day('2027-03-01'),now=now)
+        self.assertIsNone(missing['places']['g']['coordinates']);self.assertEqual(len(missing['days'][0]['events']),1)

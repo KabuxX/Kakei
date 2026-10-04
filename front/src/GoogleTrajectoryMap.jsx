@@ -1,5 +1,6 @@
 import React,{useEffect,useRef,useState} from 'react';
-import {loadGoogleMaps} from './lib/google-maps.js';
+import {GoogleAttributions} from './PlaceSources.jsx';
+import {loadGoogleMaps,subscribeGoogleMapsAuthFailure} from './lib/google-maps.js';
 import {request} from './lib/api.js';
 import {stageColor} from './lib/trajectory-display.js';
 export default function GoogleTrajectoryMap({day,selectedEventId,onSelectEvent}) {
@@ -9,6 +10,7 @@ export default function GoogleTrajectoryMap({day,selectedEventId,onSelectEvent})
  useEffect(()=>{
   let active=true,map,lines=[];setMessage('地図を準備しています…');
   const release=()=>{markers.current.forEach(m=>{m.content.onclick=null;m.map=null;});markers.current=[];lines.forEach(line=>line.setMap(null));map?.unbindAll?.();container.current?.replaceChildren();};
+  const releaseAuth=subscribeGoogleMapsAuthFailure(()=>{if(active){release();setMessage('Google Mapsの認証に失敗しました。ブラウザ用キーの設定を確認して再試行してください。');}});
   (async()=>{
    const config=await request('GET','/api/map-config');
    if(!active)return;
@@ -25,7 +27,7 @@ export default function GoogleTrajectoryMap({day,selectedEventId,onSelectEvent})
    if(day.bounds){const [west,south,east,north]=day.bounds;if(west===east&&south===north){map.setCenter({lng:west,lat:south});map.setZoom(15);}else map.fitBounds({west,south,east,north},56);}
    setMessage('');
   })().catch(error=>{if(active){release();setMessage(error.message?.includes('ブラウザ用キー')?error.message:'地図を読み込めませんでした。時系列はそのまま確認できます。');}});
-  return()=>{active=false;release();};
+  return()=>{active=false;releaseAuth?.();release();};
  },[day,attempt]);
  useEffect(()=>{markers.current.forEach(marker=>marker.content.setAttribute('aria-pressed',String(marker.eventId===selectedEventId)));},[selectedEventId]);
  return <div className="trajectory-google-map">
@@ -33,6 +35,7 @@ export default function GoogleTrajectoryMap({day,selectedEventId,onSelectEvent})
    <div ref={container} className="trajectory-map-canvas"/>
    {message&&<div className="trajectory-map-message" role="status"><div><p>{message}</p><button type="button" className="secondary-button" onClick={()=>setAttempt(n=>n+1)}>地図を再試行</button></div></div>}
   </div>
+  {day.events.some(e=>e.place.provider==='google')&&<GoogleAttributions attributions={[...new Map(day.events.flatMap(e=>e.place.attributions||[]).map(a=>[`${a.provider} ${a.providerUri}`,a])).values()]}/>}
   <p className="trajectory-map-usage"><a href="/google-maps-usage.html" target="_blank" rel="noopener noreferrer">Google Mapsの利用・データ取扱い</a></p>
  </div>;
 }

@@ -76,6 +76,8 @@ class BrowserRunner:
             'kind':'transaction.create', 'identity':{}, 'data':{'title':'Agent 動作確認','date':'2026-09-30T12:00','type':'income','category':'収入','amount':12345}}]}
 
 if __name__ == '__main__':
+    from agent import google_places
+    google_places.GooglePlacesClient=BrowserGoogle
     with tempfile.TemporaryDirectory(prefix='kakei-agent-browser-') as directory:
         app = create_app(Path(directory)/'test.sqlite3', Path(__file__).resolve().parents[2]/'front/dist', port=8767, runner_factory=lambda store: BrowserRunner(store))
         uvicorn.run(app, host='127.0.0.1', port=8767, log_level='warning')

@@ -21,3 +21,10 @@ it('missing_key_or_load_failure_keeps_timeline',async()=>{
 it('stale_date_load_cannot_replace_current_map',async()=>{
  let done;loadGoogleMaps.mockReturnValueOnce(new Promise(r=>{done=r;}));const view=render(<GoogleTrajectoryMap day={day}/>);await vi.waitFor(()=>expect(loadGoogleMaps).toHaveBeenCalledTimes(1));view.rerender(<GoogleTrajectoryMap day={{...day,date:'2026-10-02'}}/>);await vi.waitFor(()=>expect(maps.length).toBe(1));done(await loadGoogleMaps.mock.results[1].value);await Promise.resolve();expect(maps.length).toBe(1);
 });
+it('late_authentication_failure_releases_map_and_offers_retry',async()=>{
+ const {subscribeGoogleMapsAuthFailure}=await import('./lib/google-maps.js');const release=vi.fn();subscribeGoogleMapsAuthFailure.mockReturnValue(release);
+ const view=render(<GoogleTrajectoryMap day={day}/>);await vi.waitFor(()=>expect(markers.length).toBe(2));const failure=subscribeGoogleMapsAuthFailure.mock.calls[0][0];failure();expect(await screen.findByText(/認証/)).toBeTruthy();expect(markers.every(m=>m.map===null)).toBeTruthy();expect(screen.getByRole('button',{name:/再試行/}).disabled).toBe(false);view.unmount();expect(release).toHaveBeenCalled();
+});
+it('renders_ephemeral_third_party_attributions_outside_map_canvas',async()=>{
+ render(<GoogleTrajectoryMap day={{...day,events:day.events.map(e=>e.id==='google'?{...e,place:{...e.place,attributions:[{provider:'合成資料提供者',providerUri:'https://example.com/provider'}]}}:e)}}/>);await vi.waitFor(()=>expect(markers.length).toBe(2));expect(screen.getByRole('link',{name:'合成資料提供者'}).getAttribute('href')).toBe('https://example.com/provider');expect(screen.getByRole('link',{name:'Google Maps'})).toBeTruthy();
+});

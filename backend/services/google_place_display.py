@@ -17,16 +17,20 @@ class GooglePlaceDisplay:
             identifier=place['providerPlaceId']
             with self.store._connection() as connection:
                 coordinates=read_cached_coordinates(connection,identifier,now)
-            if coordinates is None:
-                async with semaphore:
-                    try:
-                        candidate=await self.client.details(identifier)
+            # Attribution is response-only and must be refreshed even on a coordinate hit.
+            place['attributions']=[]
+            async with semaphore:
+                try:
+                    candidate=await self.client.details(identifier)
+                    place['attributions']=candidate.attributions
+                    if coordinates is None:
                         coordinates=candidate.coordinates
                         if coordinates:
                             with self.store._connection() as connection:
                                 write_cached_coordinates(connection,identifier,coordinates,now)
-                    except GooglePlacesError:
-                        pass
+                except GooglePlacesError:
+                    # Never display cached Google coordinates without the required attribution.
+                    coordinates=None
             place['coordinates']=list(coordinates) if coordinates is not None else None
             place['locationResolution']='resolved' if coordinates is not None else 'unavailable'
         await asyncio.gather(*(hydrate_place(p) for p in result['places'].values()))
