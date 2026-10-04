@@ -3,12 +3,12 @@ import userEvent from '@testing-library/user-event';
 import {it,expect,vi,beforeEach,afterEach} from 'vitest';
 import {render,screen,fireEvent,cleanup} from '@testing-library/react';
 import OfflineTrajectoryMap from '../components/trajectory/OfflineTrajectoryMap.jsx';
-const state=vi.hoisted(()=>({maps:[],markers:[],supported:true,protocols:[]}));
-vi.mock('maplibre-gl',()=>({addProtocol:vi.fn((...args)=>state.protocols.push(args)),removeProtocol:vi.fn(),Map:class{constructor(opts){this.opts=opts;this.handlers={};this.sources={};this.fitBounds=vi.fn();this.resize=vi.fn();this.remove=vi.fn();state.maps.push(this);}on(name,fn){this.handlers[name]=fn;}off=vi.fn();addSource(id,source){this.sources[id]={...source,setData:vi.fn()};}getSource(id){return this.sources[id];}addLayer=vi.fn();},Marker:class{constructor({element}){this.element=element;state.markers.push(this);}setLngLat(){return this;}addTo(map){map.opts.container.append(this.element);return this;}remove(){this.element.remove();}}}));
+const state=vi.hoisted(()=>({maps:[],markers:[],supported:true,protocols:[],workerUrl:null,order:[]}));
+vi.mock('maplibre-gl',()=>({setWorkerUrl:vi.fn(url=>{state.workerUrl=url;state.order.push('worker');}),addProtocol:vi.fn((...args)=>state.protocols.push(args)),removeProtocol:vi.fn(),Map:class{constructor(opts){state.order.push('map');this.opts=opts;this.handlers={};this.sources={};this.fitBounds=vi.fn();this.resize=vi.fn();this.remove=vi.fn();state.maps.push(this);}on(name,fn){this.handlers[name]=fn;}off=vi.fn();addSource(id,source){this.sources[id]={...source,setData:vi.fn()};}getSource(id){return this.sources[id];}addLayer=vi.fn();},Marker:class{constructor({element}){this.element=element;state.markers.push(this);}setLngLat(){return this;}addTo(map){map.opts.container.append(this.element);return this;}remove(){this.element.remove();}}}));
 vi.mock('pmtiles',()=>({Protocol:class{tile=vi.fn();add=vi.fn();},PMTiles:class{constructor(source){this.source=source;}}}));
 vi.mock('../../demo/maps/style.js',()=>({createOfflineStyle:()=>({version:8,sources:{},layers:[]})}));
 const day={date:'2026-10-01',events:[{id:'a',coordinates:[139.7,35.6],place:{name:'A'}},{id:'b',coordinates:[139.8,35.7],place:{name:'B',coordinateEvidence:{status:'estimated'}}}],segments:[{fromEventId:'a',toEventId:'b',stageNumber:1,coordinates:[[139.7,35.6],[139.8,35.7]]}]};
-beforeEach(()=>{state.maps=[];state.markers=[];state.protocols=[];state.supported=true;vi.spyOn(HTMLCanvasElement.prototype,'getContext').mockImplementation(()=>state.supported?{getExtension:()=>null}:null);vi.stubGlobal('ResizeObserver',class{observe=vi.fn();disconnect=vi.fn();});vi.stubGlobal('matchMedia',()=>({matches:true}));});
+beforeEach(()=>{state.workerUrl=null;state.order=[];state.maps=[];state.markers=[];state.protocols=[];state.supported=true;vi.spyOn(HTMLCanvasElement.prototype,'getContext').mockImplementation(()=>state.supported?{getExtension:()=>null}:null);vi.stubGlobal('ResizeObserver',class{observe=vi.fn();disconnect=vi.fn();});vi.stubGlobal('matchMedia',()=>({matches:true}));});
 afterEach(()=>{cleanup();vi.restoreAllMocks();vi.unstubAllGlobals();});
 function load(){state.maps.at(-1).handlers.load();}
 it('uses bounded map, local protocol, selectable numbered markers, updates without recreation and cleans up',async()=>{
@@ -20,3 +20,5 @@ it('keeps sources readable through failure and retries successfully',async()=>{
  render(<OfflineTrajectoryMap day={day}/>);state.maps[0].handlers.error({error:new Error('tile')});expect(await screen.findByText(/地図を読み込めません/)).toBeTruthy();expect(screen.getByRole('link',{name:/地図の出典/})).toBeTruthy();fireEvent.click(screen.getByRole('button',{name:'地図を再試行'}));load();expect(await screen.findByRole('button',{name:'1. A'})).toBeTruthy();
 });
 it('explains unavailable WebGL with timeline remaining available',()=>{state.supported=false;render(<OfflineTrajectoryMap day={day}/>);expect(screen.getByText(/WebGL/)).toBeTruthy();expect(state.maps).toHaveLength(0);});
+
+it('registers bundled worker before constructing any map',()=>{render(<OfflineTrajectoryMap day={day}/>);expect(state.workerUrl).toContain('maplibre-gl-worker');expect(state.workerUrl).not.toMatch(/^https?:/);expect(state.order).toEqual(['worker','map']);});

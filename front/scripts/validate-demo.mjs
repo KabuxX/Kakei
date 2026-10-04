@@ -23,7 +23,7 @@ function checkFields(value){
 function scan(root){
  for(const path of files(root)){
   if(/(?:^|\/)(?:\.env(?:\..*)?|[^/]*\.(?:sqlite(?:3)?|db|pem|key)|[^/]*(?:-wal|-shm))$/i.test(path))fail(`Private artifact: ${path}`);
-  if(/\.(?:js|json|html|css|txt|md|svg)$/i.test(path)){
+  if(/\.(?:m?js|json|html|css|txt|md|svg)$/i.test(path)){
    const text=readFileSync(path,'utf8');
    if(/(?:sk-(?:proj-)?[A-Za-z0-9_-]{20,}|AIza[A-Za-z0-9_-]{30,}|AKIA[A-Z0-9]{16}|gh[pousr]_[A-Za-z0-9]{20,}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----)/.test(text))fail(`Secret in artifact: ${path}`);
    if(path.endsWith('.json'))checkFields(JSON.parse(text));
@@ -75,15 +75,15 @@ export function validateDemoBuild(root=frontRoot){
  const output=join(root,'dist-demo');scan(output);resources(root,output);
  const html=readFileSync(join(output,'index.html'),'utf8');
  if(!html.includes('/Kakei/assets/'))fail('Missing /Kakei/ HTML base');
- for(const path of files(output).filter(path=>/\.(?:html|js|css)$/.test(path))){
+ for(const path of files(output).filter(path=>/\.(?:html|m?js|css)$/.test(path))){
   const text=readFileSync(path,'utf8');
   // Check asset references, not inert third-party documentation strings.
   const pattern=path.endsWith('.html')
    ? /<(?:script|link|img|source|iframe)\b[^>]*?(?:src|href)\s*=\s*["']([^"']+)["']/g
    : path.endsWith('.css') ? /url\(\s*["']?([^\s"')]+)/g
-   : /\bimport\s*\(\s*["']([^"']+)["']|\bfrom\s+["']([^"']+)["']|["']((?:\.?\.?\/|\/)?assets\/[^"']+\.(?:js|css|png|svg|woff2?))["']/g;
+   : /\bimport\s*\(\s*["']([^"']+)["']|\bfrom\s+["']([^"']+)["']|["']((?:\.?\.?\/|\/Kakei\/|\/)?assets\/[^"']+\.(?:m?js|css|png|svg|woff2?))["']/g;
   const refs=[...text.matchAll(pattern)];
-  if(path.endsWith('.js')){
+  if(/\.m?js$/.test(path)){
    // Static module statements have no required space before their URL after
    // `from` or `import`. Limit bindings to module-import syntax, rather than
    // treating every inert occurrence of the word "from" as an import.

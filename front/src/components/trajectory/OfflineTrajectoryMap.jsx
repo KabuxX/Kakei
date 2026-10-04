@@ -1,5 +1,6 @@
 import React,{useEffect,useRef,useState} from 'react';
 import * as maplibregl from 'maplibre-gl';
+import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import {Protocol,PMTiles} from 'pmtiles';
 import {createOfflineStyle} from '../../../demo/maps/style.js';
@@ -39,7 +40,7 @@ export default function OfflineTrajectoryMap({day,selectedEventId,onSelectEvent}
    const probe=document.createElement('canvas'),context=probe.getContext('webgl2');
    context?.getExtension('WEBGL_lose_context')?.loseContext();
    if(!context)setMessage('WebGLが利用できないため地図を表示できません。時系列はそのまま確認できます。');
-   else{release=acquireProtocol();map=new maplibregl.Map({container:container.current,style:createOfflineStyle(new URL(import.meta.env.BASE_URL,location.href).href),center:[139.7,35.6],zoom:11,maxZoom:manifest.displayMaxZoom,maxBounds:[[manifest.bounds[0],manifest.bounds[1]],[manifest.bounds[2],manifest.bounds[3]]],attributionControl:false});mapRef.current=map;map.on('load',loaded);map.on('error',failed);if(globalThis.ResizeObserver){observer=new ResizeObserver(()=>map?.resize());observer.observe(container.current);}}
+   else{maplibregl.setWorkerUrl(workerUrl);release=acquireProtocol();map=new maplibregl.Map({container:container.current,style:createOfflineStyle(new URL(import.meta.env.BASE_URL,location.href).href),center:[139.7,35.6],zoom:11,maxZoom:manifest.displayMaxZoom,maxBounds:[[manifest.bounds[0],manifest.bounds[1]],[manifest.bounds[2],manifest.bounds[3]]],attributionControl:false});mapRef.current=map;map.on('load',loaded);map.on('error',failed);if(globalThis.ResizeObserver){observer=new ResizeObserver(()=>map?.resize());observer.observe(container.current);}}
   }catch{failed();}
   return ()=>{active=false;dispose();};
  },[attempt]);
