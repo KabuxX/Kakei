@@ -1,3 +1,4 @@
+import {apiFetch} from '@kakei/runtime';
 import {ApiError, request} from './api.js';
 import {isValidBudget} from './budget.js';
 
@@ -8,10 +9,10 @@ function readResult(result) {
   return result.categories;
 }
 
-export async function loadBudget(fetchImpl = fetch) {
+export async function loadBudget(fetchImpl = apiFetch) {
   return readResult(await request('GET', '/api/budget', undefined, fetchImpl));
 }
 
-export async function updateBudget(categories, fetchImpl = fetch) {
+export async function updateBudget(categories, fetchImpl = apiFetch) {
   return readResult(await request('PUT', '/api/budget', {categories}, fetchImpl));
 }

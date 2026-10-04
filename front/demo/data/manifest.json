@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "exportedAt": "2026-10-04T17:15:16.074325+00:00",
+  "exportedAt": "2026-10-04T17:18:05.768077+00:00",
   "latestMonth": "2026-10",
   "counts": {
     "transactions": 41,
@@ -12,7 +12,7 @@
     "receipts": 2,
     "categories": 6
   },
-  "snapshotSha256": "50c5595f5cbe28b6bb580c2e9b8006d670a88db260fb7ceda79ef8b7095f3b40",
+  "snapshotSha256": "800453fc62b8da3b89d1052ac3d23e588941ffd0301b57bcee16249baa796ca7",
   "receiptHashes": {
     "3832da1f-f349-4ab2-8b7b-2b7463e8ebbf": "1e872a99a0d27d40d4efec005b9a463e610916c2914475fa30c95ee3b85b7ff3",
     "3c168dcb-6451-4277-85ae-1e45197035ab": "02f2645dc9ec3eae7bff0a2471fd1df77febbd3469da1b26f5cbd6133b6c6637"

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "exportedAt": "2026-10-04T17:15:16.074325+00:00",
+  "exportedAt": "2026-10-04T17:18:05.768077+00:00",
   "transactions": [
     {
       "id": "25b86b56-9b24-4d42-88c1-78703b6696d7",
@@ -1019,7 +1019,8 @@
             "placeId": "shibuyaStarbucks",
             "timeEvidence": "legacy",
             "timeEvidenceNote": null,
-            "transactionId": "sample-20260919-a"
+            "transactionId": "sample-20260919-a",
+            "locationStatus": "trajectory_only"
           },
           {
             "id": "2026-09-19-2",
@@ -1027,7 +1028,8 @@
             "placeId": "shibuyaMuji",
             "timeEvidence": "legacy",
             "timeEvidenceNote": null,
-            "transactionId": "sample-20260919-b"
+            "transactionId": "sample-20260919-b",
+            "locationStatus": "trajectory_only"
           },
           {
             "id": "2026-09-19-3",
@@ -1035,7 +1037,8 @@
             "placeId": "shibuyaLife",
             "timeEvidence": "legacy",
             "timeEvidenceNote": null,
-            "transactionId": "sample-20260919-c"
+            "transactionId": "sample-20260919-c",
+            "locationStatus": "trajectory_only"
           }
         ],
         "legs": [
@@ -1064,7 +1067,8 @@
             "placeId": "shibuyaStarbucks",
             "timeEvidence": "legacy",
             "timeEvidenceNote": null,
-            "transactionId": "sample-20260920-a"
+            "transactionId": "sample-20260920-a",
+            "locationStatus": "trajectory_only"
           },
           {
             "id": "2026-09-20-4",
@@ -1072,7 +1076,8 @@
             "placeId": "ebisuSeijoIshii",
             "timeEvidence": "legacy",
             "timeEvidenceNote": null,
-            "transactionId": "sample-20260920-b"
+            "transactionId": "sample-20260920-b",
+            "locationStatus": "trajectory_only"
           },
           {
             "id": "2026-09-20-5",
@@ -1080,7 +1085,8 @@
             "placeId": "ebisuMuji",
             "timeEvidence": "legacy",
             "timeEvidenceNote": null,
-            "transactionId": "sample-20260920-c"
+            "transactionId": "sample-20260920-c",
+            "locationStatus": "trajectory_only"
           }
         ],
         "legs": [
@@ -1108,7 +1114,8 @@
             "placeId": "shibuyaLife",
             "timeEvidence": "legacy",
             "timeEvidenceNote": null,
-            "transactionId": "sample-20260921-a"
+            "transactionId": "sample-20260921-a",
+            "locationStatus": "trajectory_only"
           },
           {
             "id": "2026-09-21-4",
@@ -1116,7 +1123,8 @@
             "placeId": "aoyamaMuji",
             "timeEvidence": "legacy",
             "timeEvidenceNote": null,
-            "transactionId": "sample-20260921-b"
+            "transactionId": "sample-20260921-b",
+            "locationStatus": "trajectory_only"
           }
         ],
         "legs": [
@@ -1137,7 +1145,8 @@
             "placeId": "shibuyaStarbucks",
             "timeEvidence": "legacy",
             "timeEvidenceNote": null,
-            "transactionId": "sample-20260922-a"
+            "transactionId": "sample-20260922-a",
+            "locationStatus": "trajectory_only"
           },
           {
             "id": "2026-09-22-2",
@@ -1145,7 +1154,8 @@
             "placeId": "shibuyaMuji",
             "timeEvidence": "legacy",
             "timeEvidenceNote": null,
-            "transactionId": "sample-20260922-b"
+            "transactionId": "sample-20260922-b",
+            "locationStatus": "trajectory_only"
           },
           {
             "id": "2026-09-22-3",
@@ -1153,7 +1163,8 @@
             "placeId": "shibuyaLife",
             "timeEvidence": "legacy",
             "timeEvidenceNote": null,
-            "transactionId": "sample-20260922-c"
+            "transactionId": "sample-20260922-c",
+            "locationStatus": "trajectory_only"
           }
         ],
         "legs": [
@@ -1182,7 +1193,8 @@
             "placeId": "shibuyaStarbucks",
             "timeEvidence": "legacy",
             "timeEvidenceNote": null,
-            "transactionId": "sample-20260923-a"
+            "transactionId": "sample-20260923-a",
+            "locationStatus": "trajectory_only"
           },
           {
             "id": "2026-09-23-4",
@@ -1190,7 +1202,8 @@
             "placeId": "ebisuSeijoIshii",
             "timeEvidence": "legacy",
             "timeEvidenceNote": null,
-            "transactionId": "sample-20260923-b"
+            "transactionId": "sample-20260923-b",
+            "locationStatus": "trajectory_only"
           },
           {
             "id": "2026-09-23-5",
@@ -1198,7 +1211,8 @@
             "placeId": "ebisuMuji",
             "timeEvidence": "legacy",
             "timeEvidenceNote": null,
-            "transactionId": "sample-20260923-c"
+            "transactionId": "sample-20260923-c",
+            "locationStatus": "trajectory_only"
           }
         ],
         "legs": [
@@ -1226,7 +1240,8 @@
             "placeId": "shibuyaLife",
             "timeEvidence": "legacy",
             "timeEvidenceNote": null,
-            "transactionId": "sample-20260924-a"
+            "transactionId": "sample-20260924-a",
+            "locationStatus": "trajectory_only"
           },
           {
             "id": "2026-09-24-4",
@@ -1234,7 +1249,8 @@
             "placeId": "aoyamaMuji",
             "timeEvidence": "legacy",
             "timeEvidenceNote": null,
-            "transactionId": "sample-20260924-b"
+            "transactionId": "sample-20260924-b",
+            "locationStatus": "trajectory_only"
           }
         ],
         "legs": [
@@ -1255,7 +1271,8 @@
             "placeId": "shibuyaStarbucks",
             "timeEvidence": "legacy",
             "timeEvidenceNote": null,
-            "transactionId": "sample-20260925-a"
+            "transactionId": "sample-20260925-a",
+            "locationStatus": "trajectory_only"
           },
           {
             "id": "2026-09-25-2",
@@ -1263,7 +1280,8 @@
             "placeId": "shibuyaMuji",
             "timeEvidence": "legacy",
             "timeEvidenceNote": null,
-            "transactionId": "sample-20260925-b"
+            "transactionId": "sample-20260925-b",
+            "locationStatus": "trajectory_only"
           },
           {
             "id": "2026-09-25-3",
@@ -1271,7 +1289,8 @@
             "placeId": "shibuyaLife",
             "timeEvidence": "legacy",
             "timeEvidenceNote": null,
-            "transactionId": "sample-20260925-c"
+            "transactionId": "sample-20260925-c",
+            "locationStatus": "trajectory_only"
           }
         ],
         "legs": [
@@ -1300,7 +1319,8 @@
             "placeId": "shibuyaStarbucks",
             "timeEvidence": "legacy",
             "timeEvidenceNote": null,
-            "transactionId": "sample-20260926-a"
+            "transactionId": "sample-20260926-a",
+            "locationStatus": "trajectory_only"
           },
           {
             "id": "2026-09-26-4",
@@ -1308,7 +1328,8 @@
             "placeId": "ebisuSeijoIshii",
             "timeEvidence": "legacy",
             "timeEvidenceNote": null,
-            "transactionId": "sample-20260926-b"
+            "transactionId": "sample-20260926-b",
+            "locationStatus": "trajectory_only"
           },
           {
             "id": "2026-09-26-5",
@@ -1316,7 +1337,8 @@
             "placeId": "ebisuMuji",
             "timeEvidence": "legacy",
             "timeEvidenceNote": null,
-            "transactionId": "sample-20260926-c"
+            "transactionId": "sample-20260926-c",
+            "locationStatus": "trajectory_only"
           }
         ],
         "legs": [
@@ -1344,7 +1366,8 @@
             "placeId": "shibuyaLife",
             "timeEvidence": "legacy",
             "timeEvidenceNote": null,
-            "transactionId": "sample-20260927-a"
+            "transactionId": "sample-20260927-a",
+            "locationStatus": "trajectory_only"
           },
           {
             "id": "2026-09-27-4",
@@ -1352,7 +1375,8 @@
             "placeId": "aoyamaMuji",
             "timeEvidence": "legacy",
             "timeEvidenceNote": null,
-            "transactionId": "sample-20260927-b"
+            "transactionId": "sample-20260927-b",
+            "locationStatus": "trajectory_only"
           }
         ],
         "legs": [
@@ -1373,7 +1397,8 @@
             "placeId": "shibuyaStarbucks",
             "timeEvidence": "legacy",
             "timeEvidenceNote": null,
-            "transactionId": "sample-20260928-a"
+            "transactionId": "sample-20260928-a",
+            "locationStatus": "trajectory_only"
           },
           {
             "id": "2026-09-28-2",
@@ -1381,7 +1406,8 @@
             "placeId": "shibuyaMuji",
             "timeEvidence": "legacy",
             "timeEvidenceNote": null,
-            "transactionId": "sample-20260928-b"
+            "transactionId": "sample-20260928-b",
+            "locationStatus": "trajectory_only"
           },
           {
             "id": "2026-09-28-3",
@@ -1389,7 +1415,8 @@
             "placeId": "shibuyaLife",
             "timeEvidence": "legacy",
             "timeEvidenceNote": null,
-            "transactionId": "sample-20260928-c"
+            "transactionId": "sample-20260928-c",
+            "locationStatus": "trajectory_only"
           }
         ],
         "legs": [
@@ -1418,7 +1445,8 @@
             "placeId": "shibuyaStarbucks",
             "timeEvidence": "legacy",
             "timeEvidenceNote": null,
-            "transactionId": "sample-20260929-a"
+            "transactionId": "sample-20260929-a",
+            "locationStatus": "trajectory_only"
           },
           {
             "id": "2026-09-29-2",
@@ -1426,14 +1454,16 @@
             "placeId": "jrShibuya",
             "timeEvidence": "legacy",
             "timeEvidenceNote": null,
-            "transactionId": "sample-20260929-train"
+            "transactionId": "sample-20260929-train",
+            "locationStatus": "trajectory_only"
           },
           {
             "id": "2026-09-29-3",
             "time": "12:26",
             "placeId": "jrEbisu",
             "timeEvidence": "legacy",
-            "timeEvidenceNote": null
+            "timeEvidenceNote": null,
+            "locationStatus": "trajectory_only"
           },
           {
             "id": "2026-09-29-4",
@@ -1441,7 +1471,8 @@
             "placeId": "ebisuSeijoIshii",
             "timeEvidence": "legacy",
             "timeEvidenceNote": null,
-            "transactionId": "sample-20260929-b"
+            "transactionId": "sample-20260929-b",
+            "locationStatus": "trajectory_only"
           },
           {
             "id": "2026-09-29-5",
@@ -1449,7 +1480,8 @@
             "placeId": "ebisuMuji",
             "timeEvidence": "legacy",
             "timeEvidenceNote": null,
-            "transactionId": "sample-20260929-c"
+            "transactionId": "sample-20260929-c",
+            "locationStatus": "trajectory_only"
           }
         ],
         "legs": [
@@ -1493,7 +1525,8 @@
             "placeId": "shibuyaLife",
             "timeEvidence": "legacy",
             "timeEvidenceNote": null,
-            "transactionId": "sample-20260930-a"
+            "transactionId": "sample-20260930-a",
+            "locationStatus": "trajectory_only"
           },
           {
             "id": "2026-09-30-2",
@@ -1501,14 +1534,16 @@
             "placeId": "metroShibuya",
             "timeEvidence": "legacy",
             "timeEvidenceNote": null,
-            "transactionId": "sample-20260930-metro"
+            "transactionId": "sample-20260930-metro",
+            "locationStatus": "trajectory_only"
           },
           {
             "id": "2026-09-30-3",
             "time": "11:36",
             "placeId": "metroOmotesando",
             "timeEvidence": "legacy",
-            "timeEvidenceNote": null
+            "timeEvidenceNote": null,
+            "locationStatus": "trajectory_only"
           },
           {
             "id": "2026-09-30-4",
@@ -1516,7 +1551,8 @@
             "placeId": "aoyamaMuji",
             "timeEvidence": "legacy",
             "timeEvidenceNote": null,
-            "transactionId": "sample-20260930-b"
+            "transactionId": "sample-20260930-b",
+            "locationStatus": "trajectory_only"
           }
         ],
         "legs": [
@@ -1553,7 +1589,8 @@
             "placeId": "google:ChIJyefU0dGMGGARR1lv_2NVT4U",
             "timeEvidence": "exact",
             "timeEvidenceNote": null,
-            "transactionId": "3af52cc4-90b0-45c2-8cee-01baf29b38a3"
+            "transactionId": "3af52cc4-90b0-45c2-8cee-01baf29b38a3",
+            "locationStatus": "matched"
           },
           {
             "id": "b805ca0d-3f18-549a-8b71-e5f22199f276",
@@ -1561,7 +1598,8 @@
             "placeId": "google:ChIJrTA_kxCLGGARkDeX1tNnmWI",
             "timeEvidence": "exact",
             "timeEvidenceNote": null,
-            "transactionId": "25b86b56-9b24-4d42-88c1-78703b6696d7"
+            "transactionId": "25b86b56-9b24-4d42-88c1-78703b6696d7",
+            "locationStatus": "matched"
           }
         ],
         "legs": [
@@ -1575,6 +1613,548 @@
       }
     ]
   },
+  "addresses": [
+    {
+      "transactionId": "25b86b56-9b24-4d42-88c1-78703b6696d7",
+      "places": [
+        {
+          "placeId": "google:ChIJrTA_kxCLGGARkDeX1tNnmWI",
+          "name": "ファミリーマート バスターミナル東京八重洲／Ｓ店",
+          "address": "〒104-0028 東京都中央区八重洲２丁目２−１ 地下2階",
+          "coordinates": [
+            null,
+            null
+          ],
+          "status": "matched"
+        }
+      ]
+    },
+    {
+      "transactionId": "3af52cc4-90b0-45c2-8cee-01baf29b38a3",
+      "places": [
+        {
+          "placeId": "google:ChIJyefU0dGMGGARR1lv_2NVT4U",
+          "name": "ファミリーマート 新宿マインズタワー店",
+          "address": "〒151-0053 東京都渋谷区代々木２丁目１−１",
+          "coordinates": [
+            null,
+            null
+          ],
+          "status": "matched"
+        }
+      ]
+    },
+    {
+      "transactionId": "sample-20260919-a",
+      "places": [
+        {
+          "placeId": "shibuyaStarbucks",
+          "name": "スターバックス コーヒー 渋谷フクラス店",
+          "address": "東京都渋谷区道玄坂1-2-3 渋谷フクラス1F",
+          "coordinates": [
+            139.6998,
+            35.6575
+          ],
+          "status": "trajectory_only"
+        }
+      ]
+    },
+    {
+      "transactionId": "sample-20260919-b",
+      "places": [
+        {
+          "placeId": "shibuyaMuji",
+          "name": "無印良品 渋谷公園通り",
+          "address": "東京都渋谷区宇田川町19-7",
+          "coordinates": [
+            139.6991,
+            35.6623
+          ],
+          "status": "trajectory_only"
+        }
+      ]
+    },
+    {
+      "transactionId": "sample-20260919-c",
+      "places": [
+        {
+          "placeId": "shibuyaLife",
+          "name": "ライフ 渋谷東店",
+          "address": "東京都渋谷区東1-26-22",
+          "coordinates": [
+            139.7048,
+            35.654
+          ],
+          "status": "trajectory_only"
+        }
+      ]
+    },
+    {
+      "transactionId": "sample-20260920-a",
+      "places": [
+        {
+          "placeId": "shibuyaStarbucks",
+          "name": "スターバックス コーヒー 渋谷フクラス店",
+          "address": "東京都渋谷区道玄坂1-2-3 渋谷フクラス1F",
+          "coordinates": [
+            139.6998,
+            35.6575
+          ],
+          "status": "trajectory_only"
+        }
+      ]
+    },
+    {
+      "transactionId": "sample-20260920-b",
+      "places": [
+        {
+          "placeId": "ebisuSeijoIshii",
+          "name": "成城石井 アトレ恵比寿店",
+          "address": "東京都渋谷区恵比寿南1-5-5 アトレ恵比寿3F",
+          "coordinates": [
+            139.7107,
+            35.6468
+          ],
+          "status": "trajectory_only"
+        }
+      ]
+    },
+    {
+      "transactionId": "sample-20260920-c",
+      "places": [
+        {
+          "placeId": "ebisuMuji",
+          "name": "無印良品 アトレ恵比寿",
+          "address": "東京都渋谷区恵比寿南1-6-1 アトレ恵比寿西館5-6F",
+          "coordinates": [
+            139.7099,
+            35.6467
+          ],
+          "status": "trajectory_only"
+        }
+      ]
+    },
+    {
+      "transactionId": "sample-20260921-a",
+      "places": [
+        {
+          "placeId": "shibuyaLife",
+          "name": "ライフ 渋谷東店",
+          "address": "東京都渋谷区東1-26-22",
+          "coordinates": [
+            139.7048,
+            35.654
+          ],
+          "status": "trajectory_only"
+        }
+      ]
+    },
+    {
+      "transactionId": "sample-20260921-b",
+      "places": [
+        {
+          "placeId": "aoyamaMuji",
+          "name": "Found MUJI 青山",
+          "address": "東京都渋谷区神宮前5-50-6 中島ビル1-2F",
+          "coordinates": [
+            139.713,
+            35.662
+          ],
+          "status": "trajectory_only"
+        }
+      ]
+    },
+    {
+      "transactionId": "sample-20260922-a",
+      "places": [
+        {
+          "placeId": "shibuyaStarbucks",
+          "name": "スターバックス コーヒー 渋谷フクラス店",
+          "address": "東京都渋谷区道玄坂1-2-3 渋谷フクラス1F",
+          "coordinates": [
+            139.6998,
+            35.6575
+          ],
+          "status": "trajectory_only"
+        }
+      ]
+    },
+    {
+      "transactionId": "sample-20260922-b",
+      "places": [
+        {
+          "placeId": "shibuyaMuji",
+          "name": "無印良品 渋谷公園通り",
+          "address": "東京都渋谷区宇田川町19-7",
+          "coordinates": [
+            139.6991,
+            35.6623
+          ],
+          "status": "trajectory_only"
+        }
+      ]
+    },
+    {
+      "transactionId": "sample-20260922-c",
+      "places": [
+        {
+          "placeId": "shibuyaLife",
+          "name": "ライフ 渋谷東店",
+          "address": "東京都渋谷区東1-26-22",
+          "coordinates": [
+            139.7048,
+            35.654
+          ],
+          "status": "trajectory_only"
+        }
+      ]
+    },
+    {
+      "transactionId": "sample-20260923-a",
+      "places": [
+        {
+          "placeId": "shibuyaStarbucks",
+          "name": "スターバックス コーヒー 渋谷フクラス店",
+          "address": "東京都渋谷区道玄坂1-2-3 渋谷フクラス1F",
+          "coordinates": [
+            139.6998,
+            35.6575
+          ],
+          "status": "trajectory_only"
+        }
+      ]
+    },
+    {
+      "transactionId": "sample-20260923-b",
+      "places": [
+        {
+          "placeId": "ebisuSeijoIshii",
+          "name": "成城石井 アトレ恵比寿店",
+          "address": "東京都渋谷区恵比寿南1-5-5 アトレ恵比寿3F",
+          "coordinates": [
+            139.7107,
+            35.6468
+          ],
+          "status": "trajectory_only"
+        }
+      ]
+    },
+    {
+      "transactionId": "sample-20260923-c",
+      "places": [
+        {
+          "placeId": "ebisuMuji",
+          "name": "無印良品 アトレ恵比寿",
+          "address": "東京都渋谷区恵比寿南1-6-1 アトレ恵比寿西館5-6F",
+          "coordinates": [
+            139.7099,
+            35.6467
+          ],
+          "status": "trajectory_only"
+        }
+      ]
+    },
+    {
+      "transactionId": "sample-20260924-a",
+      "places": [
+        {
+          "placeId": "shibuyaLife",
+          "name": "ライフ 渋谷東店",
+          "address": "東京都渋谷区東1-26-22",
+          "coordinates": [
+            139.7048,
+            35.654
+          ],
+          "status": "trajectory_only"
+        }
+      ]
+    },
+    {
+      "transactionId": "sample-20260924-b",
+      "places": [
+        {
+          "placeId": "aoyamaMuji",
+          "name": "Found MUJI 青山",
+          "address": "東京都渋谷区神宮前5-50-6 中島ビル1-2F",
+          "coordinates": [
+            139.713,
+            35.662
+          ],
+          "status": "trajectory_only"
+        }
+      ]
+    },
+    {
+      "transactionId": "sample-20260925-a",
+      "places": [
+        {
+          "placeId": "shibuyaStarbucks",
+          "name": "スターバックス コーヒー 渋谷フクラス店",
+          "address": "東京都渋谷区道玄坂1-2-3 渋谷フクラス1F",
+          "coordinates": [
+            139.6998,
+            35.6575
+          ],
+          "status": "trajectory_only"
+        }
+      ]
+    },
+    {
+      "transactionId": "sample-20260925-b",
+      "places": [
+        {
+          "placeId": "shibuyaMuji",
+          "name": "無印良品 渋谷公園通り",
+          "address": "東京都渋谷区宇田川町19-7",
+          "coordinates": [
+            139.6991,
+            35.6623
+          ],
+          "status": "trajectory_only"
+        }
+      ]
+    },
+    {
+      "transactionId": "sample-20260925-c",
+      "places": [
+        {
+          "placeId": "shibuyaLife",
+          "name": "ライフ 渋谷東店",
+          "address": "東京都渋谷区東1-26-22",
+          "coordinates": [
+            139.7048,
+            35.654
+          ],
+          "status": "trajectory_only"
+        }
+      ]
+    },
+    {
+      "transactionId": "sample-20260926-a",
+      "places": [
+        {
+          "placeId": "shibuyaStarbucks",
+          "name": "スターバックス コーヒー 渋谷フクラス店",
+          "address": "東京都渋谷区道玄坂1-2-3 渋谷フクラス1F",
+          "coordinates": [
+            139.6998,
+            35.6575
+          ],
+          "status": "trajectory_only"
+        }
+      ]
+    },
+    {
+      "transactionId": "sample-20260926-b",
+      "places": [
+        {
+          "placeId": "ebisuSeijoIshii",
+          "name": "成城石井 アトレ恵比寿店",
+          "address": "東京都渋谷区恵比寿南1-5-5 アトレ恵比寿3F",
+          "coordinates": [
+            139.7107,
+            35.6468
+          ],
+          "status": "trajectory_only"
+        }
+      ]
+    },
+    {
+      "transactionId": "sample-20260926-c",
+      "places": [
+        {
+          "placeId": "ebisuMuji",
+          "name": "無印良品 アトレ恵比寿",
+          "address": "東京都渋谷区恵比寿南1-6-1 アトレ恵比寿西館5-6F",
+          "coordinates": [
+            139.7099,
+            35.6467
+          ],
+          "status": "trajectory_only"
+        }
+      ]
+    },
+    {
+      "transactionId": "sample-20260927-a",
+      "places": [
+        {
+          "placeId": "shibuyaLife",
+          "name": "ライフ 渋谷東店",
+          "address": "東京都渋谷区東1-26-22",
+          "coordinates": [
+            139.7048,
+            35.654
+          ],
+          "status": "trajectory_only"
+        }
+      ]
+    },
+    {
+      "transactionId": "sample-20260927-b",
+      "places": [
+        {
+          "placeId": "aoyamaMuji",
+          "name": "Found MUJI 青山",
+          "address": "東京都渋谷区神宮前5-50-6 中島ビル1-2F",
+          "coordinates": [
+            139.713,
+            35.662
+          ],
+          "status": "trajectory_only"
+        }
+      ]
+    },
+    {
+      "transactionId": "sample-20260928-a",
+      "places": [
+        {
+          "placeId": "shibuyaStarbucks",
+          "name": "スターバックス コーヒー 渋谷フクラス店",
+          "address": "東京都渋谷区道玄坂1-2-3 渋谷フクラス1F",
+          "coordinates": [
+            139.6998,
+            35.6575
+          ],
+          "status": "trajectory_only"
+        }
+      ]
+    },
+    {
+      "transactionId": "sample-20260928-b",
+      "places": [
+        {
+          "placeId": "shibuyaMuji",
+          "name": "無印良品 渋谷公園通り",
+          "address": "東京都渋谷区宇田川町19-7",
+          "coordinates": [
+            139.6991,
+            35.6623
+          ],
+          "status": "trajectory_only"
+        }
+      ]
+    },
+    {
+      "transactionId": "sample-20260928-c",
+      "places": [
+        {
+          "placeId": "shibuyaLife",
+          "name": "ライフ 渋谷東店",
+          "address": "東京都渋谷区東1-26-22",
+          "coordinates": [
+            139.7048,
+            35.654
+          ],
+          "status": "trajectory_only"
+        }
+      ]
+    },
+    {
+      "transactionId": "sample-20260929-a",
+      "places": [
+        {
+          "placeId": "shibuyaStarbucks",
+          "name": "スターバックス コーヒー 渋谷フクラス店",
+          "address": "東京都渋谷区道玄坂1-2-3 渋谷フクラス1F",
+          "coordinates": [
+            139.6998,
+            35.6575
+          ],
+          "status": "trajectory_only"
+        }
+      ]
+    },
+    {
+      "transactionId": "sample-20260929-b",
+      "places": [
+        {
+          "placeId": "ebisuSeijoIshii",
+          "name": "成城石井 アトレ恵比寿店",
+          "address": "東京都渋谷区恵比寿南1-5-5 アトレ恵比寿3F",
+          "coordinates": [
+            139.7107,
+            35.6468
+          ],
+          "status": "trajectory_only"
+        }
+      ]
+    },
+    {
+      "transactionId": "sample-20260929-c",
+      "places": [
+        {
+          "placeId": "ebisuMuji",
+          "name": "無印良品 アトレ恵比寿",
+          "address": "東京都渋谷区恵比寿南1-6-1 アトレ恵比寿西館5-6F",
+          "coordinates": [
+            139.7099,
+            35.6467
+          ],
+          "status": "trajectory_only"
+        }
+      ]
+    },
+    {
+      "transactionId": "sample-20260929-train",
+      "places": [
+        {
+          "placeId": "jrShibuya",
+          "name": "JR渋谷駅",
+          "address": "東京都渋谷区道玄坂1丁目",
+          "coordinates": [
+            139.701636,
+            35.658034
+          ],
+          "status": "trajectory_only"
+        }
+      ]
+    },
+    {
+      "transactionId": "sample-20260930-a",
+      "places": [
+        {
+          "placeId": "shibuyaLife",
+          "name": "ライフ 渋谷東店",
+          "address": "東京都渋谷区東1-26-22",
+          "coordinates": [
+            139.7048,
+            35.654
+          ],
+          "status": "trajectory_only"
+        }
+      ]
+    },
+    {
+      "transactionId": "sample-20260930-b",
+      "places": [
+        {
+          "placeId": "aoyamaMuji",
+          "name": "Found MUJI 青山",
+          "address": "東京都渋谷区神宮前5-50-6 中島ビル1-2F",
+          "coordinates": [
+            139.713,
+            35.662
+          ],
+          "status": "trajectory_only"
+        }
+      ]
+    },
+    {
+      "transactionId": "sample-20260930-metro",
+      "places": [
+        {
+          "placeId": "metroShibuya",
+          "name": "東京メトロ 渋谷駅",
+          "address": "東京都渋谷区渋谷2丁目",
+          "coordinates": [
+            139.702,
+            35.658
+          ],
+          "status": "trajectory_only"
+        }
+      ]
+    }
+  ],
   "threads": [
     {
       "id": "43f9ec2e-8d7a-4d08-b3b9-8f5981fe621e",

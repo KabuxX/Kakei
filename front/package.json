@@ -7,7 +7,9 @@
     "dev:api": "vite --mode api --host 127.0.0.1",
     "build": "vite build",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "dev:demo": "vite --mode demo",
+    "build:demo": "vite build --mode demo"
   },
   "dependencies": {
     "@deck.gl/layers": "^9.4.0",

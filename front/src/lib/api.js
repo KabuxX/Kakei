@@ -1,3 +1,4 @@
+import {apiFetch} from '@kakei/runtime';
   const storageKey = 'kakei-transactions-v1';
 
   class ApiError extends Error {
@@ -10,7 +11,7 @@
     }
   }
 
-  async function request(method, path, body, fetchImpl = fetch) {
+  async function request(method, path, body, fetchImpl = apiFetch) {
     const options = { method };
     if (body !== undefined) {
       options.headers = { 'Content-Type': 'application/json' };
@@ -23,13 +24,13 @@
     return result;
   }
 
-  async function listTransactions(fetchImpl = fetch) {
+  async function listTransactions(fetchImpl = apiFetch) {
     const result = await request('GET', '/api/transactions', undefined, fetchImpl);
     if (!Array.isArray(result?.transactions)) throw new ApiError(200, { code: 'invalid_response', message: '取引データを読み込めませんでした。' });
     return result.transactions;
   }
 
-  async function loadInitialTransactions({ fetchImpl = fetch, storage, sampleFactory }) {
+  async function loadInitialTransactions({ fetchImpl = apiFetch, storage, sampleFactory }) {
     const status = await request('GET', '/api/status', undefined, fetchImpl);
     if (typeof status?.initialized !== 'boolean') throw new ApiError(200, { code: 'invalid_response', message: 'サーバーの状態を確認できませんでした。' });
     if (!status.initialized) {
@@ -45,7 +46,7 @@
     return listTransactions(fetchImpl);
   }
 
-  async function addTransaction(draft, fetchImpl = fetch) {
+  async function addTransaction(draft, fetchImpl = apiFetch) {
     const result = await request('POST', '/api/transactions', draft, fetchImpl);
     if (!result?.transaction || typeof result.transaction.id !== 'string') {
       throw new ApiError(201, { code: 'invalid_response', message: '保存結果を確認できませんでした。' });
@@ -53,11 +54,11 @@
     return result.transaction;
   }
 
-  async function removeTransaction(id, fetchImpl = fetch) {
+  async function removeTransaction(id, fetchImpl = apiFetch) {
     await request('DELETE', `/api/transactions/${encodeURIComponent(id)}`, undefined, fetchImpl);
   }
 
-  async function removeSamples(fetchImpl = fetch) {
+  async function removeSamples(fetchImpl = apiFetch) {
     const result = await request('DELETE', '/api/samples', undefined, fetchImpl);
     if (!Number.isInteger(result?.deletedCount)) {
       throw new ApiError(200, { code: 'invalid_response', message: '削除結果を確認できませんでした。' });
@@ -65,13 +66,13 @@
     return result.deletedCount;
   }
 
-export async function listTrajectoryDates(fetchImpl = fetch) {
+export async function listTrajectoryDates(fetchImpl = apiFetch) {
   const result = await request('GET', '/api/trajectory', undefined, fetchImpl);
   if (!Array.isArray(result?.dates)) throw new ApiError(200, { message: '記録日を読み込めませんでした。' });
   return result.dates;
 }
 
-export async function loadTrajectoryDay(date, fetchImpl = fetch) {
+export async function loadTrajectoryDay(date, fetchImpl = apiFetch) {
   const result = await request('GET', `/api/trajectory/${encodeURIComponent(date)}`, undefined, fetchImpl);
   if (!result?.places || !Array.isArray(result?.days)) throw new ApiError(200, { message: '軌跡を読み込めませんでした。' });
   return result;
@@ -79,23 +80,23 @@ export async function loadTrajectoryDay(date, fetchImpl = fetch) {
 
 export { ApiError, request, listTransactions, loadInitialTransactions, addTransaction, removeTransaction, removeSamples };
 
-export async function getTransactionAddress(id, fetchImpl = fetch) {
+export async function getTransactionAddress(id, fetchImpl = apiFetch) {
   const result = await request('GET', `/api/transaction-addresses/${encodeURIComponent(id)}`, undefined, fetchImpl);
   if (!Array.isArray(result?.address?.places)) throw new ApiError(200, {message:'住所を読み込めませんでした。'});
   return result.address;
 }
-export async function listTransactionAddresses(fetchImpl = fetch) {
+export async function listTransactionAddresses(fetchImpl = apiFetch) {
   const result = await request('GET', '/api/transaction-addresses', undefined, fetchImpl);
   if (!Array.isArray(result?.addresses)) throw new ApiError(200, {message:'住所を読み込めませんでした。'});
   return result.addresses;
 }
-export async function updateMerchantAddress(id, merchantAddress, expected, fetchImpl = fetch) {
+export async function updateMerchantAddress(id, merchantAddress, expected, fetchImpl = apiFetch) {
   const result = await request('PATCH', `/api/transaction-addresses/${encodeURIComponent(id)}`, {merchantAddress,expected}, fetchImpl);
   if (!result?.transaction?.id) throw new ApiError(200, {message:'保存結果を確認できませんでした。'});
   return result.transaction;
 }
 
-export async function updateTransaction(id, draft, fetchImpl = fetch) {
+export async function updateTransaction(id, draft, fetchImpl = apiFetch) {
  const result = await request('PUT', `/api/transactions/${encodeURIComponent(id)}`, draft, fetchImpl);
  if (!result?.transaction || result.transaction.id !== id) throw new ApiError(200, {message:'保存結果を確認できませんでした。'});
  return result.transaction;

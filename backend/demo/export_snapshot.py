@@ -5,6 +5,7 @@ from pathlib import Path
 from db.store import Store
 from db.trajectory_store import read_trajectory_timeline
 from db.agent_store import proposal_record
+from services.transaction_addresses import read_transaction_addresses,annotate_location_status
 from demo.validate_snapshot import validate_snapshot
 
 # Business display DTOs may be nested. Never include execution/cache metadata.
@@ -27,7 +28,7 @@ def export_demo(db_path:Path,out_dir:Path,curated_path:Path,captured_at:str)->di
    for r in c.execute('SELECT * FROM transactions ORDER BY date DESC,id DESC'):
     items=[{'name':i['name'],'amount':i['amount']} for i in c.execute('SELECT * FROM transaction_items WHERE transaction_id=? ORDER BY position',(r['id'],))]
     transactions.append(Store._record(r,items))
-   timeline=read_trajectory_timeline(c);lookup={}
+   timeline=annotate_location_status(c,read_trajectory_timeline(c));addresses=read_transaction_addresses(c);lookup={}
    for p in timeline['places'].values():
     if p.get('provider')=='google':
      gid=p['providerPlaceId'];v=curated.get(gid,{})
@@ -54,7 +55,7 @@ def export_demo(db_path:Path,out_dir:Path,curated_path:Path,captured_at:str)->di
     if not re.fullmatch('[A-Za-z0-9_-]+',r['id']):raise ValueError('Unsafe receipt ID')
     path=f"demo-data/receipts/{r['id']}.{ext[r['mime_type']]}";(public/path).write_bytes(r['data'])
     receipts[r['id']]={'id':r['id'],'mimeType':r['mime_type'],'pageCount':r['page_count'],'sha256':r['sha256'],'createdAt':r['created_at'],'transactionId':r['transaction_id'],'threadId':r['thread_id'],'path':path}
-   s={'schemaVersion':1,'exportedAt':captured_at,'transactions':transactions,'categories':{r['category']:r['amount'] for r in c.execute('select * from category_budgets')},'timeline':timeline,'threads':threads,'receipts':receipts,'placeLookup':lookup}
+   s={'schemaVersion':1,'exportedAt':captured_at,'transactions':transactions,'categories':{r['category']:r['amount'] for r in c.execute('select * from category_budgets')},'timeline':timeline,'addresses':addresses,'threads':threads,'receipts':receipts,'placeLookup':lookup}
    validate_snapshot(s,public)
    data=json.dumps(s,ensure_ascii=False,allow_nan=False,indent=2)+'\n'
    manifest={'schemaVersion':1,'exportedAt':captured_at,'latestMonth':max((t['date'][:7] for t in transactions),default=captured_at[:7]),'counts':{'transactions':len(transactions),'days':len(timeline['days']),'events':sum(len(d['events']) for d in timeline['days']),'places':len(timeline['places']),'threads':len(threads),'messages':sum(len(t['messages']) for t in threads),'receipts':len(receipts),'categories':len(s['categories'])},'snapshotSha256':hashlib.sha256(data.encode()).hexdigest(),'receiptHashes':{k:r['sha256'] for k,r in receipts.items()},'unconfirmedPlaces':[k for k,p in timeline['places'].items() if p.get('demoPositionUnconfirmed')]}

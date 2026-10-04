@@ -1,3 +1,4 @@
+import {apiFetch} from '@kakei/runtime';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import * as api from './lib/api.js';
 import { createSampleTransactions } from './lib/sample-data.js';
@@ -17,7 +18,7 @@ export function useTransactions() {
     setError(null);
     try {
       const next = await api.loadInitialTransactions({
-        fetchImpl: fetch,
+        fetchImpl: apiFetch,
         storage: { getItem: (key) => window.localStorage.getItem(key) },
         sampleFactory: createSampleTransactions,
       });
@@ -36,7 +37,7 @@ export function useTransactions() {
     refreshingRef.current = true;
     setRefreshing(true);
     try {
-      const next = await api.listTransactions(fetch);
+      const next = await api.listTransactions(apiFetch);
       setTransactions(next);
       setError(null);
       setStaleAfterWrite(false);

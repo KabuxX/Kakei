@@ -1,3 +1,4 @@
+import {apiFetch} from '@kakei/runtime';
 import { request } from './api.js';
 const base='/api/agent';
 const id=encodeURIComponent;
@@ -12,7 +13,7 @@ export const approve=async(proposal,revision)=>(await request('POST',`${base}/pr
 export const reject=async(proposal,revision)=>(await request('POST',`${base}/proposals/${id(proposal)}/reject`,{revision})).proposal;
 export async function uploadReceipt(thread,file){
  const form=new FormData();form.append('file',file);
- const response=await fetch(`${base}/threads/${id(thread)}/receipts`,{method:'POST',body:form});
+ const response=await apiFetch(`${base}/threads/${id(thread)}/receipts`,{method:'POST',body:form});
  const result=await response.json();if(!response.ok)throw new Error(result?.error?.message||'添付できませんでした。');return result;
 }
 export const listTransactionReceipts=async(transaction)=>(await request('GET',`/api/transactions/${id(transaction)}/receipts`)).receipts;

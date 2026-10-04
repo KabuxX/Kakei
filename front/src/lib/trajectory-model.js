@@ -11,6 +11,7 @@ function checkPlace(placeId, place) {
   if (!place || !place.name || (!['user','google_places'].includes(place.placeEvidence) && (!place.address || !/^https:\/\//.test(place.sourceUrl || '')))) {
     throw new Error(`Place ${placeId} needs a name, address, and source URL`);
   }
+  if (place.demoPositionUnconfirmed === true && place.coordinates === null) return;
   const [longitude, latitude] = place.coordinates || [];
   if (!Number.isFinite(longitude) || !Number.isFinite(latitude)
     || longitude < -180 || longitude > 180 || latitude < -90 || latitude > 90) {

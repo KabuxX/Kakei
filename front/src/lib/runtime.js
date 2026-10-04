@@ -1,0 +1,8 @@
+export const isDemo=false;
+export const readOnly=false;
+export const snapshotTime=null;
+export const getInitialMonth=now=>new Date(now.getFullYear(),now.getMonth()-1,1);
+export const apiFetch=(input,init)=>globalThis.fetch(input,init);
+export const assetUrl=path=>`${import.meta.env.BASE_URL}${path.replace(/^\//,'')}`;
+export const receiptUrl=(id,threadId)=>threadId?`/api/agent/threads/${encodeURIComponent(threadId)}/receipts/${encodeURIComponent(id)}`:`/api/receipts/${encodeURIComponent(id)}`;
+export const loadTrajectoryMap=()=>import('../components/trajectory/GoogleTrajectoryMap.jsx');
