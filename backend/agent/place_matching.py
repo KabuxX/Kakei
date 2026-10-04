@@ -19,6 +19,22 @@ def normalize_text(value):
 def compact(value): return normalize_text(value or '').replace(' ','')
 
 
+def user_address_pair(message, name, address):
+    """Accept explicit adjacent pairs; co-occurrence cannot establish identity."""
+    body=normalize_text(message);name=normalize_text(name);address=normalize_text(address)
+    for mention in re.finditer(re.escape(name),body):
+        start=body.find(address,mention.end())
+        if start<0:continue
+        gap=body[mention.end():start]
+        gap=re.sub(r'〒?\d{3}[-−‐]\d{4}', '',gap)
+        gap=re.sub(r'(?:の)?(?:住所|所在地)(?:は|が)?|address|日本|japan', '',gap)
+        if not re.fullmatch(r'[\s*_|｜:：—–\-()（）・,、]*',gap):continue
+        tail=re.split(r'[。.!?！？\n]',body[start+len(address):],maxsplit=1)[0]
+        if re.search(r'では(?:なく|ない|ありません)|じゃ(?:なく|ない)|でない|(?:未確認|推定|未確定|不明)|not\b',tail):continue
+        return True
+    return False
+
+
 def coordinates_valid(coords):
     return isinstance(coords,(list,tuple)) and len(coords)==2 and all(type(v) in (int,float) and math.isfinite(v) for v in coords) and -180<=coords[0]<=180 and -90<=coords[1]<=90
 
@@ -90,7 +106,7 @@ class EvidenceResolver:
                 candidates=[]
                 if source=='transaction':candidates=[{'name':data.get('merchant'),'address':data.get('merchantAddress'),'sources':[]}]
                 elif source=='saved_place':candidates=[data]
-                elif source=='user_message' and compact(request['query']) in compact(data):candidates=[{'name':request['query'],'address':value,'sources':[]}]
+                elif source=='user_message' and user_address_pair(data,request['query'],value):candidates=[{'name':request['query'],'address':value,'sources':[]}]
                 elif source=='search':candidates=data.get('result',{}).get('candidates',[])+data.get('result',{}).get('unlocatedCandidates',[])
                 for candidate in candidates:
                     name=candidate.get('name') or ''

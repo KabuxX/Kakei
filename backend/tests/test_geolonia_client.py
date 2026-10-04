@@ -32,6 +32,22 @@ class ClientTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(result['status'],'failed')
             self.assertIn('geolonia_invalid_response',result['unresolved'])
 
+    async def test_nested_malformed_success_is_failed_and_worker_reaped(self):
+        malformed=[]
+        for patch in ({'point':'bad'},{'pref':[]},{'level':True},{'record':{'kind':'rsdt','fields':[]}},{'other':123}):
+            malformed.append({**copy.deepcopy(DETAILED_RESULT),'match':{**copy.deepcopy(DETAILED_RESULT['match']),**patch}})
+        for proof in ({},{'fetches':'bad','observation':None},{'fetches':[{}],'observation':None},{'fetches':copy.deepcopy(DETAILED_RESULT['proof']['fetches']),'observation':'bad'}):
+            malformed.append({**copy.deepcopy(DETAILED_RESULT),'proof':proof})
+        for index,response in enumerate(malformed):
+            with self.subTest(response=response):
+                self.worker.write_text('import json,sys\nfor line in sys.stdin:\n r=json.loads(line)\n print(json.dumps({"id":r["id"],"status":"ok",**'+repr(response)+',"libraryVersion":"3.1.3","bytesRead":0}),flush=True)\n')
+                client=self.factory(executable=sys.executable,worker_path=self.worker)
+                session=client.session(str(index),self.budget)
+                result=await session.lookup(ADDRESS,grounded_prefixes=[])
+                self.assertEqual(result['status'],'failed')
+                self.assertIn('geolonia_invalid_response',result['unresolved'])
+                self.assertIsNone(session.process)
+
     async def test_cancel_kills_and_reaps_worker(self):
         ready=Path(self.tmp.name)/'pid'
         self.worker.write_text('import os,time\nfrom pathlib import Path\nPath('+repr(str(ready))+').write_text(str(os.getpid()))\ntime.sleep(60)\n')

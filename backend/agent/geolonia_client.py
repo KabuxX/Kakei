@@ -2,13 +2,60 @@
 import asyncio
 import copy
 import json
+import re
 import shutil
 import time
 import uuid
 from pathlib import Path
 from agent.geolonia_addresses import address_variants, match_reasons
+from agent.place_matching import coordinates_valid
+from services.geolonia_evidence import dataset_url
+from services.place_evidence import text, timestamp
+from services.validation import ValidationError
 
 MAX_BYTES=32*1024*1024
+
+
+def validate_worker_result(response):
+    """Check nested JSON before matches can reach candidate or history code."""
+    if set(response)!={'id','status','bytesRead','libraryVersion','match','proof'}:raise ValueError()
+    match=response['match'];proof=response['proof']
+    if not isinstance(match,dict) or set(match)!={'pref','city','town','addr','other','level','point','record'}:raise ValueError()
+    for key in ('pref','city','town','addr','other'):
+        if not isinstance(match[key],str) or len(match[key])>500:raise ValueError()
+    if type(match['level']) is not int or match['level'] not in (0,1,2,3,8):raise ValueError()
+    point=match['point']
+    if point is not None and (not isinstance(point,dict) or set(point)!={'lng','lat','level'} or type(point['level']) is not int or point['level'] not in (1,2,3,8) or not coordinates_valid([point['lng'],point['lat']])):raise ValueError()
+    record=match['record']
+    if record is not None:
+        if not isinstance(record,dict) or set(record)!={'kind','fields'} or record['kind'] not in ('rsdt','chiban') or not isinstance(record['fields'],dict):raise ValueError()
+        fields=record['fields'];numbers=('blk_num','rsdt_num','rsdt_num2') if record['kind']=='rsdt' else ('prc_num1','prc_num2','prc_num3')
+        mandatory='rsdt_num' if record['kind']=='rsdt' else 'prc_num1'
+        if mandatory not in fields or set(fields)-set(numbers)-{'point'}:raise ValueError()
+        for key in numbers:
+            if key in fields:text(fields[key],40,key)
+        if 'point' in fields and not coordinates_valid(fields['point']):raise ValueError()
+    if not isinstance(proof,dict) or set(proof)!={'fetches','observation'}:raise ValueError()
+    fetches=proof['fetches']
+    if not isinstance(fetches,list) or not 1<=len(fetches)<=4:raise ValueError()
+    ids=set()
+    for fetch in fetches:
+        if not isinstance(fetch,dict) or set(fetch)!={'sourceId','url','retrievedAt','range','sha256','updatedAt'}:raise ValueError()
+        text(fetch['sourceId'],100,'sourceId')
+        if fetch['sourceId'] in ids or not dataset_url(fetch['url']):raise ValueError()
+        ids.add(fetch['sourceId']);timestamp(fetch['retrievedAt'])
+        if fetch['updatedAt'] is not None:timestamp(fetch['updatedAt'])
+        if not isinstance(fetch['sha256'],str) or not re.fullmatch('[0-9a-f]{64}',fetch['sha256']):raise ValueError()
+        span=fetch['range']
+        if span is not None and (not isinstance(span,dict) or set(span)!={'offset','length'} or type(span['offset']) is not int or span['offset']<0 or type(span['length']) is not int or not 1<=span['length']<=8*1024*1024):raise ValueError()
+    observation=proof['observation']
+    if point is not None and point['level']==8:
+        coords=[point['lng'],point['lat']]
+        if not record or record['fields'].get('point')!=coords:raise ValueError()
+        if not isinstance(observation,dict) or set(observation)!={'sourceId','kind','excerpt','coordinates'} or not isinstance(observation['sourceId'],str) or observation['sourceId'] not in ids or observation['kind']!='geolonia_address' or observation['coordinates']!=coords:raise ValueError()
+        text(observation['excerpt'],2048,'excerpt')
+        if json.loads(observation['excerpt'])!={'components':{k:match[k] for k in ('pref','city','town','addr')},'record':record}:raise ValueError()
+    elif observation is not None:raise ValueError()
 
 
 class WorkerError(Exception):
@@ -109,8 +156,9 @@ class GeoloniaSession:
                 allowed={'geolonia_network','geolonia_network_permanent','geolonia_timeout','geolonia_invalid_range','geolonia_size_limit','geolonia_unsafe_url','geolonia_unsafe_address','geolonia_unsupported_content','geolonia_missing_proof'}
                 raise WorkerError(code if code in allowed else 'geolonia_invalid_response')
             if response.get('libraryVersion')!='3.1.3' or not isinstance(response.get('match'),dict) or not isinstance(response.get('proof'),dict):raise ValueError()
+            validate_worker_result(response)
             return response
-        except (ValueError,TypeError,KeyError,BrokenPipeError,ConnectionError):raise WorkerError('geolonia_invalid_response') from None
+        except (ValueError,TypeError,KeyError,ValidationError,BrokenPipeError,ConnectionError):raise WorkerError('geolonia_invalid_response') from None
 
     async def _lookup(self,address,prefixes):
         out={'status':'empty','originalAddress':address,'matchedVariant':None,'match':None,'proof':None,'attempts':[],'unresolved':[],'libraryVersion':'3.1.3'}

@@ -85,6 +85,45 @@ class GeoloniaSearchTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(out['candidates'],[])
         self.assertTrue(self.provider.calls)
 
+    async def test_unrelated_or_negated_user_addresses_require_web_discovery(self):
+        for message in (
+            '合成テスト店舗の住所は分かりません。別の店の住所は'+ADDRESS+'です。',
+            '合成テスト店舗と別の店。別の店の住所: '+ADDRESS,
+            '合成テスト店舗の住所は'+ADDRESS+'ではありません。',
+        ):
+            with self.subTest(message=message):
+                await self.budget.close()
+                import time
+                self.budget=web_tests.SearchBudget(time.monotonic()+180)
+                self.service.budget=self.budget
+                self.resolver.messages=[{'id':'u','role':'user','text':message}]
+                self.provider.calls=[]
+                out=await self.service.search(self.grounded)
+                self.assertTrue(self.provider.calls)
+                self.assertEqual(out['status'],'found')
+
+    async def test_direct_affirmative_user_address_pair_can_skip_web(self):
+        self.resolver.messages=[{'id':'u','role':'user','text':'合成テスト店舗の住所は'+ADDRESS+'です。'}]
+        out=await self.service.search(self.grounded)
+        self.assertEqual(out['candidates'][0]['coordinateEvidence']['version'],2)
+        self.assertEqual(self.provider.calls,[])
+
+    async def test_nested_malformed_worker_response_falls_back_to_web(self):
+        import tempfile
+        from agent.geolonia_client import GeoloniaClient
+        with tempfile.TemporaryDirectory() as directory:
+            worker=Path(directory)/'worker.py'
+            worker.write_text('import json,sys\nfor line in sys.stdin:\n r=json.loads(line)\n print(json.dumps({"id":r["id"],"status":"ok","bytesRead":0,"libraryVersion":"3.1.3","match":{"point":"bad"},"proof":{}}),flush=True)\n')
+            client=GeoloniaClient(executable=sys.executable,worker_path=worker)
+            self.service.geolonia=client
+            try:
+                out=await self.service.search(self.grounded)
+                self.assertEqual(out['candidates'][0]['coordinateEvidence']['version'],1)
+                self.assertTrue(self.provider.calls)
+                self.assertIn('geolonia_invalid_response',out['geolonia']['unresolved'])
+                self.assertTrue(all(s.process is None for s in client.sessions.values()))
+            finally:await client.close()
+
     async def test_country_outside_japan_skips_geolonia(self):
         self.resolver.messages=[{'id':'u','role':'user','text':'us'}]
         out=await self.service.search({**self.req,'country_code':'us','evidence':[{'field':'country_code','source':'user_message','source_id':'u','value':'us'}]})
