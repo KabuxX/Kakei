@@ -1,5 +1,27 @@
 # フロント開発環境
 
+## ソースの配置
+
+`src` 内の JSX は役割ごとに分類しています。
+
+| フォルダ | 内容 |
+| --- | --- |
+| `src/app/` | `main.jsx` とアプリ全体を組み立てる `App.jsx` |
+| `src/pages/` | 概要、軌跡、Agent Chat、取引詳細・編集・削除の各ページ |
+| `src/components/layout/` | サイドバーとトップバーを含む共通レイアウト |
+| `src/components/agent/` | 会話操作、変更案、地点候補、軌跡作成結果 |
+| `src/components/transactions/` | 取引フォーム、ダイアログ、住所、添付レシート |
+| `src/components/trajectory/` | 地図、軌跡入力、削除内容 |
+| `src/components/places/` | 座標の根拠、出典、Google検索結果 |
+| `src/components/receipts/` | レシート確認と計算結果 |
+| `src/tests/` | JSX のテスト。フックと API のモックもここから参照 |
+
+状態管理のフックは `src/use*.js`、API と純粋関数は `src/lib/`、
+固定データは `src/data/` に置いています。JavaScript のテストは既存の場所にあります。
+HTML の入口は `/src/app/main.jsx` です。
+
+## 起動
+
 依存パッケージを入れてから、使うデータ元に合わせて起動します。
 
 ```sh
