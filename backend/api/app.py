@@ -2,6 +2,8 @@
 
 import sqlite3
 import os
+import asyncio
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -23,7 +25,23 @@ def create_app(db_path: Path, front_dir: Path, *, port: int = 8765,
     """Build an app with an isolated store for tests or local execution."""
     store = Store(db_path)
     store.seed_trajectory_once(lambda: load_timeline(timeline_path))
-    app = FastAPI()
+    @asynccontextmanager
+    async def lifespan(app):
+        async def cleanup():
+            import time
+            from db.google_place_cache import purge_expired_coordinates
+            while True:
+                await asyncio.sleep(60)
+                with store._connection() as connection:
+                    purge_expired_coordinates(connection,time.time())
+        task=asyncio.create_task(cleanup())
+        try:
+            yield
+        finally:
+            task.cancel()
+            with suppress(asyncio.CancelledError):
+                await task
+    app = FastAPI(lifespan=lifespan)
     app.state.store = store
 
     @app.middleware("http")
@@ -77,11 +95,15 @@ def create_app(db_path: Path, front_dir: Path, *, port: int = 8765,
     register_agent(app, store, runner_factory)
     register_transactions(app, store)
     register_transaction_addresses(app, store)
+    from api.google_places import register_google_places
+    register_google_places(app)
 
     @app.get("/api/map-config")
     def map_config():
-        token = os.getenv('VITE_MAPBOX_ACCESS_TOKEN', '').strip()
-        return json_response(200, {'mapboxPublicToken': token if token.startswith('pk.') else None})
+        key=os.getenv('GOOGLE_MAPS_BROWSER_API_KEY','').strip()
+        if key and key==os.getenv('GOOGLE_PLACES_API_KEY','').strip():
+            key=''
+        return json_response(200, {'googleMapsBrowserKey':key or None,'googleMapId':os.getenv('GOOGLE_MAPS_MAP_ID','').strip() or 'DEMO_MAP_ID'})
 
     @app.api_route("/api/{remaining:path}", methods=["GET", "POST", "DELETE", "PUT", "PATCH", "OPTIONS", "HEAD"])
     def unknown_api(request: Request, remaining: str):

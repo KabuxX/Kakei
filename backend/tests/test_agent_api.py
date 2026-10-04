@@ -90,6 +90,7 @@ class AgentAPITests(unittest.TestCase):
 
     def test_web_search_to_approval_and_thread_deletion(self):
         from agent.runtime import AgentRunner
+        from agent.legacy_place_tools import legacy_place_tools_factory
         from test_agent_runtime import ScriptModel
         from test_agent_place_search import Provider, Verifier
         from test_geolonia_search import Geolonia
@@ -104,7 +105,7 @@ class AgentAPITests(unittest.TestCase):
         args={'operation':'create','identity':{'kind':'day','date':'2026-10-02'},'data':{'events':[{'id':'visit','placeId':'p','transactionId':tx['id'],'time':'12:19','timeEvidence':'exact'}],'legs':[]}}
         def call(name,args,identifier): return AIMessage(content='',tool_calls=[{'name':name,'args':args,'id':identifier,'type':'tool_call'}])
         model=ScriptModel(replies=[call('search_place',{**SEARCH,'query':'ドトールコーヒーショップ 西鉄福岡駅店'},'s'),call('edit_trajectory',args,'e'),AIMessage(content='支店未確認の候補です。保存前に確認してください。'),call('read_place_search_history',{},'h'),AIMessage(content='福岡市の候補を取得しました。支店は未確認です。')])
-        app=create_app(self.app.state.store.db_path,Path(self.temp.name),runner_factory=lambda store:AgentRunner(store,model=model))
+        app=create_app(self.app.state.store.db_path,Path(self.temp.name),runner_factory=lambda store:AgentRunner(store,model=model,place_tools_factory=legacy_place_tools_factory))
         geo=Geolonia();geo.status='unavailable'
         with TestClient(app,base_url='http://localhost:8765',headers={'Origin':'http://localhost:8765'}) as client, patch('agent.web_places.WebPlaceProvider',FakeProvider), patch('agent.web_coordinates.WebCoordinateVerifier',lambda *args:Verifier()), patch('agent.geolonia_client.GeoloniaClient',lambda:geo):
             thread=client.post('/api/agent/threads',json={}).json()['thread']['id'];url=f'/api/agent/threads/{thread}'

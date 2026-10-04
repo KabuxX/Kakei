@@ -37,7 +37,7 @@ def register_trajectory(app: FastAPI, store: Store) -> None:
         return await mutate(request, "delete", 204)
 
     @app.get("/api/trajectory/{requested_date}")
-    def trajectory_day(requested_date: str):
+    async def trajectory_day(requested_date: str):
         if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", requested_date):
             raise HTTPFailure(400, "invalid_date", "日付は YYYY-MM-DD で指定してください。")
         try:
@@ -47,4 +47,10 @@ def register_trajectory(app: FastAPI, store: Store) -> None:
         payload = store.get_trajectory_day_context(requested_date)
         if payload is None:
             raise HTTPFailure(404, "not_found", "指定日の軌跡が見つかりません。")
+        if any(place.get('provider')=='google' for place in payload['places'].values()):
+            import time
+            from agent.google_places import GooglePlacesClient
+            from services.google_place_display import GooglePlaceDisplay
+            async with GooglePlacesClient() as client:
+                payload=await GooglePlaceDisplay(store,client).hydrate(payload,now=time.time())
         return json_response(200, payload)

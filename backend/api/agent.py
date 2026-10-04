@@ -54,7 +54,23 @@ def register_agent(app, store, runner_factory=None):
         try:
             runner = runner_factory(store) if runner_factory else AgentRunner(store)
             result = await asyncio.wait_for(runner.run_turn(thread_id, repository.get_thread(thread_id)['messages'], payload.get('receiptId'), turn_context={'thread_id':thread_id,'client_message_id':client_id,'run_token':lease['token']}), TURN_SECONDS)
-            return json_response(200, repository.complete_turn(thread_id, client_id, lease, result))
+            try:
+                response=repository.complete_turn(thread_id, client_id, lease, result)
+            except TrajectoryConflict:
+                reprepare=result.get('_reprepareCreation')
+                if not reprepare:
+                    raise
+                result['preparedCreation']=await reprepare()
+                try:
+                    response=repository.complete_turn(thread_id, client_id, lease, result)
+                except TrajectoryConflict:
+                    from services.trajectory_creation import REASONS
+                    import copy
+                    failure=copy.deepcopy(result['preparedCreation'].result)
+                    failure['excluded'] += [{**item,'reason':'source_conflict','message':REASONS['source_conflict']} for item in failure['saved']]
+                    failure['saved']=[];failure['counts']['saved']=0;failure['counts']['excluded']=len(failure['excluded']);failure['status']='failed'
+                    response=repository.complete_turn(thread_id,client_id,lease,{'text':'保存できませんでした。','creationFailure':failure})
+            return json_response(200,response)
         except BaseException as error:
             repository.fail_turn(thread_id, client_id, lease['token'])
             if isinstance(error, (HTTPFailure, ValidationError, TrajectoryConflict, TrajectoryNotFound, asyncio.CancelledError)):

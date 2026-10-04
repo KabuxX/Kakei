@@ -4,6 +4,7 @@ from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from agent.trajectory import build_trajectory_context
 from agent.runtime import AgentRunner
+from agent.legacy_place_tools import legacy_place_tools_factory
 from db.store import Store,TrajectoryConflict
 from db.agent_store import AgentStore
 from services.validation import ValidationError
@@ -33,7 +34,7 @@ class TrajectoryAgentTests(unittest.IsolatedAsyncioTestCase):
   lease=self.agent.begin_turn(self.thread,'search-failure','軌跡を作成')
   context={'thread_id':self.thread,'client_message_id':'search-failure','run_token':lease['token']}
   with patch('agent.web_places.WebPlaceProvider.research',side_effect=PlaceProviderError('network')):
-   result=await AgentRunner(self.store,model=model).run_turn(self.thread,[{'role':'user','text':'軌跡を作成'}],turn_context=context)
+   result=await AgentRunner(self.store,model=model,place_tools_factory=legacy_place_tools_factory).run_turn(self.thread,[{'role':'user','text':'軌跡を作成'}],turn_context=context)
   proposal=self.agent.create_proposal(self.thread,result['commands'],place_candidates=result['placeCandidates'])
   self.assertIsNone(self.store.get_trajectory_day('2027-01-04'));self.assertEqual(proposal['metadata']['placeCandidates'][0]['candidates'],[])
   self.assertEqual(result['placeCandidates'][0]['status'],'error')

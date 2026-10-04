@@ -2,7 +2,10 @@ import asyncio, copy, json, sys, tempfile, unittest
 from pathlib import Path
 from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from agent.runtime import AgentRunner, TurnLimit
+from agent.runtime import AgentRunner as CurrentAgentRunner, TurnLimit
+from agent.legacy_place_tools import legacy_place_tools_factory
+from functools import partial
+AgentRunner=partial(CurrentAgentRunner,place_tools_factory=legacy_place_tools_factory)
 from db.store import Store
 from test_agent_changes import DRAFT
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -174,7 +177,7 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_search_configuration_is_independent(self):
         from agent.runtime import configuration
-        with patch.dict('os.environ',{'OPENAI_API_KEY':'secret','KAKEI_AGENT_MODEL':'test'},clear=True):
+        with patch.dict('os.environ',{'OPENAI_API_KEY':'secret','KAKEI_AGENT_MODEL':'test','GOOGLE_PLACES_API_KEY':'places-test'},clear=True):
             status=configuration()
             self.assertTrue(status['available']);self.assertTrue(status['placesAvailable'])
             self.assertEqual(status['placesMissing'],[])

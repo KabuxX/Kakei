@@ -190,6 +190,10 @@ class AgentStore:
                 from services.trajectory_creation import apply_creation, result_text
                 creation=apply_creation(c,prepared,now=time.time())
                 text=result_text(creation)
+            elif result.get('creationFailure'):
+                from services.trajectory_creation import result_text
+                creation=result['creationFailure']
+                text=result_text(creation)
             if result.get('commands'):
                 if hashlib.sha256(canonical(read_state(c)).encode()).hexdigest() != lease['sourceVersion']:
                     raise TrajectoryConflict('応答中に元データが変更されました。再送してください。')
@@ -197,8 +201,10 @@ class AgentStore:
             message = {'id': str(uuid.uuid4()), 'role': 'assistant', 'text': text, 'createdAt': time.time(), 'sources':sources}
             if creation is not None:
                 message['trajectoryCreation']=creation
+            if result.get('placeSearch'):
+                message['placeSearch']=result['placeSearch']
             c.execute('INSERT INTO agent_messages (id,thread_id,client_message_id,role,text,created_at) VALUES (?, ?, ?, ?, ?, ?)', (message['id'], thread_id, 'assistant:'+client_id, 'assistant', text, message['createdAt']))
-            c.execute('UPDATE agent_messages SET metadata_json=? WHERE id=?', (dumps({'sources':sources,'searchIds':result.get('searchIds',[]),**({'trajectoryCreation':creation} if creation is not None else {})}),message['id']))
+            c.execute('UPDATE agent_messages SET metadata_json=? WHERE id=?', (dumps({'sources':sources,'searchIds':result.get('searchIds',[]),**({'trajectoryCreation':creation} if creation is not None else {}),**({'placeSearch':result['placeSearch']} if result.get('placeSearch') else {})}),message['id']))
             response = {'message': message, 'proposal': proposal}
             if creation is not None:
                 response['trajectoryCreation']=creation

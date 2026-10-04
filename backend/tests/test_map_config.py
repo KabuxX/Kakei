@@ -13,18 +13,18 @@ class MapConfigTests(unittest.TestCase):
         self.addCleanup(self.client.close)
 
     def test_public_token_is_available_before_initialization_without_other_secrets(self):
-        with patch.dict(os.environ,{'VITE_MAPBOX_ACCESS_TOKEN':'pk.public-test','OPENAI_API_KEY':'secret-openai','MAPBOX_GEOCODING_ACCESS_TOKEN':'secret-geo'}):
+        with patch.dict(os.environ,{'GOOGLE_MAPS_BROWSER_API_KEY':'public-test','GOOGLE_PLACES_API_KEY':'secret-places','OPENAI_API_KEY':'secret-openai','GOOGLE_MAPS_MAP_ID':'fixture-map'}):
             response=self.client.get('/api/map-config')
         self.assertEqual(response.status_code,200)
-        self.assertEqual(response.json(),{'mapboxPublicToken':'pk.public-test'})
+        self.assertEqual(response.json(),{'googleMapsBrowserKey':'public-test','googleMapId':'fixture-map'})
         self.assertEqual(response.headers['cache-control'],'no-store')
 
     def test_missing_and_secret_tokens_are_not_exposed(self):
-        for token in ('','sk.secret-token','invalid-token'):
-            with self.subTest(token=token),patch.dict(os.environ,{'VITE_MAPBOX_ACCESS_TOKEN':token}):
+        for token in ('','server-secret'):
+            with self.subTest(token=token),patch.dict(os.environ,{'GOOGLE_MAPS_BROWSER_API_KEY':token,'GOOGLE_PLACES_API_KEY':'server-secret','GOOGLE_MAPS_MAP_ID':''}):
                 response=self.client.get('/api/map-config')
                 self.assertEqual(response.status_code,200)
-                self.assertEqual(response.json(),{'mapboxPublicToken':None})
+                self.assertEqual(response.json(),{'googleMapsBrowserKey':None,'googleMapId':'DEMO_MAP_ID'})
 
     def test_external_hosts_cannot_read_configuration(self):
         self.assertEqual(self.client.get('/api/map-config',headers={'Host':'example.com'}).status_code,403)
