@@ -56,8 +56,7 @@ export default function BudgetDialog({open, categories, busy = false, onClose, o
   };
 
   return <dialog ref={dialog} className="transaction-dialog budget-dialog" aria-labelledby="budget-dialog-title" aria-describedby="budget-dialog-description"
-    onCancel={event => {event.preventDefault(); close();}}
-    onClick={event => {if (event.target === event.currentTarget) close();}}>
+    onCancel={event => {event.preventDefault(); close();}}>
     <div className="dialog-head"><h2 id="budget-dialog-title">予算を設定</h2><button type="button" className="icon-button" aria-label="閉じる" onClick={close} disabled={disabled}><Icon name="close"/></button></div>
     {open && <form onSubmit={submit} noValidate aria-busy={disabled}>
       <p id="budget-dialog-description" className="budget-description">毎月共通の予算です。変更はすべての月に適用されます。</p>

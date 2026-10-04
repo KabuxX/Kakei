@@ -4,6 +4,16 @@ import {cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
 import BudgetDialog from '../components/budget/BudgetDialog.jsx';
 const categories={'食費':60000,'住まい':90000,'日用品':25000,'交通':25000,'娯楽':30000,'その他':20000};
 afterEach(cleanup);
+it('keeps unsaved inputs when clicking the dialog padding',()=>{
+  const onClose=vi.fn();
+  render(<BudgetDialog open categories={categories} onClose={onClose} onSubmit={vi.fn()}/>);
+  fireEvent.change(screen.getByLabelText('食費（円）'),{target:{value:'70000'}});
+  fireEvent.click(screen.getByRole('dialog',{name:'予算を設定'}));
+  expect(onClose).not.toHaveBeenCalled();
+  expect(screen.getByLabelText('食費（円）').value).toBe('70000');
+  fireEvent.click(screen.getByRole('button',{name:'キャンセル',exact:true}));
+  expect(onClose).toHaveBeenCalledOnce();
+});
 it('preloads categories, derives total and saves the complete values',async()=>{
   let saved;
   const onClose=vi.fn();
