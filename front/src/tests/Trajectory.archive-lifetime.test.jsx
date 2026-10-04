@@ -68,3 +68,21 @@ it('retries a rejected PMTiles header after map failure without retaining its re
  expect((await state.reads[1]).data.maxzoom).toBe(14);
  expect(fetchArchive).toHaveBeenCalledTimes(2);
 });
+it.each([false,true])('reacquires a malformed full 200 archive on retry with overlapping map: %s',async overlap=>{
+ const {default:Trajectory}=await import('../pages/Trajectory.jsx');
+ const fetchArchive=vi.fn().mockResolvedValueOnce(new Response(new Uint8Array(16384),{status:200})).mockImplementation(async()=>new Response(archive(),{status:200}));
+ vi.stubGlobal('fetch',fetchArchive);
+ render(<><Trajectory/>{overlap&&<Trajectory/>}</>);
+ await waitFor(()=>expect(state.maps).toHaveLength(overlap?2:1));
+ for(const read of state.reads)await expect(read).rejects.toThrow('Wrong magic number for PMTiles archive');
+ expect(fetchArchive).toHaveBeenCalledTimes(1);
+ act(()=>state.maps[0].handlers.error());
+ expect(state.removals).toBe(overlap?0:1);
+ fireEvent.click(await screen.findByRole('button',{name:'地図を再試行'}));
+ await waitFor(()=>expect(state.maps).toHaveLength(overlap?3:2));
+ expect((await state.reads.at(-1)).data.maxzoom).toBe(14);
+ const tile=await state.protocol({url:`${state.maps.at(-1).options.style.sources.basemap.url}/0/0/0`,type:'arrayBuffer'},new AbortController());
+ expect(Array.from(tile.data)).toEqual([11,22,33]);
+ expect(fetchArchive).toHaveBeenCalledTimes(2);
+ expect(fetchArchive.mock.calls[1][1].cache).toBe('reload');
+});

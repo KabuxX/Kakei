@@ -17,6 +17,18 @@ describe('bounded same-origin archive source',()=>{
 });
 
 describe('archive recovery and version consistency',()=>{
+ it('does not restore invalidated bytes when an older shared acquisition finishes',async()=>{
+  let finish,calls=0;const options=[];
+  const s=source((_,o)=>{options.push(o);calls++;return calls===1?new Promise(resolve=>{finish=()=>resolve(response());}):Promise.resolve(response());});
+  const first=s.getBytes(0,1);
+  s.invalidate();
+  const next=s.getBytes(2,3);
+  finish();
+  expect(Array.from(new Uint8Array((await first).data))).toEqual([0]);
+  expect(Array.from(new Uint8Array((await next).data))).toEqual([2,3,4]);
+  expect(calls).toBe(2);expect(options[1].cache).toBe('reload');
+  await s.getBytes(5,2);expect(calls).toBe(2);
+ });
  it('retries a short 200 instead of retaining invalid whole bytes',async()=>{let calls=0;const s=source(async()=>response(200,++calls===1?bytes.slice(0,2):bytes));await expect(s.getBytes(2,3)).rejects.toThrow();expect(Array.from(new Uint8Array((await s.getBytes(2,3)).data))).toEqual([2,3,4]);expect(calls).toBe(2);});
  it('discards a cached whole body when a later range proves it unusable',async()=>{let calls=0;const s=source(async()=>response(200,++calls===1?bytes.slice(0,2):bytes));await s.getBytes(0,1);await expect(s.getBytes(2,3)).rejects.toThrow();expect(Array.from(new Uint8Array((await s.getBytes(2,3)).data))).toEqual([2,3,4]);expect(calls).toBe(2);});
  it.each([200,206])('invalidates changed strong ETags for status %s and reloads on retry',async status=>{const {EtagMismatch}=await import('pmtiles');const options=[];const s=source(async(_,o)=>{options.push(o);return response(status,status===200?bytes:bytes.slice(2,5),{ETag:'"new"',...(status===206?{'Content-Range':'bytes 2-4/8'}:{})});});await expect(s.getBytes(2,3,undefined,'"old"')).rejects.toBeInstanceOf(EtagMismatch);const next=await s.getBytes(2,3);expect(next.etag).toBe('"new"');expect(Array.from(new Uint8Array(next.data))).toEqual([2,3,4]);expect(options[1].cache).toBe('reload');});

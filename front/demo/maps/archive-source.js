@@ -6,7 +6,7 @@ export function createArchiveSource(url, { maxBytes, fetchImpl = fetch }) {
   const target = new URL(url, globalThis.location?.href);
   if (!origin || target.origin !== origin || !['http:', 'https:'].includes(target.protocol) || target.username || target.password) throw new Error('Archive URL must be same-origin');
   if (!Number.isSafeInteger(maxBytes) || maxBytes <= 0) throw new Error('Invalid archive limit');
-  let whole, pending, mustReload = false;
+  let whole, pending, mustReload = false, generation = 0;
   async function readBounded(response, limit) {
     const declared = response.headers.get('Content-Length');
     if (declared && Number(declared) > limit) { await response.body?.cancel(); throw new Error('Archive exceeds byte limit'); }
@@ -35,6 +35,7 @@ export function createArchiveSource(url, { maxBytes, fetchImpl = fetch }) {
     }
     if (pending) { await pending; return request(offset, length, expectedEtag); }
     let result;
+    const acquisitionGeneration = generation;
     const operation = (async () => {
       const response = await fetchImpl(target.href, { headers: { Range: `bytes=${offset}-${offset + length - 1}` }, redirect: 'error', credentials: 'same-origin', cache: mustReload ? 'reload' : undefined });
       if (response.url && new URL(response.url).origin !== target.origin) throw new Error('External archive response');
@@ -47,7 +48,7 @@ export function createArchiveSource(url, { maxBytes, fetchImpl = fetch }) {
       if (response.status === 200) {
         const data = await readBounded(response, maxBytes);
         result = slice(data, offset, length, etag);
-        whole = { data, etag };
+        if (generation === acquisitionGeneration) whole = { data, etag };
       }
       else if (response.status === 206) {
         const match = /^bytes (\d+)-(\d+)\/(\d+)$/.exec(response.headers.get('Content-Range') || '');
@@ -63,6 +64,9 @@ export function createArchiveSource(url, { maxBytes, fetchImpl = fetch }) {
   function slice(data, offset, length, etag) { if (offset + length > data.byteLength) throw new Error('Archive range exceeds file'); return { data: data.slice(offset, offset + length).buffer, etag }; }
   return {
     getKey: () => target.href,
+    // A consumer can reject a length-valid body during archive parsing. Keep
+    // shared readers alive, but never retain bytes from before invalidation.
+    invalidate() { generation++; whole = undefined; mustReload = true; },
     getBytes(offset, length, signal, expectedEtag) {
       if (!Number.isSafeInteger(offset) || !Number.isSafeInteger(length) || offset < 0 || length <= 0 || offset + length > maxBytes) return Promise.reject(new Error('Invalid archive range'));
       if (signal?.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'));

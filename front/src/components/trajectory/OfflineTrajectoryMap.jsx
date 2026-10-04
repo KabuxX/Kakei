@@ -11,7 +11,7 @@ const asset=path=>`${import.meta.env.BASE_URL}${path}`;
 // The one bounded immutable archive belongs to the demo document, so an
 // in-flight whole-file fallback and PMTiles caches survive date/page unmounts.
 // Protocol registration belongs to mounted maps and is removed for its last user.
-// A map error resets only decoded PMTiles state (which caches rejected reads).
+// A map error invalidates bytes rejected by parsing as well as decoded state.
 let archiveSource,archive,protocol,protocolUsers=0;
 function acquireProtocol(){
  if(!archiveSource){const url=new URL(asset('maps/tokyo.pmtiles'),location.href).href;archiveSource=createArchiveSource(url,{maxBytes:manifest.bytes});}
@@ -41,7 +41,7 @@ export default function OfflineTrajectoryMap({day,selectedEventId,onSelectEvent}
  useEffect(()=>{
   let map,release,observer,active=true;setMessage('地図を準備しています…');
   const dispose=()=>{observer?.disconnect();clearMarkers();if(map){map.off('load',loaded);map.off('error',failed);map.remove();map=undefined;}mapRef.current=null;release?.();release=undefined;};
-  const failed=()=>{if(active){dispose();archive=undefined;setMessage('地図を読み込めませんでした。時系列はそのまま確認できます。');}};
+  const failed=()=>{if(active){dispose();archiveSource?.invalidate();archive=undefined;setMessage('地図を読み込めませんでした。時系列はそのまま確認できます。');}};
   const loaded=()=>{if(!active)return;try{map.addSource('stops',{type:'geojson',data:{type:'FeatureCollection',features:[]}});map.addSource('segments',{type:'geojson',data:{type:'FeatureCollection',features:[]}});map.addLayer({id:'trajectory-segments',type:'line',source:'segments',paint:{'line-color':['get','color'],'line-width':6,'line-opacity':0.9}});update();setMessage('');}catch{failed();}};
   try{
    const probe=document.createElement('canvas'),context=probe.getContext('webgl2');
