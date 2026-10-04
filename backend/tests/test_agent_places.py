@@ -1,4 +1,4 @@
-import json,sys,tempfile,unittest
+import copy,json,sys,tempfile,unittest
 from pathlib import Path
 from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
@@ -11,6 +11,31 @@ from services.validation import ValidationError
 CANDIDATE={'id':'candidate-a','name':'同名店','address':'New York','coordinates':[-73.9,40.7],'sourceUrl':'https://www.openstreetmap.org/copyright','attribution':'© OpenStreetMap contributors'}
 COMMAND={'kind':'trajectory.create','identity':{'kind':'day','date':'2027-01-04'},'data':{'events':[{'id':'e','time':None,'timeEvidence':'unknown','placeId':'unknown-store'}],'legs':[]}}
 class PlacesTests(unittest.TestCase):
+ def test_unresolved_proposal_rejects_missing_visit_id_before_staging(self):
+  with tempfile.TemporaryDirectory() as directory:
+   path=Path(directory)/'db';store=Store(path);store.initialize([]);agent=AgentStore(path);thread=agent.create_thread()['id']
+   for identifier in (None,'',False):
+    command=copy.deepcopy(COMMAND)
+    if identifier is None:command['data']['events'][0].pop('id')
+    else:command['data']['events'][0]['id']=identifier
+    with self.subTest(identifier=identifier),self.assertRaises(ValidationError):
+     agent.create_proposal(thread,[command],place_candidates=[{'placeId':'unknown-store','query':'店舗','candidates':[CANDIDATE]}])
+   self.assertEqual(agent.get_thread(thread)['proposals'],[])
+ def test_invalid_revision_does_not_erase_selected_place(self):
+  with tempfile.TemporaryDirectory() as directory:
+   path=Path(directory)/'db';store=Store(path);store.initialize([]);agent=AgentStore(path);thread=agent.create_thread()['id']
+   command=copy.deepcopy(COMMAND)
+   command['data']['events'].append({'id':'e2','time':None,'timeEvidence':'unknown','placeId':'second-store'})
+   groups=[{'placeId':'unknown-store','query':'店舗','candidates':[CANDIDATE]}, {'placeId':'second-store','query':'店舗2','candidates':[{**CANDIDATE,'id':'candidate-b'}]}]
+   proposal=agent.create_proposal(thread,[command],place_candidates=groups)
+   proposal=agent.select_place_candidate(proposal['id'],proposal['revision'],'candidate-a')
+   invalid=copy.deepcopy(proposal['commands']);invalid[0]['data']['events'][0].pop('id')
+   with self.assertRaises(ValidationError):agent.revise_proposal(proposal['id'],proposal['revision'],invalid)
+   self.assertEqual(agent.get_proposal(proposal['id']),proposal)
+   proposal=agent.select_place_candidate(proposal['id'],proposal['revision'],'candidate-b')
+   proposal=agent.confirm_trajectory_order(proposal['id'],proposal['revision'])
+   store.apply_agent_proposal(proposal['id'],proposal['revision'])
+   self.assertEqual([e['id'] for e in store.get_trajectory_day('2027-01-04')['days'][0]['events']],['e','e2'])
  def test_candidate_selection_uses_saved_coordinates_and_rejects_forgery(self):
   with tempfile.TemporaryDirectory() as directory:
    path=Path(directory)/'db';store=Store(path);store.initialize([]);agent=AgentStore(path);thread=agent.create_thread()['id']

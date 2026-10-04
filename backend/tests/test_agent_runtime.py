@@ -1,4 +1,4 @@
-import asyncio, sys, tempfile, unittest
+import asyncio, copy, json, sys, tempfile, unittest
 from pathlib import Path
 from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -95,6 +95,51 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
         record=AgentSearchStore(self.store.db_path).history(thread)['records'][0]['result']
         self.assertEqual(record['candidates'][0]['coordinateEvidence']['status'],'address_matched')
         self.assertEqual(response['message']['sources'],repository.get_thread(thread)['messages'][-1]['sources'])
+
+    async def test_invalid_search_arguments_can_be_corrected_without_losing_draft(self):
+        from db.agent_store import AgentStore
+        from db.agent_search_store import AgentSearchStore
+        from test_geolonia_search import Geolonia
+        from geolonia_fixtures import ADDRESS
+        repository=AgentStore(self.store.db_path);thread=repository.create_thread()['id']
+        lease=repository.begin_turn(thread,'one','合成テスト店舗 '+ADDRESS)
+        messages=repository.get_thread(thread)['messages']
+        request={'query':'合成テスト店舗','place_id':'p','address':ADDRESS,'evidence':[{'field':'address','source':'user_message','source_id':messages[-1]['id'],'value':ADDRESS}]}
+        command={'operation':'create','identity':{'kind':'day','date':'2027-03-01'},'data':{'events':[{'id':'visit','time':'12:00','timeEvidence':'exact','placeId':'p'}],'legs':[]}}
+        def call(name,args,identifier):return AIMessage(content='',tool_calls=[{'name':name,'args':args,'id':identifier,'type':'tool_call'}])
+        model=ScriptModel(replies=[call('search_place',request,'s1'),call('edit_trajectory',command,'draft'),
+            call('search_place',{**request,'landmark':'根拠のない駅'},'bad'),call('search_place',request,'corrected'),AIMessage(content='変更案を確認してください')])
+        with patch('agent.geolonia_client.GeoloniaClient',Geolonia):
+            raw=await AgentRunner(self.store,model=model).run_turn(thread,messages,turn_context={'thread_id':thread,'client_message_id':'one','run_token':lease['token']})
+        response=repository.complete_turn(thread,'one',lease,raw)
+        feedback=next(m for m in model._seen[-1] if m.type=='tool' and m.tool_call_id=='bad')
+        self.assertEqual(feedback.status,'error')
+        self.assertEqual(json.loads(feedback.content)['field'],'landmark')
+        self.assertEqual(response['proposal']['commands'][0]['data'],command['data'])
+        self.assertTrue(response['message']['sources'])
+        searches=AgentSearchStore(self.store.db_path).history(thread)['records']
+        self.assertEqual(len(searches),2)
+        self.assertTrue(all(r['result']['candidates'] for r in searches))
+        self.assertEqual(self.store.list_trajectory_dates(),[])
+        proposal=response['proposal'];candidate=proposal['metadata']['placeCandidates'][0]['candidates'][0]
+        proposal=repository.select_place_candidate(proposal['id'],proposal['revision'],candidate['id'],confirmed=True)
+        self.store.apply_agent_proposal(proposal['id'],proposal['revision'])
+        self.assertEqual(self.store.get_trajectory_day('2027-03-01')['days'][0]['events'][0]['id'],'visit')
+
+    async def test_invalid_visit_draft_is_corrected_in_same_turn(self):
+        place={'name':'確認済みの店舗','address':None,'coordinates':[139,35],'sourceUrl':None,'placeEvidence':'user'}
+        self.store.sync_trajectory({'places':{'p':place},'days':[]})
+        valid={'operation':'create','identity':{'kind':'day','date':'2027-03-01'},'data':{'events':[{'id':'visit','time':'12:00','timeEvidence':'exact','placeId':'p'}],'legs':[]}}
+        invalid=copy.deepcopy(valid);invalid['data']['events'][0].pop('id')
+        model=ScriptModel(replies=[AIMessage(content='',tool_calls=[{'name':'edit_trajectory','args':invalid,'id':'bad','type':'tool_call'}]),
+            AIMessage(content='',tool_calls=[{'name':'edit_trajectory','args':valid,'id':'fixed','type':'tool_call'}]),AIMessage(content='変更案を確認してください')])
+        raw=await AgentRunner(self.store,model=model).run_turn('thread',[{'role':'user','text':'軌跡を作って'}])
+        feedback=next(m for m in model._seen[-1] if m.type=='tool' and m.tool_call_id=='bad')
+        self.assertEqual(feedback.status,'error')
+        self.assertEqual(json.loads(feedback.content)['field'],'events')
+        self.assertEqual(len(raw['commands']),1)
+        self.assertEqual(raw['commands'][0]['data'],valid['data'])
+        self.assertEqual(self.store.list_trajectory_dates(),[])
 
     async def test_history_overrides_unsupported_assistant_claim(self):
         import json

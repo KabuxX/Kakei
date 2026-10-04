@@ -25,6 +25,15 @@ def command_dicts(commands: object) -> list[dict]:
         if item['kind'] == 'trajectory.delete':
             if item['data'] or item['identity'].get('kind') not in ('day', 'event', 'leg'):
                 raise ValidationError('commands', '削除は日・訪問・移動区間を指定し、data は空にしてください。')
+        elif item['kind'].startswith('trajectory.') and item['identity'].get('kind') == 'day':
+            # Place resolution can defer preview validation. Visit IDs must be
+            # checked at the tool boundary so the agent can correct its draft.
+            events = item['data'].get('events')
+            if not isinstance(events, list):
+                raise ValidationError('events', '日単位の軌跡には events の配列を指定してください。')
+            for index, event in enumerate(events):
+                if not isinstance(event, dict) or not isinstance(event.get('id'), str) or not event['id'].strip():
+                    raise ValidationError('events', f'events[{index}].id: 訪問IDには空でない文字列を指定し、区間の fromEventId/toEventId と一致させてください。')
         result.append(item)
     try:
         encoded = json.dumps(result, ensure_ascii=False, allow_nan=False)
