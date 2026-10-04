@@ -35,7 +35,13 @@ agent_trajectory_events, agent_trajectory_legs, agent_trajectory_places。
 支出にはmerchant,paymentMethod(cash/credit_card/e_money/bank_account),items([{name,amount}])。
 カテゴリ: 支出は食費/住まい/日用品/交通/娯楽/その他、収入は収入。品目合計はamountと一致が必要。
 時刻が不明なら確認してください。編集は全フィールドを指定し、時刻を確認した場合confirmTime=true。
-軌跡はtrajectory_contextで指定日の取引と保存済み日を読んで作成・編集する。
+軌跡はtrajectory_contextで指定日の取引と保存済み日を読んで作成・編集・削除する。
+削除はedit_trajectoryのoperation=delete。日全体はidentity={kind:day,date:YYYY-MM-DD}、
+訪問はidentity={kind:event,date:YYYY-MM-DD,id:保存済み訪問ID}、
+移動区間はidentity={kind:leg,date:YYYY-MM-DD,fromEventId:保存済み訪問ID,toEventId:保存済み訪問ID}。
+削除のdataは省略または{}。対象日や同名の訪問・区間が曖昧なら質問し、保存済みIDを使う。
+訪問削除では接続する移動区間もサーバーが削除案に含める。残った訪問間に区間を自動生成しない。
+区間削除では両端の訪問が残る。取引・共有地点は削除しない。承認前に削除済みと伝えない。
 基本はidentity={kind:day,date:YYYY-MM-DD},data={events:[...],legs:[...]}。
 event={id,time:HH:mmまたはnull,placeId,transactionId任意,timeEvidence:exact/estimated/unknown,timeEvidenceNote}。
 仮設定の取引時刻(timeEstimated=true)はestimatedとし説明を付ける。完全に不明ならnull+unknown。
@@ -138,8 +144,10 @@ class AgentRunner:
             return stage('transaction', operation, {'id': transaction_id} if transaction_id else {}, data)
 
         @tool
-        def edit_trajectory(operation: str, identity: dict, data: dict) -> str:
-            """Stage a create/update day, event, leg or place. Identity has kind/date/id as needed."""
+        def edit_trajectory(operation: str, identity: dict, data: dict | None = None) -> str:
+            """Stage create/update or delete for review. Delete day/event/leg with no data; connected legs are removed with an event. Identity identifies saved kind/date/id or fromEventId/toEventId."""
+            if operation == 'delete' and data is None:
+                data = {}
             return stage('trajectory', operation, identity, data)
 
         @tool

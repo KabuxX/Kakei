@@ -1,6 +1,7 @@
 import React from 'react';
 export default function TrajectoryFields({command,onChange}){
  const data=command.data;
+ if(command.kind==='trajectory.delete')return <p>{command.identity.date} の削除対象を変更する場合はメッセージで伝えてください。</p>;
  if(command.identity.kind!=='day')return <p>この操作の修正内容はメッセージで伝えてください。</p>;
  const setEvent=(index,patch)=>onChange({...command,data:{...data,events:data.events.map((e,i)=>i===index?{...e,...patch}:e)}});
  const move=(index,step)=>{const events=[...data.events];[events[index],events[index+step]]=[events[index+step],events[index]];

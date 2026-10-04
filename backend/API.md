@@ -269,6 +269,20 @@ curl http://localhost:8765/api/trajectory/2026-09-19
 
 未設定503、モデル通信失敗502、時間切れ504、回数超過422。元データ・版・状態の競合は409です。生成中に家計データが変わった場合も409として再送を案内します。モデルは書き込み接続を持ちません。
 
+### 軌跡の削除案
+
+`edit_trajectory(operation="delete", identity=..., data={})` は日全体・訪問・移動区間の削除案を作成します。ツールの `data` は省略できます。変更案のコマンドは `{kind:"trajectory.delete",identity,data:{}}` です。
+
+| 対象 | identity | 削除範囲 |
+| --- | --- | --- |
+| 日全体 | `{kind:"day",date:"YYYY-MM-DD"}` | その日の訪問と区間 |
+| 訪問 | `{kind:"event",date:"YYYY-MM-DD",id:"訪問ID"}` | 指定訪問と接続する区間 |
+| 区間 | `{kind:"leg",date:"YYYY-MM-DD",fromEventId:"始点訪問ID",toEventId:"終点訪問ID"}` | 指定区間だけ |
+
+取引と共有地点は残ります。訪問削除後の区間は自動生成しません。最後の訪問を削除すると空の日が残ります。共有地点の削除と空でない `data` は許可しません。直接の軌跡削除APIと異なり、agentの訪問削除では接続区間の削除も同じ変更案に含めます。
+
+`before` / `after` は各操作前後の日全体です。日削除の `after` はnullです。承認までは軌跡を変更せず、承認時に元の日・取引・表示に使う地点の変更を再確認します。競合時は409、対象がない場合は404、却下や保存失敗では部分変更を残しません。削除だけの案では、残った訪問順の再確認は要求しません。
+
 ### レシートのアップロード
 
 `POST /api/agent/threads/{id}/receipts` は multipart の `file` 一つを受け取り、`201 {id,mimeType,sha256,pageCount,createdAt,duplicateReceiptIds}` を返します。JPEG/PNG/WebP/PDF、10 MiB以内、PDFは暗号化なし・3ページまで。拡張子と実内容が違うもの、破損、画像末尾への付加データを拒否します。

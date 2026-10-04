@@ -100,7 +100,8 @@ def prepare_changes(connection, commands):
                         if visits and old.get('merchant') != record.get('merchant') and day['date'] not in trajectory_days:
                             raise TrajectoryConflict('店舗を変更するには、参照する軌跡も修正してください。')
         else:
-            parsed = parse_trajectory_command({**identity, 'data': draft}, 'POST' if action == 'create' else 'PUT')
+            payload = identity if action == 'delete' else {**identity, 'data': draft}
+            parsed = parse_trajectory_command(payload, {'create': 'POST', 'update': 'PUT', 'delete': 'DELETE'}[action])
             if parsed.kind == 'place':
                 key = 'place:' + parsed.id
                 for day in state['timeline']['days']:
@@ -111,6 +112,14 @@ def prepare_changes(connection, commands):
                 changed_days.add(parsed.date)
             keys.add(key)
             before[index] = copy.deepcopy(baseline_value(state, key))
+            if action == 'delete' and before[index] is not None:
+                keys.update('place:' + event['placeId'] for event in before[index]['events'])
+                keys.update('place:' + identifier for leg in before[index]['legs'] for identifier in leg.get('viaPlaceIds', []))
+            if action == 'delete' and parsed.kind == 'event':
+                day = baseline_value(state, key)
+                if day is not None:
+                    day['legs'] = [leg for leg in day['legs']
+                                   if parsed.id not in (leg['fromEventId'], leg['toEventId'])]
             _apply_trajectory_command(state['timeline'], parsed, action)
             after[index] = copy.deepcopy(baseline_value(state, key))
     try:

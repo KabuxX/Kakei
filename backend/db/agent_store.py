@@ -116,9 +116,9 @@ class AgentStore:
         metadata = {'placeCandidates': place_candidates, 'sourceVersion': source_version(c)} if place_candidates else {}
         preview = place_preview(c, commands, metadata)
         from agent.trajectory import order_required
-        metadata['orderRequired'] = order_required(preview['after'])
+        metadata['orderRequired'] = order_required([value for command, value in zip(commands, preview['after']) if command['kind'] != 'trajectory.delete'])
         from services.agent_places import review_labels
-        metadata['referenceLabels'] = review_labels(c, commands, preview['after'])
+        metadata['referenceLabels'] = review_labels(c, commands, preview['before'] + preview['after'])
         c.execute("""INSERT INTO agent_proposals
             (id, thread_id, revision, status, commands_json, baselines_json, created_at, expires_at, before_json, after_json)
             VALUES (?, ?, 1, 'pending', ?, ?, ?, ?, ?, ?)""",
@@ -214,8 +214,10 @@ class AgentStore:
             validate_bound_places(commands, metadata)
             preview = place_preview(c, commands, metadata)
             from agent.trajectory import order_required
-            metadata['orderRequired'] = order_required(preview['after'])
+            metadata['orderRequired'] = order_required([value for command, value in zip(commands, preview['after']) if command['kind'] != 'trajectory.delete'])
             metadata['orderConfirmed'] = False
+            from services.agent_places import review_labels
+            metadata['referenceLabels'] = review_labels(c, commands, preview['before'] + preview['after'])
             c.execute('UPDATE agent_proposals SET metadata_json=? WHERE id=?', (dumps(metadata), proposal_id))
             c.execute('''UPDATE agent_proposals SET commands_json = ?, revision = revision + 1,
                 baselines_json = ?, before_json = ?, after_json = ? WHERE id = ?''',

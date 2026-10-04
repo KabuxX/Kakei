@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import * as api from './lib/agent-api.js';
 import AgentPlaces from './AgentPlaces.jsx';
 import TrajectoryFields from './TrajectoryFields.jsx';
+import TrajectoryDeletion from './TrajectoryDeletion.jsx';
 import ReceiptCalculation from './ReceiptCalculation.jsx';
 const labels={title:'内容',date:'日時',type:'区分',category:'カテゴリ',amount:'金額',merchant:'店舗',merchantAddress:'取引先住所',paymentMethod:'支払方法',items:'品目',name:'名前',timeEstimated:'時刻は推定',events:'訪問',legs:'移動',placeId:'地点',time:'時刻',id:'識別子',transactionId:'関連取引',modeHint:'移動手段',from:'出発',to:'到着',coordinates:'座標',address:'住所',transportTransactionId:'交通費',viaPlaceIds:'経由地',timeEvidence:'時刻の根拠',timeEvidenceNote:'時刻の補足',modeEvidence:'移動手段の根拠',modeEvidenceNote:'移動の補足',placeEvidence:'地点の根拠',attribution:'出典',sourceUrl:'出典',receiptIds:'添付レシート',fromEventId:'出発する訪問',toEventId:'到着する訪問'};
 const values={income:'収入',expense:'支出',cash:'現金',credit_card:'クレジットカード',e_money:'電子マネー',bank_account:'銀行口座',exact:'確定',estimated:'推定',unknown:'不明',legacy:'既存記録',inferred:'推定',fare:'交通費',user:'ユーザー指定',provider:'地点検索'};
@@ -33,6 +34,7 @@ export default function AgentProposal({proposal,onChange,onCommitted,busy,setBus
   const referenceLabels={...proposal.metadata?.referenceLabels};
   for (const group of proposal.metadata?.placeCandidates||[]) referenceLabels[group.placeId]=group.candidates.find(c=>c.id===group.selectedCandidateId)?.name || proposal.metadata?.authorizedPlaces?.[group.placeId]?.name || `${group.query}（地点未確定）`;
   for (const group of proposal.metadata?.placeCandidates||[]) if(group.selectedPlaceId)referenceLabels[group.selectedPlaceId]=referenceLabels[group.placeId];
+  const placeLabels={...referenceLabels};
   for (const value of proposal.after) value?.events?.forEach((event,index)=>{referenceLabels[event.id]=`訪問 ${index+1}`;});
   const groups=proposal.metadata?.placeCandidates||[];
   const unresolved=groups.some(g=>!g.selectedCandidateId);
@@ -42,6 +44,8 @@ export default function AgentProposal({proposal,onChange,onCommitted,busy,setBus
   const target=matches.find(m=>m.transaction.id===proposal.metadata?.targetChoice)?.transaction;
   const needsOrder=proposal.metadata?.orderRequired&&!proposal.metadata?.orderConfirmed;
   const pending=proposal.status==='pending' && proposal.expiresAt>Date.now()/1000;
+  const hasDeletion=proposal.commands.some(command=>command.kind==='trajectory.delete');
+  const deleteOnly=proposal.commands.every(command=>command.kind==='trajectory.delete');
   const act=async(fn)=>{if(busy)return;setBusy(true);setError('');try{await fn();}catch(e){setError(e.message||'操作できませんでした。再試行してください。');}finally{setBusy(false);}};
   const approve=()=>act(async()=>{await api.approve(proposal.id,proposal.revision);onChange({...proposal,status:'applied'});await onCommitted();});
   return <article className="agent-proposal" aria-label="変更案">
@@ -54,13 +58,13 @@ export default function AgentProposal({proposal,onChange,onCommitted,busy,setBus
       <ReceiptCalculation review={receipt} current={editing?draft[0]?.data:proposal.after[0]}/>
       {matches.length>0&&<details><summary>重複の可能性がある取引</summary><ul>{matches.map(m=><li key={m.transaction.id}>{m.reason==='hash'?'同じレシート':'近い取引'}: {m.transaction.date} {m.transaction.title} {m.transaction.amount}円</li>)}</ul></details>}
     </section>}
-    {proposal.commands.map((command,i)=><section className="agent-change" key={i}><h3>{command.kind.startsWith('transaction')?'取引':'軌跡'}の{command.kind.endsWith('create')?'追加':'変更'}</h3><div className="agent-diff"><div><h4>変更前</h4><RecordView value={proposal.before[i]} referenceLabels={referenceLabels}/></div><div><h4>変更後</h4><RecordView value={proposal.after[i]} referenceLabels={referenceLabels}/></div></div></section>)}
+    {proposal.commands.map((command,i)=>command.kind==='trajectory.delete'?<TrajectoryDeletion key={i} command={command} before={proposal.before[i]} after={proposal.after[i]} referenceLabels={placeLabels}/>:<section className="agent-change" key={i}><h3>{command.kind.startsWith('transaction')?'取引':'軌跡'}の{command.kind.endsWith('create')?'追加':'変更'}</h3><div className="agent-diff"><div><h4>変更前</h4><RecordView value={proposal.before[i]} referenceLabels={referenceLabels}/></div><div><h4>変更後</h4><RecordView value={proposal.after[i]} referenceLabels={referenceLabels}/></div></div></section>)}
     {pending&&groups.map(g=><AgentPlaces key={`${g.placeId}:${proposal.revision}`} group={g} proposal={proposal} act={act} onChange={onChange} busy={busy||editing}/>)}
     {pending&&needsOrder&&<div className="agent-notice"><p>時刻が不明・推定の訪問が複数あります。表示順を確認し、必要なら「内容を修正」で並び替えてください。</p><button type="button" className="secondary-button" disabled={busy||editing} onClick={()=>act(async()=>onChange(await api.confirmOrder(proposal.id,proposal.revision)))}>この訪問順を確認した</button></div>}
     {error&&<div role="alert" className="agent-error">{error}<button type="button" className="secondary-button" disabled={busy} onClick={()=>act(async()=>{const latest=await api.getProposal(proposal.id);onChange(latest);setEditing(false);if(latest.status==='applied')await onCommitted();})}>変更案を再読み込み</button></div>}
     {pending&&<>{editing?<form onSubmit={e=>{e.preventDefault();act(async()=>{onChange(await api.revise(proposal.id,proposal.revision,draft));setEditing(false);});}}>
       {draft.map((c,i)=>c.kind.startsWith('transaction')?<TransactionFields key={i} command={c} index={i} onChange={next=>setDraft(draft.map((v,n)=>n===i?next:v))}/>:<TrajectoryFields key={i} command={c} onChange={next=>setDraft(draft.map((v,n)=>n===i?next:v))}/>)}
       <div className="agent-actions"><button className="primary-button" disabled={busy}>差分を更新</button><button className="secondary-button" type="button" disabled={busy} onClick={()=>setEditing(false)}>修正をやめる</button></div>
-    </form>:<div className="agent-actions"><button type="button" className="primary-button" disabled={busy||unresolved||needsOrder} onClick={approve}>確認して保存</button><button type="button" className="secondary-button" disabled={busy} onClick={()=>{setDraft(structuredClone(proposal.commands));setEditing(true);}}>内容を修正</button><button type="button" className="secondary-button" disabled={busy} onClick={()=>act(async()=>onChange(await api.reject(proposal.id,proposal.revision)))}>却下</button></div>}</>}
+    </form>:<div className="agent-actions"><button type="button" className="primary-button" disabled={busy||unresolved||needsOrder} onClick={approve}>{hasDeletion?(deleteOnly?'確認して削除':'削除を含む変更を保存'):'確認して保存'}</button><button type="button" className="secondary-button" disabled={busy} onClick={()=>{setDraft(structuredClone(proposal.commands));setEditing(true);}}>内容を修正</button><button type="button" className="secondary-button" disabled={busy} onClick={()=>act(async()=>onChange(await api.reject(proposal.id,proposal.revision)))}>却下</button></div>}</>}
   </article>;
 }

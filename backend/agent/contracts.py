@@ -18,10 +18,13 @@ def command_dicts(commands: object) -> list[dict]:
         item = asdict(value) if isinstance(value, AgentCommand) else value
         if not isinstance(item, dict) or set(item) != {'kind', 'identity', 'data'}:
             raise ValidationError('commands', '操作の形式が正しくありません。')
-        if item['kind'] not in ('transaction.create', 'transaction.update', 'trajectory.create', 'trajectory.update'):
+        if item['kind'] not in ('transaction.create', 'transaction.update', 'trajectory.create', 'trajectory.update', 'trajectory.delete'):
             raise ValidationError('commands', '許可されていない操作です。')
         if not isinstance(item['identity'], dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in item['identity'].items()) or not isinstance(item['data'], dict):
             raise ValidationError('commands', '操作の対象と内容を確認してください。')
+        if item['kind'] == 'trajectory.delete':
+            if item['data'] or item['identity'].get('kind') not in ('day', 'event', 'leg'):
+                raise ValidationError('commands', '削除は日・訪問・移動区間を指定し、data は空にしてください。')
         result.append(item)
     try:
         encoded = json.dumps(result, ensure_ascii=False, allow_nan=False)

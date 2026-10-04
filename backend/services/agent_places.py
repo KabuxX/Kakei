@@ -13,9 +13,16 @@ def preview(connection,commands,metadata):
     if not unresolved(metadata):return prepare_changes(connection,resolve_places(commands,metadata))
     state=read_state(connection)
     before=[];after=[]
+    deletions = [command for command in commands if command['kind'] == 'trajectory.delete']
+    deletion_preview = prepare_changes(connection, deletions) if deletions else None
+    deletion_index = 0
     for command in commands:
         identity=command['identity']
-        if command['kind'].startswith('trajectory.'):
+        if command['kind'] == 'trajectory.delete':
+            before.append(deletion_preview['before'][deletion_index])
+            after.append(deletion_preview['after'][deletion_index])
+            deletion_index += 1
+        elif command['kind'].startswith('trajectory.'):
             before.append(next((d for d in state['timeline']['days'] if d['date']==identity.get('date')),None))
             after.append({**({'date':identity['date']} if 'date' in identity else {}),**command['data']})
         else:

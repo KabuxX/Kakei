@@ -8,6 +8,17 @@ from api.app import create_app
 class BrowserRunner:
     def __init__(self,store):self.store=store
     async def run_turn(self, thread_id, messages, receipt_id=None, *, turn_context=None):
+        if '削除の動作確認' in messages[-1]['text']:
+            import re
+            text=messages[-1]['text']
+            day=re.search(r'2027-02-0[123]',text).group()
+            saved=self.store.get_trajectory_day(day)['days'][0]
+            identity={'kind':'day','date':day}
+            if '訪問を削除' in text:
+                identity.update(kind='event',id=saved['events'][1]['id'])
+            elif '移動区間を削除' in text:
+                identity.update(kind='leg',fromEventId=saved['legs'][0]['fromEventId'],toEventId=saved['legs'][0]['toEventId'])
+            return {'text':'削除対象と移動区間への影響を確認してください。','commands':[{'kind':'trajectory.delete','identity':identity,'data':{}}]}
         if any(term in messages[-1]['text'] for term in ('Web座標の確認','推定位置の確認')):
             import copy
             from coordinate_fixtures import PUBLISHED_PLACE,ESTIMATED_PLACE
