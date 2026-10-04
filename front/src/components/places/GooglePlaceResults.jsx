@@ -1,3 +1,4 @@
+import {apiFetch} from '@kakei/runtime';
 import React,{useEffect,useState} from 'react';
 import {safeUrl} from './PlaceSources.jsx';
 export default function GooglePlaceResults({placeIds=[]}) {
@@ -6,7 +7,7 @@ export default function GooglePlaceResults({placeIds=[]}) {
   let active=true;const controller=new AbortController();
   setState({signature,items:[]});
   Promise.all(placeIds.map(async id=>{
-   try {const response=await fetch(`/api/places/google/${encodeURIComponent(id)}`,{signal:controller.signal,cache:'no-store'});if(!response.ok)throw new Error();return {id,...await response.json()};}
+   try {const response=await apiFetch(`/api/places/google/${encodeURIComponent(id)}`,{signal:controller.signal,cache:'no-store'});if(!response.ok)throw new Error();return {id,...await response.json()};}
    catch{return {id,unavailable:true};}
   })).then(items=>{if(active)setState({signature,items});});
   return()=>{active=false;controller.abort();};

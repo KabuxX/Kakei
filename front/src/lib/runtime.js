@@ -6,3 +6,4 @@ export const apiFetch=(input,init)=>globalThis.fetch(input,init);
 export const assetUrl=path=>`${import.meta.env.BASE_URL}${path.replace(/^\//,'')}`;
 export const receiptUrl=(id,threadId)=>threadId?`/api/agent/threads/${encodeURIComponent(threadId)}/receipts/${encodeURIComponent(id)}`:`/api/receipts/${encodeURIComponent(id)}`;
 export const loadTrajectoryMap=()=>import('../components/trajectory/GoogleTrajectoryMap.jsx');
+export const demoPlaces={};

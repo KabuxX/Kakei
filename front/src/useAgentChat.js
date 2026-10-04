@@ -1,3 +1,4 @@
+import {readOnly} from '@kakei/runtime';
 import {useEffect, useRef, useState} from 'react';
 import * as api from './lib/agent-api.js';
 
@@ -41,7 +42,7 @@ export function useAgentChat(enabled) {
     return current;
   };
   const send=()=>{
-    if(!draft.text.trim()||!status?.available)return Promise.resolve(false);
+    if(readOnly||!draft.text.trim()||!status?.available)return Promise.resolve(false);
     let completion;
     return act(async()=>{
       const body=draft.retry?.text===draft.text&&draft.retry?.receiptId===draft.receipt?.id?draft.retry:
@@ -68,12 +69,13 @@ export function useAgentChat(enabled) {
     }).then(ok=>ok?(completion||true):false);
   };
   const select=id=>act(async()=>{setThread(id?await api.getThread(id):null);});
-  const upload=file=>file&&act(async()=>{
+  const upload=file=>!readOnly&&file&&act(async()=>{
     const current=await ensureThread();
     const receipt=await api.uploadReceipt(current.id,file);
     patchDraft({receipt:{...receipt,name:file.name},text:draft.text.trim()?draft.text:'このレシートを読み取ってください。'},current.id);
   });
   const removeThread=id=>{
+    if(readOnly)return Promise.resolve(false);
     if(!window.confirm('会話と未保存の変更案を削除しますか？ 保存済みの取引は残ります。'))return Promise.resolve(false);
     return act(async()=>{
       await api.deleteThread(id);

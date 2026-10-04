@@ -78,10 +78,10 @@ export function useTransactions() {
 
   return {
     transactions, status, error, writePending, refreshing, staleAfterWrite, load, refresh,
-    addTransaction: (draft) => write(() => api.addTransaction(draft, fetch)),
-    updateTransaction: (id, draft) => write(() => api.updateTransaction(id, draft, fetch)),
-    updateMerchantAddress: (id, address, expected) => write(() => api.updateMerchantAddress(id, address, expected, fetch)),
-    deleteTransaction: (id) => write(() => api.removeTransaction(id, fetch)),
-    deleteSamples: () => write(() => api.removeSamples(fetch)),
+    addTransaction: (draft) => write(() => api.addTransaction(draft, apiFetch)),
+    updateTransaction: (id, draft) => write(() => api.updateTransaction(id, draft, apiFetch)),
+    updateMerchantAddress: (id, address, expected) => write(() => api.updateMerchantAddress(id, address, expected, apiFetch)),
+    deleteTransaction: (id) => write(() => api.removeTransaction(id, apiFetch)),
+    deleteSamples: () => write(() => api.removeSamples(apiFetch)),
   };
 }

@@ -1,3 +1,5 @@
+import {receiptUrl as originalUrl} from '@kakei/runtime';
+import DemoPlaceResults from '../components/places/DemoPlaceResults.jsx';
 import React, {useEffect, useRef, useState} from 'react';
 import AgentProposal from '../components/agent/AgentProposal.jsx';
 import AgentTrajectoryResult from '../components/agent/AgentTrajectoryResult.jsx';
@@ -13,7 +15,7 @@ function useGreeting(){
   return greeting;
 }
 
-export default function AgentChat({session,onCommitted,onOpenTrajectory}) {
+export default function AgentChat({session,onCommitted,onOpenTrajectory,readOnly=false}) {
   const {status,thread,messages=thread?.messages||[],sending=false,busy,setBusy,loading,error,draft,load,send,upload,change,proposed,setText,removeReceipt}=session;
   const greeting=useGreeting(), composer=useRef(null), file=useRef(null), conversation=useRef(null);
   const composing=useRef(false), [viewportInset,setViewportInset]=useState(0);
@@ -33,18 +35,18 @@ export default function AgentChat({session,onCommitted,onOpenTrajectory}) {
   },[thread?.id,messages.length,sending,active]);
   const submit=async e=>{e?.preventDefault();setRefreshError('');const reply=await send();if(reply){composer.current?.focus({preventScroll:true});if(reply.trajectoryCreation?.counts.saved>0){try {if(await onCommitted?.()===false)setRefreshError('軌跡は保存済みですが、一覧を更新できませんでした。');}catch(error){setRefreshError('軌跡は保存済みです。'+(error.message||'一覧を更新できませんでした。'));}}}};
   const shortcut=e=>{if(e.key==='Enter'&&(e.metaKey||e.ctrlKey)&&!e.nativeEvent.isComposing&&!composing.current&&e.keyCode!==229){e.preventDefault();submit();}};
-  const receiptUrl=receipt?`/api/agent/threads/${encodeURIComponent(thread.id)}/receipts/${encodeURIComponent(receipt.id)}`:null;
+  const receiptUrl=receipt?originalUrl(receipt.id,thread.id):null;
   return <section className={`agent-page${active?' agent-active':' agent-empty'}`} aria-label="Agent Chat" style={{'--keyboard-inset':`${viewportInset}px`}}>
     <h1 id="agent-heading" className="sr-only" tabIndex="-1">Agent Chat</h1>
     {active&&<div className="agent-history-content" ref={conversation}>
       <div className="agent-conversation" aria-label="会話の内容" aria-live="polite">
-        {messages.map((m,i)=><article ref={i===messages.length-1?latestMessage:null} key={m.id} className={`agent-message ${m.role}`}><strong>{m.role==='user'?'あなた':'Agent'}</strong><p>{m.role==='assistant'?renderCitedText(m.text,m.sources):m.text}</p>{m.role==='assistant'&&<><PlaceSources sources={m.sources}/>{m.trajectoryCreation&&<AgentTrajectoryResult result={m.trajectoryCreation} onOpenTrajectory={onOpenTrajectory}/>} {!!m.placeSearch?.placeIds?.length&&<GooglePlaceResults placeIds={m.placeSearch.placeIds}/>}</>}{m.state==='failed'&&<small>応答を確認できませんでした。入力欄から再送できます。</small>}</article>)}
+        {messages.map((m,i)=><article ref={i===messages.length-1?latestMessage:null} key={m.id} className={`agent-message ${m.role}`}><strong>{m.role==='user'?'あなた':'Agent'}</strong><p>{m.role==='assistant'?renderCitedText(m.text,m.sources):m.text}</p>{m.role==='assistant'&&<><PlaceSources sources={m.sources}/>{m.trajectoryCreation&&<AgentTrajectoryResult result={m.trajectoryCreation} onOpenTrajectory={onOpenTrajectory}/>} {!!m.placeSearch?.placeIds?.length&&(readOnly?<DemoPlaceResults placeIds={m.placeSearch.placeIds}/>:<GooglePlaceResults placeIds={m.placeSearch.placeIds}/>)}</>}{m.state==='failed'&&<small>{readOnly?'保存時点で応答を確認できませんでした。':'応答を確認できませんでした。入力欄から再送できます。'}</small>}</article>)}
       </div>
       {sending&&<div ref={progress} className="agent-message agent-processing" role="status" aria-label="Agentが処理中"><span className="agent-loading-dots" aria-hidden="true"><i/><i/><i/></span><span>Agentが処理中</span></div>}
-      {thread?.receiptReviews?.filter(r=>!thread.proposals?.some(p=>p.metadata?.receiptId===r.receiptId)).map(r=><ReceiptReview key={r.receiptId} review={r} threadId={thread.id} busy={busy} setBusy={setBusy} onProposed={proposed}/>)}
-      {thread?.proposals?.map(p=><AgentProposal key={p.id} proposal={p} onChange={change} onCommitted={onCommitted} busy={busy} setBusy={setBusy}/>)}
+      {thread?.receiptReviews?.filter(r=>!thread.proposals?.some(p=>p.metadata?.receiptId===r.receiptId)).map(r=><ReceiptReview readOnly={readOnly} key={r.receiptId} review={r} threadId={thread.id} busy={busy} setBusy={setBusy} onProposed={proposed}/>)}
+      {thread?.proposals?.map(p=><AgentProposal readOnly={readOnly} key={p.id} proposal={p} onChange={change} onCommitted={onCommitted} busy={busy} setBusy={setBusy}/>)}
     </div>}
-    <div className="agent-input-region">
+    {readOnly ? <div className="agent-input-region"><p className="agent-notice">{thread?"保存済みの会話を表示しています。":(loading?"会話履歴を読み込み中…":session.threads?.length?"会話履歴から表示する会話を選んでください。":"保存済みの会話はありません。")}</p>{error&&<div role="alert">{error}<button className="secondary-button" onClick={load}>再読み込み</button></div>}</div> : <div className="agent-input-region">
       {!active&&<h2 className="agent-greeting">{greeting}</h2>}
       {!loading&&status&&!status.available&&<p className="agent-notice">{status.message}</p>}
       {status?.available&&status.placesAvailable===false&&<p className="agent-notice">{status.placesMessage||'地点検索を利用できません。保存済み地点や座標指定は利用できます。'}</p>}
@@ -65,6 +67,6 @@ export default function AgentChat({session,onCommitted,onOpenTrajectory}) {
       {refreshError&&<p role="alert">{refreshError}</p>}
       {error&&<div role="alert" className="agent-error">{error}<ChatButton label="状態を再読み込み" icon="retry" onClick={load} disabled={busy}/></div>}
       <div className="agent-input-help" id="agent-input-help"><span>AIへの送信に使用します · ⌘ / Ctrl + Enter で送信</span><details><summary>添付できるファイル</summary><p>JPEG・PNG・WebP・PDF / 10 MiBまで、PDFは3ページまで</p></details></div>
-    </div>
+    </div>}
   </section>;
 }

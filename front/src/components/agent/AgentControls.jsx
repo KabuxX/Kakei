@@ -18,14 +18,14 @@ export function ChatButton({label,icon,className='',...props}) {
   return <button type="button" {...props} className={`chat-icon-button ${className}`} aria-label={label} title={label}><ChatIcon name={icon}/></button>;
 }
 
-export function AgentThreads({session,onSelected}) {
+export function AgentThreads({session,onSelected,readOnly=false}) {
   const {threads,thread,busy,loading,select,removeThread}=session;
   const choose=async id=>{if(await select(id))onSelected?.();};
   return <section className="agent-threads" aria-label="会話一覧">
-    <div className="agent-threads-heading"><span>会話</span><ChatButton label="新しい会話" icon="new" disabled={busy||loading} onClick={()=>choose('')}/></div>
+    <div className="agent-threads-heading"><span>会話</span>{!readOnly&&<ChatButton label="新しい会話" icon="new" disabled={busy||loading} onClick={()=>choose('')}/>}</div>
     {loading?<p role="status">読み込み中…</p>:threads.length===0?<p className="agent-history-empty">会話はまだありません</p>:<ul>{threads.map(t=><li key={t.id} className={thread?.id===t.id?'selected':''}>
       <button type="button" className="agent-thread-link" aria-current={thread?.id===t.id?'true':undefined} disabled={busy} onClick={()=>choose(t.id)} title={t.title}>{t.title}</button>
-      {thread?.id===t.id&&<ChatButton label={`会話「${t.title}」を削除`} icon="delete" disabled={busy} onClick={()=>removeThread(t.id)}/>}
+      {!readOnly&&thread?.id===t.id&&<ChatButton label={`会話「${t.title}」を削除`} icon="delete" disabled={busy} onClick={()=>removeThread(t.id)}/>}
     </li>)}</ul>}
   </section>;
 }
