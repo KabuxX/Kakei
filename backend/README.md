@@ -110,3 +110,9 @@ agentには「指定日の軌跡を削除」「この訪問を削除」「この
 ### 取引先住所
 
 任意の店舗住所を取引に保存します。起動時に `merchant_address` 列を既存SQLiteへ追加し、旧取引の値はnullです。レシートの `merchant_address` とagentの `merchantAddress` を変更案で確認できます。`search_place` の `address` は根拠付き条件としてWeb検索・候補照合・履歴再利用に適用されます。取引住所を変更しても共有地点の記録は変更せず、対応不明の訪問を要確認とします。詳細は `API.md` を参照。
+# Google Places API (New)
+
+地点検索はサーバーの`GOOGLE_PLACES_API_KEY`でPlaces API (New)を利用します。
+キーは`.env`に設定し、Places API (New)を有効にした課金プロジェクトのものを使います。
+Text Searchで名前・住所・座標を取得するため、Proの課金区分を使用します。
+サーバーのキーをブラウザや公開設定に渡さないでください。
