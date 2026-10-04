@@ -315,9 +315,13 @@ curl http://localhost:8765/api/trajectory/2026-09-19
 
 assistantメッセージに `sources: [{id,title,url,kind,retrievedAt}]` を追加します。送信直後・再送・会話読込で同じ出典を返し、旧メッセージは空配列です。本文の `[source:<id>]` は当該メッセージの出典だけに解決します。
 
-## Web座標検索（web-coordinates-v1）
+## Geolonia優先の座標検索（geolonia-web-coordinates-v2）
 
-候補グループは `pipelineVersion: "web-coordinates-v1"`、`unlocatedCandidates`、`sources` を返します。位置未確認の候補IDは選択できません。`address_format` は旧入力互換として受理し、検索の同一条件判定から除きます。旧方式の履歴は再利用せず再検索を案内します。
+候補グループは `pipelineVersion: "geolonia-web-coordinates-v2"`、`unlocatedCandidates`、`sources` を返します。位置未確認の候補IDは選択できません。`address_format` は旧入力互換として受理し、検索の同一条件判定から除きます。旧方式の履歴は読めますが、新方式の検索として再利用せず再検索を案内します。
+
+店舗と住所の関連に根拠がある日本住所は、Geolonia japanese-addresses-v2をWebの座標取得より先に照合します。住所不明時はWebで店舗と住所を探してからGeoloniaへ進みます。最大6住所表記・合計30秒、共通の残り時間からWeb用35秒を留保します。町丁目代表点、番地不一致、Node不在、通信失敗、期限切れはWebへ切り替え、Geoloniaの障害をOpenAIやページ取得プロバイダーの停止に伝播しません。
+
+任意の `geolonia:{status,unresolved,supplementalMatches}` は利用した範囲と省略・移行理由を示します。補助情報は元/照合住所、`level`、`pointLevel`、取得証跡、除外理由で、選択可能IDを持ちません。サイズ上限で省略する場合は `truncated,omittedSupplementalMatches` を同オブジェクトに加えます。
 
 新候補には任意の `coordinateEvidence` を付与します。既存の `geocoding` と併存させません。
 
@@ -327,6 +331,22 @@ assistantメッセージに `sources: [{id,title,url,kind,retrievedAt}]` を追�
 - `sourceIds`（最大6）、`retrievedAt`、`verification:needs_confirmation|user_confirmed`。
 - `observations` は1〜4件、各 `{sourceId,kind,excerpt,coordinates}`。excerpt2048文字以内。relationshipのcoordinatesはnull。
 - 推定には `basis:{anchorName,anchorAddress,anchorCoordinates,relationSourceIds}`。relative_offsetには整数 `distanceMeters:1..5000` と8方位の `bearingDegrees` も必要。球面計算結果を1m以内で検証します。
+
+Geoloniaの候補は上記共通フィールドを持つ `version:2,status:address_matched,method:geolonia_address,precision:address`。住所対応座標であり、店舗ピンの掲載値や入口の実測値とは区別します。`basis`はなく、`addressMatch`を追加します。
+
+```json
+{
+  "provider": "geolonia", "libraryVersion": "3.1.3",
+  "originalAddress": "東京都文京区本郷1-2-3", "queryAddress": "東京都文京区本郷1-2-3",
+  "matchedAddress": "東京都文京区本郷一丁目2-3", "strategies": ["original"],
+  "level": 8, "pointLevel": 8,
+  "components": {"pref": "東京都", "city": "文京区", "town": "本郷一丁目", "addr": "2-3"},
+  "record": {"kind": "rsdt", "fields": {"blk_num": "2", "rsdt_num": "3", "point": [139.7, 35.7]}},
+  "fetches": [{"sourceId": "dataset", "url": "https://japanese-addresses-v2.geoloniamaps.com/api/ja/test.txt", "retrievedAt": 1, "range": {"offset": 0, "length": 100}, "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "updatedAt": null}]
+}
+```
+
+上記は合成データの構造例です。実際のAPIは返された住所レコード・座標を使用します。`record.kind`はrsdtまたはchiban、番号・座標を照合します。`observations.kind`はgeolonia_address、excerptはcomponentsとrecordのJSON抜粋。取得元は固定公式ホストのAPI、queryは数値のvのみ許可し、データ更新日時は取得できる場合に記録します。住所認識と座標のlevelが両方8、元住所・照合住所・観測座標が一致する候補だけを選択できます。出典IDの再発行ではfetches.sourceIdも同時に更新します。v1とlegacyの保存・読込・承認を維持します。
 
 選択要求は `{revision,candidateId,confirmed:true}`。サーバーが保持する候補の根拠をコピーし、verificationだけuser_confirmedへ変更します。推定のstatusはestimatedのまま。モデルは根拠付き地点の編集権限を持ちません。既存Mapboxの確認必須候補もconfirmed=trueを継続使用し、手動入力・既存候補の互換処理を維持します。
 

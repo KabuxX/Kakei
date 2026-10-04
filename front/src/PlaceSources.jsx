@@ -16,10 +16,11 @@ export function renderCitedText(text,sources=[]){
   });
 }
 export default function PlaceSources({sources=[],geocoding,coordinateEvidence,sourceUrl,attribution}){
-  const valid=validSources(sources),legacy=safeUrl(sourceUrl);
+ const valid=validSources(sources),legacy=safeUrl(sourceUrl);
+ const datasetIds=new Set(coordinateEvidence?.status==='address_matched'?(coordinateEvidence.addressMatch?.fetches||[]).map(f=>f.sourceId):[]);
   if(!valid.length&&!legacy&&!attribution&&!geocoding&&!coordinateEvidence)return null;
   return <div className="place-sources">
-    {valid.map(s=><ExternalLink key={s.id} href={s.url}>店舗情報 · {s.title||'出典'}</ExternalLink>)}
+    {valid.map(s=><ExternalLink key={s.id} href={s.url}>{datasetIds.has(s.id)?'座標データ':'店舗情報'} · {s.title||'出典'}</ExternalLink>)}
     {!valid.length&&legacy&&<ExternalLink href={legacy}>地点の出典を見る</ExternalLink>}
     {coordinateEvidence?<CoordinateEvidence evidence={coordinateEvidence}/>:geocoding?.provider==='mapbox'?<span>座標: © Mapbox · {geocoding.verification==='needs_confirmation'?'住所表記は一致・位置の確認が必要':geocoding.verification==='user_confirmed'?`利用者が住所と地図を確認済み${geocoding.accuracy==='interpolated'?'・補間位置':''}`:geocoding.accuracy==='interpolated'?'住所に基づく補間位置（実際の入口とは異なる場合があります）':'住所を照合'}</span>:attribution&&<span>{attribution}</span>}
   </div>;

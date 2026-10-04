@@ -1,4 +1,5 @@
 import React from 'react';
+import {geoloniaEvidence} from '../tests/fixtures/geolonia.js';
 import {afterEach,expect,it,vi} from 'vitest';
 import {cleanup,fireEvent,render,screen} from '@testing-library/react';
 import AgentProposal from './AgentProposal.jsx';
@@ -61,4 +62,14 @@ it('resets confirmation when switching published and estimated candidates',async
  fireEvent.click(screen.getAllByRole('radio')[1]);expect(screen.getByRole('button',{name:'この地点を選ぶ'}).disabled).toBe(true);
  const checkbox=screen.getByRole('checkbox',{name:'この推定位置を確認しました'});expect(checkbox.checked).toBe(false);fireEvent.click(checkbox);fireEvent.click(screen.getByRole('button',{name:'この地点を選ぶ'}));
  await vi.waitFor(()=>expect(api.selectPlaceCandidate).toHaveBeenCalledWith('p',1,'estimated',true));
+});
+it('switching_geolonia_candidate_resets_confirmation',()=>{
+ const candidates=[{id:'geo',name:'店舗',address:'東京都文京区本郷1-2-3',coordinates:[139.7,35.7],sources:[],coordinateEvidence:geoloniaEvidence},{id:'web',name:'店舗',address:'東京都文京区本郷1-2-3',coordinates:[139.7,35.7],sources:[],coordinateEvidence:{status:'published',method:'page_text',verification:'needs_confirmation'}}];
+ const proposal={id:'p',revision:1,status:'pending',expiresAt:Date.now()/1000+86400,commands:[],before:[],after:[],metadata:{placeCandidates:[{placeId:'x',query:'店舗',candidates}]}};
+ render(<AgentProposal proposal={proposal} onChange={vi.fn()} onCommitted={vi.fn()} busy={false} setBusy={vi.fn()}/>);
+ fireEvent.click(screen.getAllByRole('radio')[0]);expect(screen.getByRole('button',{name:'この地点を選ぶ'}).disabled).toBe(true);
+ fireEvent.click(screen.getByRole('checkbox',{name:'住所・出典と地図の位置を確認しました'}));
+ expect(screen.getByRole('button',{name:'この地点を選ぶ'}).disabled).toBe(false);
+ fireEvent.click(screen.getAllByRole('radio')[1]);expect(screen.getByRole('checkbox',{name:'住所・出典と地図の位置を確認しました'}).checked).toBe(false);
+ expect(screen.getByRole('button',{name:'この地点を選ぶ'}).disabled).toBe(true);
 });

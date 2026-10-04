@@ -1,4 +1,5 @@
 import React from 'react';
+import {geoloniaEvidence} from '../tests/fixtures/geolonia.js';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import transactions from './data/september-transactions.json';
@@ -59,4 +60,11 @@ it('retains saved estimate labels, basis, sources and distance caveat',async()=>
  const place={name:'推定の店舗',address:'福岡市',sourceUrl:'https://example.com/store',coordinates:[130,33],sources:[{id:'s',title:'店舗案内',url:'https://example.com/store'}],coordinateEvidence:{status:'estimated',method:'same_building',precision:'building',verification:'user_confirmed',note:'誤差範囲は未確認。',basis:{anchorName:'施設',anchorAddress:'福岡市'}}};
  vi.stubGlobal('fetch',vi.fn(async url=>({ok:true,status:200,json:async()=>url==='/api/trajectory'?{dates:['2027-01-04']}:{places:{p:place},days:[{date:'2027-01-04',events:[{id:'e',placeId:'p',time:null,timeEvidence:'unknown'}],legs:[]}]}})));
  render(<Trajectory/>);expect(await screen.findByText('推定の店舗')).toBeTruthy();expect(screen.getByText('推定位置を含む概算')).toBeTruthy();expect(screen.getByText('位置は推定')).toBeTruthy();expect(screen.getAllByText('推定位置')).toHaveLength(2);expect(screen.getByText(/誤差範囲/)).toBeTruthy();expect(screen.getByRole('link',{name:/店舗情報/}).getAttribute('href')).toBe(place.sourceUrl);
+});
+it('retains saved address coordinates, matched address and attribution',async()=>{
+ const place={name:'住所照合の店舗',address:'東京都文京区本郷1-2-3',coordinates:[139.7,35.7],sourceUrl:'https://japanese-addresses-v2.geoloniamaps.com/api/ja.json',sources:[{id:'g',title:'Geolonia japanese-addresses-v2',url:'https://japanese-addresses-v2.geoloniamaps.com/api/ja.json'}],coordinateEvidence:{...geoloniaEvidence,verification:'user_confirmed'}};
+ vi.stubGlobal('fetch',vi.fn(async url=>({ok:true,status:200,json:async()=>url==='/api/trajectory'?{dates:['2027-01-04']}:{places:{p:place},days:[{date:'2027-01-04',events:[{id:'e',placeId:'p',time:null,timeEvidence:'unknown'}],legs:[]}]}})));
+ render(<Trajectory/>);expect(await screen.findByText('住所照合の店舗')).toBeTruthy();
+ expect(screen.getByText('住所に対応する座標')).toBeTruthy();expect(screen.getByText(/本郷一丁目2-3/)).toBeTruthy();
+ expect(screen.getByRole('link',{name:/CC BY 4.0/})).toBeTruthy();expect(screen.queryByText('掲載座標')).toBeNull();
 });

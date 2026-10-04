@@ -12,7 +12,7 @@ backend/.venv/bin/fastapi run backend/server.py --host 127.0.0.1 --port 8765
 
 `http://localhost:8765/` を開いてください。FastAPI が画面とAPIを同じアドレスから配信します。既に8765番ポートで旧サーバーが動いている場合は、先に停止してください。
 
-画面はReact製で、ビルド済みの `front/dist/` をFastAPIが配信します。通常の起動にNode.jsは不要です。`front/dist/` はGitに含めています。画面のソースを変更したときだけ、リポジトリのルートから次を実行して、更新された `front/dist/` もコミットしてください。
+画面はReact製で、ビルド済みの `front/dist/` をFastAPIが配信します。サーバー起動と既存機能にはNode.jsは不要です。AgentのGeolonia座標検索を使う場合は、下記のNode.js依存を導入してください。`front/dist/` はGitに含めています。画面のソースを変更したときだけ、リポジトリのルートから次を実行して、更新された `front/dist/` もコミットしてください。
 
 フロントを開発するときは、[mock 環境と API 環境](../front/README.md) を選んで起動できます。
 
@@ -71,6 +71,25 @@ backend/.venv/bin/python backend/replace_samples.py \
 上記のサーバー起動・サンプル置換コマンドは引き続き利用できます。テストでは実DBを避けるため、`KAKEI_DB_PATH=/private/tmp/kakei-backend-layout-tests.sqlite3 backend/.venv/bin/python -m unittest discover -s backend/tests -v` を使ってください。
 
 ## Agent Chat
+
+### Geolonia の住所対応座標
+
+Node.js 22以上を用意し、リポジトリルートで次を実行します。公式 `@geolonia/normalize-japanese-addresses` 3.1.3 と依存は専用lockで固定しています。
+
+```sh
+npm ci --prefix backend/geolonia
+npm test --prefix backend/geolonia
+```
+
+日本の根拠住所がある場合、AgentはGeolonia japanese-addresses-v2を先に照合します。住所が不明ならWebで店舗と住所を確認してからGeoloniaを試します。郵便番号・全半角・丁目/番/号・建物名・根拠のある行政区分を、番地を変えずに最大6種類試します。住所認識と座標の粒度が両方8の場合だけ候補にし、町丁目代表点などは補助情報としてWebで詳細位置を探します。
+
+Geoloniaは合計30秒、同時worker2個、Web用に残り35秒を留保し、検索145秒・turn180秒の共通期限を延長しません。通信は固定公式HTTPSホストに限定し、Range/公開IP/取得サイズを検証します。1応答8 MiB・検索合計32 MiB、同じ取得対象は初回と最大2回の一時障害再送までです。公開npm版に再送処理がないため、専用取得処理が上限を管理します。
+
+Nodeや依存がない場合、起動失敗・通信障害・時間切れの場合は理由を履歴に残してWebへ進みます。アプリやWeb検索を無効にはしません。APIキーの追加は不要です。通常の地図表示は引き続きMapboxです。
+
+候補・保存後の軌跡には「住所に対応する座標」、照合住所、Geoloniaの出典、[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)と加工表示を残します。住居表示・地番の座標は店舗の入口や訪問当時の所在地の確認を保証しません。地図確認と変更案承認を経て保存してください。
+
+### モデル設定と変更案
 
 リポジトリルートの `.env` またはサーバー環境に `OPENAI_API_KEY` と `KAKEI_AGENT_MODEL`（利用可能な OpenAI の画像入力対応モデル名）を設定して起動します。`server.py` は起動時にルートの `.env` を読み込みます。既に export した環境変数が優先されます。キーを `VITE_` 接頭辞の環境変数に入れないでください。未設定でも既存機能と承認済みデータは利用できます。LangChain 1.4.3 / langchain-openai 1.6.7 を使用します。
 

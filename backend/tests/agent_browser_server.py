@@ -8,6 +8,12 @@ from api.app import create_app
 class BrowserRunner:
     def __init__(self,store):self.store=store
     async def run_turn(self, thread_id, messages, receipt_id=None, *, turn_context=None):
+        if 'Geolonia座標の確認' in messages[-1]['text']:
+            import copy
+            from geolonia_fixtures import GEOLONIA_PLACE
+            from coordinate_fixtures import PUBLISHED_PLACE
+            return {'text':'住所に対応する座標と出典を確認してください。','commands':[{'kind':'trajectory.create','identity':{'kind':'day','date':'2027-03-01'},'data':{'events':[{'id':'geo-visit','time':'12:00','timeEvidence':'exact','placeId':'geo-shop'}],'legs':[]}}],
+                'placeCandidates':[{'placeId':'geo-shop','query':'合成テスト店舗','candidates':[{**copy.deepcopy(GEOLONIA_PLACE),'id':'geo'},{**copy.deepcopy(PUBLISHED_PLACE),'id':'web'}],'unlocatedCandidates':[{'id':'coarse','name':'町丁目までの店舗','address':'東京都文京区本郷','sources':[],'unresolved':['address_precision_unconfirmed']}]}]}
         if '削除の動作確認' in messages[-1]['text']:
             import re
             text=messages[-1]['text']
