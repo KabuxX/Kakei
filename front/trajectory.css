@@ -37,3 +37,8 @@
 .google-trajectory-marker[aria-pressed="true"] {background:var(--color-coral-signal,#ffab94)}
 .google-trajectory-marker:focus-visible {outline:3px solid var(--color-metric-blue,#415eee);outline-offset:3px}
 .trajectory-map-usage {padding:8px 16px;font-size:12px;line-height:1.5}
+
+.offline-trajectory-marker{width:44px;height:44px;border:2px solid var(--charcoal,#1f2025);border-radius:50%;background:#fff;color:var(--ink,#222326);font:600 14px system-ui;cursor:pointer;box-shadow:0 2px 8px #1f202522}
+.offline-trajectory-marker.is-estimated{border-style:dashed}
+.offline-trajectory-marker[aria-pressed="true"]{background:#ffab94;border-width:3px}
+.offline-trajectory-marker:focus-visible{outline:3px solid #415eee;outline-offset:3px}
