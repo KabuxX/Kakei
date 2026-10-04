@@ -1,0 +1,2452 @@
+{
+  "schemaVersion": 1,
+  "exportedAt": "2026-10-04T17:15:16.074325+00:00",
+  "transactions": [
+    {
+      "id": "25b86b56-9b24-4d42-88c1-78703b6696d7",
+      "title": "コンビニ2",
+      "date": "2026-10-02T17:48",
+      "type": "expense",
+      "category": "食費",
+      "amount": 150,
+      "timeEstimated": false,
+      "merchant": "ファミリーマート バスターミナル東京八重洲／Ｓ店",
+      "paymentMethod": "e_money",
+      "items": [],
+      "merchantAddress": "〒104-0028 東京都中央区八重洲２丁目２−１ 地下2階"
+    },
+    {
+      "id": "3af52cc4-90b0-45c2-8cee-01baf29b38a3",
+      "title": "コンビニ1",
+      "date": "2026-10-02T08:48",
+      "type": "expense",
+      "category": "食費",
+      "amount": 300,
+      "timeEstimated": false,
+      "merchant": "ファミリーマート 新宿マインズタワー店",
+      "paymentMethod": "e_money",
+      "items": [],
+      "merchantAddress": "〒151-0053 東京都渋谷区代々木２丁目１−１"
+    },
+    {
+      "id": "9f70c27c-1dd6-5e27-9b4e-ed976d898613",
+      "title": "FamilyMart",
+      "date": "2026-10-01T12:45",
+      "type": "expense",
+      "category": "その他",
+      "amount": 460,
+      "timeEstimated": false,
+      "merchant": "FamilyMart",
+      "paymentMethod": "cash",
+      "items": [
+        {
+          "name": "十六茶",
+          "amount": 129
+        },
+        {
+          "name": "吊るしベーコン",
+          "amount": 198
+        },
+        {
+          "name": "茶碗蒸し",
+          "amount": 133
+        }
+      ],
+      "merchantAddress": "東京都港区麻布十番1-2-10"
+    },
+    {
+      "id": "8e6a2c85-ef59-5614-adf6-4c5f43701846",
+      "title": "セブン-イレブン 千代田店",
+      "date": "2026-10-01T08:45",
+      "type": "expense",
+      "category": "その他",
+      "amount": 1139,
+      "timeEstimated": false,
+      "merchant": "セブン-イレブン 千代田店",
+      "paymentMethod": "e_money",
+      "items": [
+        {
+          "name": "手巻おにぎり 辛子明太子",
+          "amount": 137
+        },
+        {
+          "name": "コカコーラ 500ml",
+          "amount": 148
+        },
+        {
+          "name": "パラドゥ ミニネイル PK03",
+          "amount": 324
+        },
+        {
+          "name": "メビウスワン",
+          "amount": 481
+        },
+        {
+          "name": "50円切手",
+          "amount": 49
+        }
+      ],
+      "merchantAddress": "東京都千代田区二番町8-8"
+    },
+    {
+      "id": "sample-20260930-metro",
+      "title": "渋谷から表参道へ",
+      "date": "2026-09-30T18:30",
+      "type": "expense",
+      "category": "交通",
+      "amount": 180,
+      "timeEstimated": true,
+      "merchant": "東京メトロ",
+      "paymentMethod": "e_money",
+      "items": [
+        {
+          "name": "銀座線 渋谷→表参道",
+          "amount": 180
+        }
+      ],
+      "merchantAddress": null
+    },
+    {
+      "id": "sample-20260930-b",
+      "title": "青山の日用品",
+      "date": "2026-09-30T15:00",
+      "type": "expense",
+      "category": "日用品",
+      "amount": 1390,
+      "timeEstimated": true,
+      "merchant": "Found MUJI 青山",
+      "paymentMethod": "credit_card",
+      "items": [
+        {
+          "name": "生活雑貨",
+          "amount": 1070
+        },
+        {
+          "name": "文具",
+          "amount": 320
+        }
+      ],
+      "merchantAddress": null
+    },
+    {
+      "id": "sample-20260930-a",
+      "title": "朝の買い物",
+      "date": "2026-09-30T11:30",
+      "type": "expense",
+      "category": "食費",
+      "amount": 610,
+      "timeEstimated": true,
+      "merchant": "ライフ 渋谷東店",
+      "paymentMethod": "e_money",
+      "items": [
+        {
+          "name": "パン",
+          "amount": 340
+        },
+        {
+          "name": "飲み物",
+          "amount": 270
+        }
+      ],
+      "merchantAddress": null
+    },
+    {
+      "id": "sample-20260929-train",
+      "title": "渋谷から恵比寿へ",
+      "date": "2026-09-29T19:12",
+      "type": "expense",
+      "category": "交通",
+      "amount": 170,
+      "timeEstimated": true,
+      "merchant": "JR東日本",
+      "paymentMethod": "e_money",
+      "items": [
+        {
+          "name": "JR山手線 渋谷→恵比寿",
+          "amount": 170
+        }
+      ],
+      "merchantAddress": null
+    },
+    {
+      "id": "sample-20260929-c",
+      "title": "日用品",
+      "date": "2026-09-29T16:24",
+      "type": "expense",
+      "category": "日用品",
+      "amount": 890,
+      "timeEstimated": true,
+      "merchant": "無印良品 アトレ恵比寿",
+      "paymentMethod": "credit_card",
+      "items": [
+        {
+          "name": "日用品",
+          "amount": 890
+        }
+      ],
+      "merchantAddress": null
+    },
+    {
+      "id": "sample-20260929-b",
+      "title": "帰りの食材",
+      "date": "2026-09-29T13:36",
+      "type": "expense",
+      "category": "食費",
+      "amount": 1380,
+      "timeEstimated": true,
+      "merchant": "成城石井 アトレ恵比寿店",
+      "paymentMethod": "credit_card",
+      "items": [
+        {
+          "name": "パン",
+          "amount": 420
+        },
+        {
+          "name": "食材",
+          "amount": 960
+        }
+      ],
+      "merchantAddress": null
+    },
+    {
+      "id": "sample-20260929-a",
+      "title": "駅前のカフェ",
+      "date": "2026-09-29T10:48",
+      "type": "expense",
+      "category": "食費",
+      "amount": 540,
+      "timeEstimated": true,
+      "merchant": "スターバックス コーヒー 渋谷フクラス店",
+      "paymentMethod": "e_money",
+      "items": [
+        {
+          "name": "ドリンク",
+          "amount": 540
+        }
+      ],
+      "merchantAddress": null
+    },
+    {
+      "id": "sample-20260928-c",
+      "title": "夕方の食材",
+      "date": "2026-09-28T19:12",
+      "type": "expense",
+      "category": "食費",
+      "amount": 1300,
+      "timeEstimated": true,
+      "merchant": "ライフ 渋谷東店",
+      "paymentMethod": "e_money",
+      "items": [
+        {
+          "name": "野菜",
+          "amount": 620
+        },
+        {
+          "name": "惣菜",
+          "amount": 680
+        }
+      ],
+      "merchantAddress": null
+    },
+    {
+      "id": "sample-20260928-b",
+      "title": "日用品の買い物",
+      "date": "2026-09-28T16:24",
+      "type": "expense",
+      "category": "日用品",
+      "amount": 1130,
+      "timeEstimated": true,
+      "merchant": "無印良品 渋谷公園通り",
+      "paymentMethod": "credit_card",
+      "items": [
+        {
+          "name": "ノート",
+          "amount": 350
+        },
+        {
+          "name": "生活雑貨",
+          "amount": 780
+        }
+      ],
+      "merchantAddress": null
+    },
+    {
+      "id": "sample-20260928-a",
+      "title": "朝のカフェ",
+      "date": "2026-09-28T13:36",
+      "type": "expense",
+      "category": "食費",
+      "amount": 950,
+      "timeEstimated": true,
+      "merchant": "スターバックス コーヒー 渋谷フクラス店",
+      "paymentMethod": "e_money",
+      "items": [
+        {
+          "name": "ドリンク",
+          "amount": 520
+        },
+        {
+          "name": "軽食",
+          "amount": 430
+        }
+      ],
+      "merchantAddress": null
+    },
+    {
+      "id": "sample-0",
+      "title": "給与",
+      "date": "2026-09-28T10:48",
+      "type": "income",
+      "category": "収入",
+      "amount": 320000,
+      "timeEstimated": true
+    },
+    {
+      "id": "sample-20260927-b",
+      "title": "青山の日用品",
+      "date": "2026-09-27T17:20",
+      "type": "expense",
+      "category": "日用品",
+      "amount": 1430,
+      "timeEstimated": true,
+      "merchant": "Found MUJI 青山",
+      "paymentMethod": "credit_card",
+      "items": [
+        {
+          "name": "生活雑貨",
+          "amount": 1110
+        },
+        {
+          "name": "文具",
+          "amount": 320
+        }
+      ],
+      "merchantAddress": null
+    },
+    {
+      "id": "sample-20260927-a",
+      "title": "朝の買い物",
+      "date": "2026-09-27T12:40",
+      "type": "expense",
+      "category": "食費",
+      "amount": 650,
+      "timeEstimated": true,
+      "merchant": "ライフ 渋谷東店",
+      "paymentMethod": "e_money",
+      "items": [
+        {
+          "name": "パン",
+          "amount": 340
+        },
+        {
+          "name": "飲み物",
+          "amount": 310
+        }
+      ],
+      "merchantAddress": null
+    },
+    {
+      "id": "sample-20260926-c",
+      "title": "日用品",
+      "date": "2026-09-26T18:30",
+      "type": "expense",
+      "category": "日用品",
+      "amount": 930,
+      "timeEstimated": true,
+      "merchant": "無印良品 アトレ恵比寿",
+      "paymentMethod": "credit_card",
+      "items": [
+        {
+          "name": "日用品",
+          "amount": 930
+        }
+      ],
+      "merchantAddress": null
+    },
+    {
+      "id": "sample-20260926-b",
+      "title": "帰りの食材",
+      "date": "2026-09-26T15:00",
+      "type": "expense",
+      "category": "食費",
+      "amount": 1420,
+      "timeEstimated": true,
+      "merchant": "成城石井 アトレ恵比寿店",
+      "paymentMethod": "credit_card",
+      "items": [
+        {
+          "name": "パン",
+          "amount": 420
+        },
+        {
+          "name": "食材",
+          "amount": 1000
+        }
+      ],
+      "merchantAddress": null
+    },
+    {
+      "id": "sample-20260926-a",
+      "title": "駅前のカフェ",
+      "date": "2026-09-26T11:30",
+      "type": "expense",
+      "category": "食費",
+      "amount": 580,
+      "timeEstimated": true,
+      "merchant": "スターバックス コーヒー 渋谷フクラス店",
+      "paymentMethod": "e_money",
+      "items": [
+        {
+          "name": "ドリンク",
+          "amount": 580
+        }
+      ],
+      "merchantAddress": null
+    },
+    {
+      "id": "sample-20260925-c",
+      "title": "夕方の食材",
+      "date": "2026-09-25T18:30",
+      "type": "expense",
+      "category": "食費",
+      "amount": 1340,
+      "timeEstimated": true,
+      "merchant": "ライフ 渋谷東店",
+      "paymentMethod": "e_money",
+      "items": [
+        {
+          "name": "野菜",
+          "amount": 660
+        },
+        {
+          "name": "惣菜",
+          "amount": 680
+        }
+      ],
+      "merchantAddress": null
+    },
+    {
+      "id": "sample-20260925-b",
+      "title": "日用品の買い物",
+      "date": "2026-09-25T15:00",
+      "type": "expense",
+      "category": "日用品",
+      "amount": 1170,
+      "timeEstimated": true,
+      "merchant": "無印良品 渋谷公園通り",
+      "paymentMethod": "credit_card",
+      "items": [
+        {
+          "name": "ノート",
+          "amount": 350
+        },
+        {
+          "name": "生活雑貨",
+          "amount": 820
+        }
+      ],
+      "merchantAddress": null
+    },
+    {
+      "id": "sample-20260925-a",
+      "title": "朝のカフェ",
+      "date": "2026-09-25T11:30",
+      "type": "expense",
+      "category": "食費",
+      "amount": 990,
+      "timeEstimated": true,
+      "merchant": "スターバックス コーヒー 渋谷フクラス店",
+      "paymentMethod": "e_money",
+      "items": [
+        {
+          "name": "ドリンク",
+          "amount": 560
+        },
+        {
+          "name": "軽食",
+          "amount": 430
+        }
+      ],
+      "merchantAddress": null
+    },
+    {
+      "id": "sample-20260924-b",
+      "title": "青山の日用品",
+      "date": "2026-09-24T17:20",
+      "type": "expense",
+      "category": "日用品",
+      "amount": 1310,
+      "timeEstimated": true,
+      "merchant": "Found MUJI 青山",
+      "paymentMethod": "credit_card",
+      "items": [
+        {
+          "name": "生活雑貨",
+          "amount": 990
+        },
+        {
+          "name": "文具",
+          "amount": 320
+        }
+      ],
+      "merchantAddress": null
+    },
+    {
+      "id": "sample-20260924-a",
+      "title": "朝の買い物",
+      "date": "2026-09-24T12:40",
+      "type": "expense",
+      "category": "食費",
+      "amount": 530,
+      "timeEstimated": true,
+      "merchant": "ライフ 渋谷東店",
+      "paymentMethod": "e_money",
+      "items": [
+        {
+          "name": "パン",
+          "amount": 340
+        },
+        {
+          "name": "飲み物",
+          "amount": 190
+        }
+      ],
+      "merchantAddress": null
+    },
+    {
+      "id": "sample-20260923-c",
+      "title": "日用品",
+      "date": "2026-09-23T18:30",
+      "type": "expense",
+      "category": "日用品",
+      "amount": 970,
+      "timeEstimated": true,
+      "merchant": "無印良品 アトレ恵比寿",
+      "paymentMethod": "credit_card",
+      "items": [
+        {
+          "name": "日用品",
+          "amount": 970
+        }
+      ],
+      "merchantAddress": null
+    },
+    {
+      "id": "sample-20260923-b",
+      "title": "帰りの食材",
+      "date": "2026-09-23T15:00",
+      "type": "expense",
+      "category": "食費",
+      "amount": 1460,
+      "timeEstimated": true,
+      "merchant": "成城石井 アトレ恵比寿店",
+      "paymentMethod": "credit_card",
+      "items": [
+        {
+          "name": "パン",
+          "amount": 420
+        },
+        {
+          "name": "食材",
+          "amount": 1040
+        }
+      ],
+      "merchantAddress": null
+    },
+    {
+      "id": "sample-20260923-a",
+      "title": "駅前のカフェ",
+      "date": "2026-09-23T11:30",
+      "type": "expense",
+      "category": "食費",
+      "amount": 620,
+      "timeEstimated": true,
+      "merchant": "スターバックス コーヒー 渋谷フクラス店",
+      "paymentMethod": "e_money",
+      "items": [
+        {
+          "name": "ドリンク",
+          "amount": 620
+        }
+      ],
+      "merchantAddress": null
+    },
+    {
+      "id": "sample-20260922-c",
+      "title": "夕方の食材",
+      "date": "2026-09-22T18:30",
+      "type": "expense",
+      "category": "食費",
+      "amount": 1380,
+      "timeEstimated": true,
+      "merchant": "ライフ 渋谷東店",
+      "paymentMethod": "e_money",
+      "items": [
+        {
+          "name": "野菜",
+          "amount": 700
+        },
+        {
+          "name": "惣菜",
+          "amount": 680
+        }
+      ],
+      "merchantAddress": null
+    },
+    {
+      "id": "sample-20260922-b",
+      "title": "日用品の買い物",
+      "date": "2026-09-22T15:00",
+      "type": "expense",
+      "category": "日用品",
+      "amount": 1210,
+      "timeEstimated": true,
+      "merchant": "無印良品 渋谷公園通り",
+      "paymentMethod": "credit_card",
+      "items": [
+        {
+          "name": "ノート",
+          "amount": 350
+        },
+        {
+          "name": "生活雑貨",
+          "amount": 860
+        }
+      ],
+      "merchantAddress": null
+    },
+    {
+      "id": "sample-20260922-a",
+      "title": "朝のカフェ",
+      "date": "2026-09-22T11:30",
+      "type": "expense",
+      "category": "食費",
+      "amount": 1030,
+      "timeEstimated": true,
+      "merchant": "スターバックス コーヒー 渋谷フクラス店",
+      "paymentMethod": "e_money",
+      "items": [
+        {
+          "name": "ドリンク",
+          "amount": 600
+        },
+        {
+          "name": "軽食",
+          "amount": 430
+        }
+      ],
+      "merchantAddress": null
+    },
+    {
+      "id": "sample-20260921-b",
+      "title": "青山の日用品",
+      "date": "2026-09-21T17:20",
+      "type": "expense",
+      "category": "日用品",
+      "amount": 1350,
+      "timeEstimated": true,
+      "merchant": "Found MUJI 青山",
+      "paymentMethod": "credit_card",
+      "items": [
+        {
+          "name": "生活雑貨",
+          "amount": 1030
+        },
+        {
+          "name": "文具",
+          "amount": 320
+        }
+      ],
+      "merchantAddress": null
+    },
+    {
+      "id": "sample-20260921-a",
+      "title": "朝の買い物",
+      "date": "2026-09-21T12:40",
+      "type": "expense",
+      "category": "食費",
+      "amount": 570,
+      "timeEstimated": true,
+      "merchant": "ライフ 渋谷東店",
+      "paymentMethod": "e_money",
+      "items": [
+        {
+          "name": "パン",
+          "amount": 340
+        },
+        {
+          "name": "飲み物",
+          "amount": 230
+        }
+      ],
+      "merchantAddress": null
+    },
+    {
+      "id": "sample-20260920-c",
+      "title": "日用品",
+      "date": "2026-09-20T18:30",
+      "type": "expense",
+      "category": "日用品",
+      "amount": 850,
+      "timeEstimated": true,
+      "merchant": "無印良品 アトレ恵比寿",
+      "paymentMethod": "credit_card",
+      "items": [
+        {
+          "name": "日用品",
+          "amount": 850
+        }
+      ],
+      "merchantAddress": null
+    },
+    {
+      "id": "sample-20260920-b",
+      "title": "帰りの食材",
+      "date": "2026-09-20T15:00",
+      "type": "expense",
+      "category": "食費",
+      "amount": 1340,
+      "timeEstimated": true,
+      "merchant": "成城石井 アトレ恵比寿店",
+      "paymentMethod": "credit_card",
+      "items": [
+        {
+          "name": "パン",
+          "amount": 420
+        },
+        {
+          "name": "食材",
+          "amount": 920
+        }
+      ],
+      "merchantAddress": null
+    },
+    {
+      "id": "sample-20260920-a",
+      "title": "駅前のカフェ",
+      "date": "2026-09-20T11:30",
+      "type": "expense",
+      "category": "食費",
+      "amount": 500,
+      "timeEstimated": true,
+      "merchant": "スターバックス コーヒー 渋谷フクラス店",
+      "paymentMethod": "e_money",
+      "items": [
+        {
+          "name": "ドリンク",
+          "amount": 500
+        }
+      ],
+      "merchantAddress": null
+    },
+    {
+      "id": "sample-20260919-c",
+      "title": "夕方の食材",
+      "date": "2026-09-19T18:30",
+      "type": "expense",
+      "category": "食費",
+      "amount": 1420,
+      "timeEstimated": true,
+      "merchant": "ライフ 渋谷東店",
+      "paymentMethod": "e_money",
+      "items": [
+        {
+          "name": "野菜",
+          "amount": 740
+        },
+        {
+          "name": "惣菜",
+          "amount": 680
+        }
+      ],
+      "merchantAddress": null
+    },
+    {
+      "id": "sample-20260919-b",
+      "title": "日用品の買い物",
+      "date": "2026-09-19T15:00",
+      "type": "expense",
+      "category": "日用品",
+      "amount": 1250,
+      "timeEstimated": true,
+      "merchant": "無印良品 渋谷公園通り",
+      "paymentMethod": "credit_card",
+      "items": [
+        {
+          "name": "ノート",
+          "amount": 350
+        },
+        {
+          "name": "生活雑貨",
+          "amount": 900
+        }
+      ],
+      "merchantAddress": null
+    },
+    {
+      "id": "sample-20260919-a",
+      "title": "朝のカフェ",
+      "date": "2026-09-19T11:30",
+      "type": "expense",
+      "category": "食費",
+      "amount": 1070,
+      "timeEstimated": true,
+      "merchant": "スターバックス コーヒー 渋谷フクラス店",
+      "paymentMethod": "e_money",
+      "items": [
+        {
+          "name": "ドリンク",
+          "amount": 640
+        },
+        {
+          "name": "軽食",
+          "amount": 430
+        }
+      ],
+      "merchantAddress": null
+    },
+    {
+      "id": "sample-20260915-rent",
+      "title": "家賃",
+      "date": "2026-09-15T12:00",
+      "type": "expense",
+      "category": "住まい",
+      "amount": 86000,
+      "timeEstimated": true,
+      "merchant": "住居費",
+      "paymentMethod": "bank_account",
+      "items": [
+        {
+          "name": "家賃",
+          "amount": 86000
+        }
+      ],
+      "merchantAddress": null
+    },
+    {
+      "id": "sample-20260905-pass",
+      "title": "通勤定期券",
+      "date": "2026-09-05T12:00",
+      "type": "expense",
+      "category": "交通",
+      "amount": 10480,
+      "timeEstimated": true,
+      "merchant": "JR東日本",
+      "paymentMethod": "credit_card",
+      "items": [
+        {
+          "name": "通勤定期券",
+          "amount": 10480
+        }
+      ],
+      "merchantAddress": null
+    }
+  ],
+  "categories": {
+    "食費": 80000,
+    "住まい": 90000,
+    "日用品": 25000,
+    "交通": 25000,
+    "娯楽": 30000,
+    "その他": 20000
+  },
+  "timeline": {
+    "places": {
+      "shibuyaStarbucks": {
+        "name": "スターバックス コーヒー 渋谷フクラス店",
+        "address": "東京都渋谷区道玄坂1-2-3 渋谷フクラス1F",
+        "sourceUrl": "https://store.starbucks.co.jp/detail-1651/",
+        "placeEvidence": "legacy",
+        "coordinates": [
+          139.6998,
+          35.6575
+        ],
+        "attribution": null
+      },
+      "shibuyaMuji": {
+        "name": "無印良品 渋谷公園通り",
+        "address": "東京都渋谷区宇田川町19-7",
+        "sourceUrl": "https://www.muji.com/jp/ja/shop/detail/045231",
+        "placeEvidence": "legacy",
+        "coordinates": [
+          139.6991,
+          35.6623
+        ],
+        "attribution": null
+      },
+      "shibuyaLife": {
+        "name": "ライフ 渋谷東店",
+        "address": "東京都渋谷区東1-26-22",
+        "sourceUrl": "https://store.lifecorp.jp/detail/east829/",
+        "placeEvidence": "legacy",
+        "coordinates": [
+          139.7048,
+          35.654
+        ],
+        "attribution": null
+      },
+      "jrShibuya": {
+        "name": "JR渋谷駅",
+        "address": "東京都渋谷区道玄坂1丁目",
+        "sourceUrl": "https://www.jreast.co.jp/estation/station/info.aspx?StationCd=808",
+        "placeEvidence": "legacy",
+        "coordinates": [
+          139.701636,
+          35.658034
+        ],
+        "attribution": null
+      },
+      "jrEbisu": {
+        "name": "JR恵比寿駅",
+        "address": "東京都渋谷区恵比寿南1丁目",
+        "sourceUrl": "https://www.jreast.co.jp/estation/stations/290.html",
+        "placeEvidence": "legacy",
+        "coordinates": [
+          139.71007,
+          35.6469
+        ],
+        "attribution": null
+      },
+      "ebisuSeijoIshii": {
+        "name": "成城石井 アトレ恵比寿店",
+        "address": "東京都渋谷区恵比寿南1-5-5 アトレ恵比寿3F",
+        "sourceUrl": "https://shop.seijoishii.com/seijoishii/spot/detail?code=0009",
+        "placeEvidence": "legacy",
+        "coordinates": [
+          139.7107,
+          35.6468
+        ],
+        "attribution": null
+      },
+      "ebisuMuji": {
+        "name": "無印良品 アトレ恵比寿",
+        "address": "東京都渋谷区恵比寿南1-6-1 アトレ恵比寿西館5-6F",
+        "sourceUrl": "https://www.muji.com/jp/ja/shop/045471/",
+        "placeEvidence": "legacy",
+        "coordinates": [
+          139.7099,
+          35.6467
+        ],
+        "attribution": null
+      },
+      "metroShibuya": {
+        "name": "東京メトロ 渋谷駅",
+        "address": "東京都渋谷区渋谷2丁目",
+        "sourceUrl": "https://www.tokyometro.jp/station/shibuya/index.html",
+        "placeEvidence": "legacy",
+        "coordinates": [
+          139.702,
+          35.658
+        ],
+        "attribution": null
+      },
+      "metroOmotesando": {
+        "name": "東京メトロ 表参道駅",
+        "address": "東京都港区北青山3-6-12",
+        "sourceUrl": "https://www.tokyometro.jp/station/omote-sando/index.html",
+        "placeEvidence": "legacy",
+        "coordinates": [
+          139.7115,
+          35.6653
+        ],
+        "attribution": null
+      },
+      "aoyamaMuji": {
+        "name": "Found MUJI 青山",
+        "address": "東京都渋谷区神宮前5-50-6 中島ビル1-2F",
+        "sourceUrl": "https://www.muji.com/jp/shop/045941",
+        "placeEvidence": "legacy",
+        "coordinates": [
+          139.713,
+          35.662
+        ],
+        "attribution": null
+      },
+      "temp:doutor_nishitetsu_fukuoka_station": {
+        "name": "ドトールコーヒーショップ 西鉄福岡駅店",
+        "address": "〒810-0001 福岡県福岡市中央区天神2-11-3",
+        "sourceUrl": "https://shop.doutor.co.jp/doutor/spot/detail?code=2010774&utm_source=openai",
+        "placeEvidence": "provider",
+        "coordinates": [
+          130.3990083,
+          33.5900778
+        ],
+        "attribution": "© Mapbox",
+        "sources": [
+          {
+            "id": "70ccce54-8d4d-4e6d-8b20-c306a53c55da:1",
+            "title": "ドトールコーヒーショップ 西鉄福岡駅店 | 店舗検索｜株式会社ドトールコーヒー",
+            "url": "https://shop.doutor.co.jp/doutor/spot/detail?code=2010774&utm_source=openai",
+            "kind": "unknown",
+            "retrievedAt": 1791037998.264832
+          }
+        ]
+      },
+      "google:ChIJyefU0dGMGGARR1lv_2NVT4U": {
+        "name": "ファミリーマート 新宿マインズタワー店",
+        "address": "東京都渋谷区代々木2丁目1-1 新宿マインズタワー",
+        "sourceUrl": "https://www.openstreetmap.org/way/137189958",
+        "placeEvidence": "google_places",
+        "attribution": "© OpenStreetMap contributors (ODbL)",
+        "coordinates": [
+          139.6989516,
+          35.6866029
+        ],
+        "demoPositionUnconfirmed": false,
+        "demoNote": "東京都の店舗情報と住所を照合。OSMの新宿マインズタワー建物の代表点で、店の入口は未確認。"
+      },
+      "google:ChIJrTA_kxCLGGARkDeX1tNnmWI": {
+        "name": "ファミリーマート バスターミナル東京八重洲／Ｓ店",
+        "address": "東京都中央区八重洲2丁目2-1 東京ミッドタウン八重洲 地下2階",
+        "sourceUrl": "https://www.openstreetmap.org/way/1116244124",
+        "placeEvidence": "google_places",
+        "attribution": "© OpenStreetMap contributors (ODbL)",
+        "coordinates": [
+          139.7690941,
+          35.6792973
+        ],
+        "demoPositionUnconfirmed": false,
+        "demoNote": "施設公式B2店舗情報と住所を照合。OSMの東京ミッドタウン八重洲建物の代表点で、地下店舗の入口は未確認。"
+      }
+    },
+    "days": [
+      {
+        "date": "2026-09-19",
+        "events": [
+          {
+            "id": "2026-09-19-1",
+            "time": "09:10",
+            "placeId": "shibuyaStarbucks",
+            "timeEvidence": "legacy",
+            "timeEvidenceNote": null,
+            "transactionId": "sample-20260919-a"
+          },
+          {
+            "id": "2026-09-19-2",
+            "time": "13:05",
+            "placeId": "shibuyaMuji",
+            "timeEvidence": "legacy",
+            "timeEvidenceNote": null,
+            "transactionId": "sample-20260919-b"
+          },
+          {
+            "id": "2026-09-19-3",
+            "time": "18:30",
+            "placeId": "shibuyaLife",
+            "timeEvidence": "legacy",
+            "timeEvidenceNote": null,
+            "transactionId": "sample-20260919-c"
+          }
+        ],
+        "legs": [
+          {
+            "fromEventId": "2026-09-19-1",
+            "toEventId": "2026-09-19-2",
+            "modeEvidence": "legacy",
+            "modeEvidenceNote": null,
+            "modeHint": "walk"
+          },
+          {
+            "fromEventId": "2026-09-19-2",
+            "toEventId": "2026-09-19-3",
+            "modeEvidence": "legacy",
+            "modeEvidenceNote": null,
+            "modeHint": "walk"
+          }
+        ]
+      },
+      {
+        "date": "2026-09-20",
+        "events": [
+          {
+            "id": "2026-09-20-1",
+            "time": "08:45",
+            "placeId": "shibuyaStarbucks",
+            "timeEvidence": "legacy",
+            "timeEvidenceNote": null,
+            "transactionId": "sample-20260920-a"
+          },
+          {
+            "id": "2026-09-20-4",
+            "time": "18:05",
+            "placeId": "ebisuSeijoIshii",
+            "timeEvidence": "legacy",
+            "timeEvidenceNote": null,
+            "transactionId": "sample-20260920-b"
+          },
+          {
+            "id": "2026-09-20-5",
+            "time": "18:40",
+            "placeId": "ebisuMuji",
+            "timeEvidence": "legacy",
+            "timeEvidenceNote": null,
+            "transactionId": "sample-20260920-c"
+          }
+        ],
+        "legs": [
+          {
+            "fromEventId": "2026-09-20-1",
+            "toEventId": "2026-09-20-4",
+            "modeEvidence": "legacy",
+            "modeEvidenceNote": null
+          },
+          {
+            "fromEventId": "2026-09-20-4",
+            "toEventId": "2026-09-20-5",
+            "modeEvidence": "legacy",
+            "modeEvidenceNote": null,
+            "modeHint": "walk"
+          }
+        ]
+      },
+      {
+        "date": "2026-09-21",
+        "events": [
+          {
+            "id": "2026-09-21-1",
+            "time": "08:20",
+            "placeId": "shibuyaLife",
+            "timeEvidence": "legacy",
+            "timeEvidenceNote": null,
+            "transactionId": "sample-20260921-a"
+          },
+          {
+            "id": "2026-09-21-4",
+            "time": "12:20",
+            "placeId": "aoyamaMuji",
+            "timeEvidence": "legacy",
+            "timeEvidenceNote": null,
+            "transactionId": "sample-20260921-b"
+          }
+        ],
+        "legs": [
+          {
+            "fromEventId": "2026-09-21-1",
+            "toEventId": "2026-09-21-4",
+            "modeEvidence": "legacy",
+            "modeEvidenceNote": null
+          }
+        ]
+      },
+      {
+        "date": "2026-09-22",
+        "events": [
+          {
+            "id": "2026-09-22-1",
+            "time": "09:10",
+            "placeId": "shibuyaStarbucks",
+            "timeEvidence": "legacy",
+            "timeEvidenceNote": null,
+            "transactionId": "sample-20260922-a"
+          },
+          {
+            "id": "2026-09-22-2",
+            "time": "13:05",
+            "placeId": "shibuyaMuji",
+            "timeEvidence": "legacy",
+            "timeEvidenceNote": null,
+            "transactionId": "sample-20260922-b"
+          },
+          {
+            "id": "2026-09-22-3",
+            "time": "18:30",
+            "placeId": "shibuyaLife",
+            "timeEvidence": "legacy",
+            "timeEvidenceNote": null,
+            "transactionId": "sample-20260922-c"
+          }
+        ],
+        "legs": [
+          {
+            "fromEventId": "2026-09-22-1",
+            "toEventId": "2026-09-22-2",
+            "modeEvidence": "legacy",
+            "modeEvidenceNote": null,
+            "modeHint": "walk"
+          },
+          {
+            "fromEventId": "2026-09-22-2",
+            "toEventId": "2026-09-22-3",
+            "modeEvidence": "legacy",
+            "modeEvidenceNote": null,
+            "modeHint": "walk"
+          }
+        ]
+      },
+      {
+        "date": "2026-09-23",
+        "events": [
+          {
+            "id": "2026-09-23-1",
+            "time": "08:45",
+            "placeId": "shibuyaStarbucks",
+            "timeEvidence": "legacy",
+            "timeEvidenceNote": null,
+            "transactionId": "sample-20260923-a"
+          },
+          {
+            "id": "2026-09-23-4",
+            "time": "18:05",
+            "placeId": "ebisuSeijoIshii",
+            "timeEvidence": "legacy",
+            "timeEvidenceNote": null,
+            "transactionId": "sample-20260923-b"
+          },
+          {
+            "id": "2026-09-23-5",
+            "time": "18:40",
+            "placeId": "ebisuMuji",
+            "timeEvidence": "legacy",
+            "timeEvidenceNote": null,
+            "transactionId": "sample-20260923-c"
+          }
+        ],
+        "legs": [
+          {
+            "fromEventId": "2026-09-23-1",
+            "toEventId": "2026-09-23-4",
+            "modeEvidence": "legacy",
+            "modeEvidenceNote": null
+          },
+          {
+            "fromEventId": "2026-09-23-4",
+            "toEventId": "2026-09-23-5",
+            "modeEvidence": "legacy",
+            "modeEvidenceNote": null,
+            "modeHint": "walk"
+          }
+        ]
+      },
+      {
+        "date": "2026-09-24",
+        "events": [
+          {
+            "id": "2026-09-24-1",
+            "time": "08:20",
+            "placeId": "shibuyaLife",
+            "timeEvidence": "legacy",
+            "timeEvidenceNote": null,
+            "transactionId": "sample-20260924-a"
+          },
+          {
+            "id": "2026-09-24-4",
+            "time": "12:20",
+            "placeId": "aoyamaMuji",
+            "timeEvidence": "legacy",
+            "timeEvidenceNote": null,
+            "transactionId": "sample-20260924-b"
+          }
+        ],
+        "legs": [
+          {
+            "fromEventId": "2026-09-24-1",
+            "toEventId": "2026-09-24-4",
+            "modeEvidence": "legacy",
+            "modeEvidenceNote": null
+          }
+        ]
+      },
+      {
+        "date": "2026-09-25",
+        "events": [
+          {
+            "id": "2026-09-25-1",
+            "time": "09:10",
+            "placeId": "shibuyaStarbucks",
+            "timeEvidence": "legacy",
+            "timeEvidenceNote": null,
+            "transactionId": "sample-20260925-a"
+          },
+          {
+            "id": "2026-09-25-2",
+            "time": "13:05",
+            "placeId": "shibuyaMuji",
+            "timeEvidence": "legacy",
+            "timeEvidenceNote": null,
+            "transactionId": "sample-20260925-b"
+          },
+          {
+            "id": "2026-09-25-3",
+            "time": "18:30",
+            "placeId": "shibuyaLife",
+            "timeEvidence": "legacy",
+            "timeEvidenceNote": null,
+            "transactionId": "sample-20260925-c"
+          }
+        ],
+        "legs": [
+          {
+            "fromEventId": "2026-09-25-1",
+            "toEventId": "2026-09-25-2",
+            "modeEvidence": "legacy",
+            "modeEvidenceNote": null,
+            "modeHint": "walk"
+          },
+          {
+            "fromEventId": "2026-09-25-2",
+            "toEventId": "2026-09-25-3",
+            "modeEvidence": "legacy",
+            "modeEvidenceNote": null,
+            "modeHint": "walk"
+          }
+        ]
+      },
+      {
+        "date": "2026-09-26",
+        "events": [
+          {
+            "id": "2026-09-26-1",
+            "time": "08:45",
+            "placeId": "shibuyaStarbucks",
+            "timeEvidence": "legacy",
+            "timeEvidenceNote": null,
+            "transactionId": "sample-20260926-a"
+          },
+          {
+            "id": "2026-09-26-4",
+            "time": "18:05",
+            "placeId": "ebisuSeijoIshii",
+            "timeEvidence": "legacy",
+            "timeEvidenceNote": null,
+            "transactionId": "sample-20260926-b"
+          },
+          {
+            "id": "2026-09-26-5",
+            "time": "18:40",
+            "placeId": "ebisuMuji",
+            "timeEvidence": "legacy",
+            "timeEvidenceNote": null,
+            "transactionId": "sample-20260926-c"
+          }
+        ],
+        "legs": [
+          {
+            "fromEventId": "2026-09-26-1",
+            "toEventId": "2026-09-26-4",
+            "modeEvidence": "legacy",
+            "modeEvidenceNote": null
+          },
+          {
+            "fromEventId": "2026-09-26-4",
+            "toEventId": "2026-09-26-5",
+            "modeEvidence": "legacy",
+            "modeEvidenceNote": null,
+            "modeHint": "walk"
+          }
+        ]
+      },
+      {
+        "date": "2026-09-27",
+        "events": [
+          {
+            "id": "2026-09-27-1",
+            "time": "08:20",
+            "placeId": "shibuyaLife",
+            "timeEvidence": "legacy",
+            "timeEvidenceNote": null,
+            "transactionId": "sample-20260927-a"
+          },
+          {
+            "id": "2026-09-27-4",
+            "time": "12:20",
+            "placeId": "aoyamaMuji",
+            "timeEvidence": "legacy",
+            "timeEvidenceNote": null,
+            "transactionId": "sample-20260927-b"
+          }
+        ],
+        "legs": [
+          {
+            "fromEventId": "2026-09-27-1",
+            "toEventId": "2026-09-27-4",
+            "modeEvidence": "legacy",
+            "modeEvidenceNote": null
+          }
+        ]
+      },
+      {
+        "date": "2026-09-28",
+        "events": [
+          {
+            "id": "2026-09-28-1",
+            "time": "09:10",
+            "placeId": "shibuyaStarbucks",
+            "timeEvidence": "legacy",
+            "timeEvidenceNote": null,
+            "transactionId": "sample-20260928-a"
+          },
+          {
+            "id": "2026-09-28-2",
+            "time": "13:05",
+            "placeId": "shibuyaMuji",
+            "timeEvidence": "legacy",
+            "timeEvidenceNote": null,
+            "transactionId": "sample-20260928-b"
+          },
+          {
+            "id": "2026-09-28-3",
+            "time": "18:30",
+            "placeId": "shibuyaLife",
+            "timeEvidence": "legacy",
+            "timeEvidenceNote": null,
+            "transactionId": "sample-20260928-c"
+          }
+        ],
+        "legs": [
+          {
+            "fromEventId": "2026-09-28-1",
+            "toEventId": "2026-09-28-2",
+            "modeEvidence": "legacy",
+            "modeEvidenceNote": null,
+            "modeHint": "walk"
+          },
+          {
+            "fromEventId": "2026-09-28-2",
+            "toEventId": "2026-09-28-3",
+            "modeEvidence": "legacy",
+            "modeEvidenceNote": null,
+            "modeHint": "walk"
+          }
+        ]
+      },
+      {
+        "date": "2026-09-29",
+        "events": [
+          {
+            "id": "2026-09-29-1",
+            "time": "08:45",
+            "placeId": "shibuyaStarbucks",
+            "timeEvidence": "legacy",
+            "timeEvidenceNote": null,
+            "transactionId": "sample-20260929-a"
+          },
+          {
+            "id": "2026-09-29-2",
+            "time": "12:10",
+            "placeId": "jrShibuya",
+            "timeEvidence": "legacy",
+            "timeEvidenceNote": null,
+            "transactionId": "sample-20260929-train"
+          },
+          {
+            "id": "2026-09-29-3",
+            "time": "12:26",
+            "placeId": "jrEbisu",
+            "timeEvidence": "legacy",
+            "timeEvidenceNote": null
+          },
+          {
+            "id": "2026-09-29-4",
+            "time": "18:05",
+            "placeId": "ebisuSeijoIshii",
+            "timeEvidence": "legacy",
+            "timeEvidenceNote": null,
+            "transactionId": "sample-20260929-b"
+          },
+          {
+            "id": "2026-09-29-5",
+            "time": "18:40",
+            "placeId": "ebisuMuji",
+            "timeEvidence": "legacy",
+            "timeEvidenceNote": null,
+            "transactionId": "sample-20260929-c"
+          }
+        ],
+        "legs": [
+          {
+            "fromEventId": "2026-09-29-1",
+            "toEventId": "2026-09-29-2",
+            "modeEvidence": "legacy",
+            "modeEvidenceNote": null,
+            "modeHint": "walk"
+          },
+          {
+            "fromEventId": "2026-09-29-2",
+            "toEventId": "2026-09-29-3",
+            "modeEvidence": "legacy",
+            "modeEvidenceNote": null,
+            "modeHint": "train",
+            "transportTransactionId": "sample-20260929-train"
+          },
+          {
+            "fromEventId": "2026-09-29-3",
+            "toEventId": "2026-09-29-4",
+            "modeEvidence": "legacy",
+            "modeEvidenceNote": null,
+            "modeHint": "walk"
+          },
+          {
+            "fromEventId": "2026-09-29-4",
+            "toEventId": "2026-09-29-5",
+            "modeEvidence": "legacy",
+            "modeEvidenceNote": null,
+            "modeHint": "walk"
+          }
+        ]
+      },
+      {
+        "date": "2026-09-30",
+        "events": [
+          {
+            "id": "2026-09-30-1",
+            "time": "08:20",
+            "placeId": "shibuyaLife",
+            "timeEvidence": "legacy",
+            "timeEvidenceNote": null,
+            "transactionId": "sample-20260930-a"
+          },
+          {
+            "id": "2026-09-30-2",
+            "time": "11:25",
+            "placeId": "metroShibuya",
+            "timeEvidence": "legacy",
+            "timeEvidenceNote": null,
+            "transactionId": "sample-20260930-metro"
+          },
+          {
+            "id": "2026-09-30-3",
+            "time": "11:36",
+            "placeId": "metroOmotesando",
+            "timeEvidence": "legacy",
+            "timeEvidenceNote": null
+          },
+          {
+            "id": "2026-09-30-4",
+            "time": "12:20",
+            "placeId": "aoyamaMuji",
+            "timeEvidence": "legacy",
+            "timeEvidenceNote": null,
+            "transactionId": "sample-20260930-b"
+          }
+        ],
+        "legs": [
+          {
+            "fromEventId": "2026-09-30-1",
+            "toEventId": "2026-09-30-2",
+            "modeEvidence": "legacy",
+            "modeEvidenceNote": null,
+            "modeHint": "walk"
+          },
+          {
+            "fromEventId": "2026-09-30-2",
+            "toEventId": "2026-09-30-3",
+            "modeEvidence": "legacy",
+            "modeEvidenceNote": null,
+            "modeHint": "train",
+            "transportTransactionId": "sample-20260930-metro"
+          },
+          {
+            "fromEventId": "2026-09-30-3",
+            "toEventId": "2026-09-30-4",
+            "modeEvidence": "legacy",
+            "modeEvidenceNote": null,
+            "modeHint": "walk"
+          }
+        ]
+      },
+      {
+        "date": "2026-10-02",
+        "events": [
+          {
+            "id": "473b5531-e840-5cb4-964c-8c4d30ceea34",
+            "time": "08:48",
+            "placeId": "google:ChIJyefU0dGMGGARR1lv_2NVT4U",
+            "timeEvidence": "exact",
+            "timeEvidenceNote": null,
+            "transactionId": "3af52cc4-90b0-45c2-8cee-01baf29b38a3"
+          },
+          {
+            "id": "b805ca0d-3f18-549a-8b71-e5f22199f276",
+            "time": "17:48",
+            "placeId": "google:ChIJrTA_kxCLGGARkDeX1tNnmWI",
+            "timeEvidence": "exact",
+            "timeEvidenceNote": null,
+            "transactionId": "25b86b56-9b24-4d42-88c1-78703b6696d7"
+          }
+        ],
+        "legs": [
+          {
+            "fromEventId": "473b5531-e840-5cb4-964c-8c4d30ceea34",
+            "toEventId": "b805ca0d-3f18-549a-8b71-e5f22199f276",
+            "modeEvidence": "inferred",
+            "modeEvidenceNote": "訪問順から結んだ概算。実際の経路と移動手段は不明。"
+          }
+        ]
+      }
+    ]
+  },
+  "threads": [
+    {
+      "id": "43f9ec2e-8d7a-4d08-b3b9-8f5981fe621e",
+      "title": "2026年10月2日の取引記録によって、軌跡を作って",
+      "createdAt": 1791114984.133986,
+      "messages": [
+        {
+          "id": "533e20fe-393c-4534-aac0-64ac0c9df950",
+          "clientMessageId": "user:7865532a-4c22-493b-a97d-0f02b1095df2",
+          "role": "user",
+          "text": "2026年10月2日の取引記録によって、軌跡を作って",
+          "createdAt": 1791114984.142195,
+          "sources": []
+        },
+        {
+          "id": "70469bf3-940c-4e04-9624-5753a0908489",
+          "clientMessageId": "assistant:7865532a-4c22-493b-a97d-0f02b1095df2",
+          "role": "assistant",
+          "text": "2026-10-02の軌跡を作成しました。2件保存、0件登録済み、0件除外。",
+          "createdAt": 1791114984.9197628,
+          "sources": [],
+          "trajectoryCreation": {
+            "date": "2026-10-02",
+            "status": "created",
+            "counts": {
+              "saved": 2,
+              "existing": 0,
+              "excluded": 0
+            },
+            "saved": [
+              {
+                "transactionId": "3af52cc4-90b0-45c2-8cee-01baf29b38a3",
+                "label": "ファミリーマート 新宿マインズタワー店",
+                "time": "08:48",
+                "timeEstimated": false,
+                "eventId": "473b5531-e840-5cb4-964c-8c4d30ceea34"
+              },
+              {
+                "transactionId": "25b86b56-9b24-4d42-88c1-78703b6696d7",
+                "label": "ファミリーマート バスターミナル東京八重洲／Ｓ店",
+                "time": "17:48",
+                "timeEstimated": false,
+                "eventId": "b805ca0d-3f18-549a-8b71-e5f22199f276"
+              }
+            ],
+            "existing": [],
+            "excluded": []
+          }
+        }
+      ],
+      "proposals": [],
+      "receiptReviews": []
+    },
+    {
+      "id": "ea095345-2bd1-4f1f-bc41-ae402b197eac",
+      "title": "レシートを読み取って",
+      "createdAt": 1791094552.6653728,
+      "messages": [
+        {
+          "id": "47018d98-1964-41bf-a329-55a31177c69b",
+          "clientMessageId": "user:5163e76a-6912-4db6-baba-ceea4e468dc2",
+          "role": "user",
+          "text": "レシートを読み取って",
+          "createdAt": 1791094659.762469,
+          "sources": []
+        },
+        {
+          "id": "0e5f401a-0a13-4c9b-854b-24f58351c4e8",
+          "clientMessageId": "assistant:5163e76a-6912-4db6-baba-ceea4e468dc2",
+          "role": "assistant",
+          "text": "レシートを読み取りました。内容は次のとおりです。\n\n- 店舗名（読み取り候補）：FamilyMart ※先頭部分は不鮮明\n- 日時：2026年10月1日 12:45\n- 合計・支払額：460円\n- 支払方法：現金\n- 品目：十六茶 151円、値引き −22円、吊るしベーコン 198円、茶碗蒸し 133円\n\n品目の合計は460円ではなく、値引きを含めると460円です。ただし、負の金額の品目があるため明細の自動確認ができず、明細金額に要確認の表示があります。店舗名の先頭部分も不鮮明です。取引の作成・編集はまだ行っていません。",
+          "createdAt": 1791094675.891211,
+          "sources": []
+        },
+        {
+          "id": "303513a5-51c7-4972-b703-a22a4de9aae8",
+          "clientMessageId": "user:79bc302a-28ee-40dd-b03b-7a478c15caa9",
+          "role": "user",
+          "text": "十六茶を値引きする",
+          "createdAt": 1791094827.832743,
+          "sources": []
+        },
+        {
+          "id": "5b002eb3-a723-4a9a-ba82-ab6fc61e3b95",
+          "clientMessageId": "assistant:79bc302a-28ee-40dd-b03b-7a478c15caa9",
+          "role": "assistant",
+          "text": "十六茶に22円の値引きを適用すると、十六茶は129円です。明細は「十六茶129円、吊るしベーコン198円、茶碗蒸し133円」で、合計460円です。",
+          "createdAt": 1791094833.3426611,
+          "sources": []
+        }
+      ],
+      "proposals": [
+        {
+          "id": "905829d0-2949-433d-b80c-e1c1e751175a",
+          "threadId": "ea095345-2bd1-4f1f-bc41-ae402b197eac",
+          "revision": 1,
+          "status": "applied",
+          "commands": [
+            {
+              "kind": "transaction.create",
+              "identity": {},
+              "data": {
+                "title": "FamilyMart",
+                "merchant": "FamilyMart",
+                "date": "2026-10-01T15:45",
+                "amount": 460,
+                "type": "expense",
+                "category": "その他",
+                "paymentMethod": "cash",
+                "items": [
+                  {
+                    "name": "十六茶",
+                    "amount": 129
+                  },
+                  {
+                    "name": "吊るしベーコン",
+                    "amount": 198
+                  },
+                  {
+                    "name": "茶碗蒸し",
+                    "amount": 133
+                  }
+                ],
+                "confirmTime": true,
+                "merchantAddress": "東京都港区麻布十番1-2-10",
+                "receiptIds": [
+                  "3c168dcb-6451-4277-85ae-1e45197035ab"
+                ]
+              }
+            }
+          ],
+          "createdAt": 1791094884.331012,
+          "expiresAt": 1791181284.331012,
+          "result": {
+            "proposalId": "905829d0-2949-433d-b80c-e1c1e751175a",
+            "revision": 1,
+            "trajectoryDates": [],
+            "transactions": [
+              {
+                "amount": 460,
+                "category": "その他",
+                "date": "2026-10-01T15:45",
+                "id": "9f70c27c-1dd6-5e27-9b4e-ed976d898613",
+                "items": [
+                  {
+                    "amount": 129,
+                    "name": "十六茶"
+                  },
+                  {
+                    "amount": 198,
+                    "name": "吊るしベーコン"
+                  },
+                  {
+                    "amount": 133,
+                    "name": "茶碗蒸し"
+                  }
+                ],
+                "merchant": "FamilyMart",
+                "merchantAddress": "東京都港区麻布十番1-2-10",
+                "paymentMethod": "cash",
+                "receiptIds": [
+                  "3c168dcb-6451-4277-85ae-1e45197035ab"
+                ],
+                "timeEstimated": false,
+                "title": "FamilyMart",
+                "type": "expense"
+              }
+            ]
+          },
+          "before": [
+            null
+          ],
+          "after": [
+            {
+              "amount": 460,
+              "category": "その他",
+              "date": "2026-10-01T15:45",
+              "id": "9f70c27c-1dd6-5e27-9b4e-ed976d898613",
+              "items": [
+                {
+                  "amount": 129,
+                  "name": "十六茶"
+                },
+                {
+                  "amount": 198,
+                  "name": "吊るしベーコン"
+                },
+                {
+                  "amount": 133,
+                  "name": "茶碗蒸し"
+                }
+              ],
+              "merchant": "FamilyMart",
+              "merchantAddress": "東京都港区麻布十番1-2-10",
+              "paymentMethod": "cash",
+              "receiptIds": [
+                "3c168dcb-6451-4277-85ae-1e45197035ab"
+              ],
+              "timeEstimated": false,
+              "title": "FamilyMart",
+              "type": "expense"
+            }
+          ],
+          "metadata": {
+            "receiptId": "3c168dcb-6451-4277-85ae-1e45197035ab",
+            "receiptReview": {
+              "receiptId": "3c168dcb-6451-4277-85ae-1e45197035ab",
+              "candidate": {
+                "merchant": "FamilyMart",
+                "merchant_address": "東京都港区麻布十番1-2-10",
+                "date": "2026-10-01",
+                "time": "12:45",
+                "total": 460,
+                "paid_total": 460,
+                "tax_groups": [
+                  {
+                    "id": "inclusive_8",
+                    "basis": "inclusive",
+                    "rate": 8,
+                    "subtotal": 460,
+                    "tax": 34
+                  }
+                ],
+                "currency": "JPY",
+                "payment_method": "cash",
+                "items": [
+                  {
+                    "name": "十六茶",
+                    "amount": 151,
+                    "tax_group": "inclusive_8"
+                  },
+                  {
+                    "name": "値引き",
+                    "amount": -22,
+                    "tax_group": "inclusive_8"
+                  },
+                  {
+                    "name": "吊るしベーコン",
+                    "amount": 198,
+                    "tax_group": "inclusive_8"
+                  },
+                  {
+                    "name": "茶碗蒸し",
+                    "amount": 133,
+                    "tax_group": "inclusive_8"
+                  }
+                ],
+                "tax": 34,
+                "discount": 0,
+                "unreadable_fields": [
+                  "店舗名の先頭部分"
+                ]
+              },
+              "missingFields": [],
+              "itemMismatch": true,
+              "matches": [],
+              "calculation": {
+                "method": "printed-tax-largest-remainder-v1",
+                "rows": [],
+                "issues": [
+                  "品目の印字金額を確認してください。ゼロ円・負の品目は自動配分できません。"
+                ]
+              },
+              "preparedDraft": null,
+              "mimeType": "image/png"
+            },
+            "targetChoice": "new"
+          }
+        }
+      ],
+      "receiptReviews": [
+        {
+          "receiptId": "3c168dcb-6451-4277-85ae-1e45197035ab",
+          "candidate": {
+            "merchant": "FamilyMart",
+            "merchant_address": "東京都港区麻布十番1-2-10",
+            "date": "2026-10-01",
+            "time": "12:45",
+            "total": 460,
+            "paid_total": 460,
+            "tax_groups": [
+              {
+                "id": "inclusive_8",
+                "basis": "inclusive",
+                "rate": 8,
+                "subtotal": 460,
+                "tax": 34
+              }
+            ],
+            "currency": "JPY",
+            "payment_method": "cash",
+            "items": [
+              {
+                "name": "十六茶",
+                "amount": 151,
+                "tax_group": "inclusive_8"
+              },
+              {
+                "name": "値引き",
+                "amount": -22,
+                "tax_group": "inclusive_8"
+              },
+              {
+                "name": "吊るしベーコン",
+                "amount": 198,
+                "tax_group": "inclusive_8"
+              },
+              {
+                "name": "茶碗蒸し",
+                "amount": 133,
+                "tax_group": "inclusive_8"
+              }
+            ],
+            "tax": 34,
+            "discount": 0,
+            "unreadable_fields": [
+              "店舗名の先頭部分"
+            ]
+          },
+          "missingFields": [],
+          "itemMismatch": true,
+          "matches": [],
+          "calculation": {
+            "method": "printed-tax-largest-remainder-v1",
+            "rows": [],
+            "issues": [
+              "品目の印字金額を確認してください。ゼロ円・負の品目は自動配分できません。"
+            ]
+          },
+          "preparedDraft": null,
+          "mimeType": "image/png"
+        }
+      ]
+    },
+    {
+      "id": "70edd7ff-b5e8-4ed5-9252-86d5759fdbd5",
+      "title": "このレシートを読み取ってください。",
+      "createdAt": 1791046534.063324,
+      "messages": [
+        {
+          "id": "c4acf3f2-9fdf-4422-ab6e-a7b02c348a83",
+          "clientMessageId": "user:d8356eb3-5b94-48d9-960f-e0d8b1b7bb22",
+          "role": "user",
+          "text": "このレシートを読み取ってください。",
+          "createdAt": 1791046537.523395,
+          "sources": []
+        },
+        {
+          "id": "cba0a76e-67b3-4c98-8b92-5962b4d8a7d2",
+          "clientMessageId": "assistant:d8356eb3-5b94-48d9-960f-e0d8b1b7bb22",
+          "role": "assistant",
+          "text": "レシートを読み取りました。\n\n- 店舗：セブン-イレブン 千代田店\n- 日時：2026年10月1日 08:45\n- 支払方法：電子マネー\n- 商品合計：1,161円\n- 割引：22円\n- 支払額：1,139円\n\n割引を各商品に按分した金額は、137円・148円・324円・481円・49円で、合計1,139円です。読み取れない項目や商品合計の不一致はありません。\n\n確認フォームで内容を補足し、取引の作成先または編集先を選んでください。",
+          "createdAt": 1791046556.779914,
+          "sources": []
+        }
+      ],
+      "proposals": [
+        {
+          "id": "f221f43d-bc6d-4152-9f36-82b690ffcf66",
+          "threadId": "70edd7ff-b5e8-4ed5-9252-86d5759fdbd5",
+          "revision": 1,
+          "status": "applied",
+          "commands": [
+            {
+              "kind": "transaction.create",
+              "identity": {},
+              "data": {
+                "title": "セブン-イレブン 千代田店",
+                "merchant": "セブン-イレブン 千代田店",
+                "date": "2026-10-01T08:45",
+                "amount": 1139,
+                "type": "expense",
+                "category": "その他",
+                "paymentMethod": "e_money",
+                "items": [
+                  {
+                    "name": "手巻おにぎり 辛子明太子",
+                    "amount": 137
+                  },
+                  {
+                    "name": "コカコーラ 500ml",
+                    "amount": 148
+                  },
+                  {
+                    "name": "パラドゥ ミニネイル PK03",
+                    "amount": 324
+                  },
+                  {
+                    "name": "メビウスワン",
+                    "amount": 481
+                  },
+                  {
+                    "name": "50円切手",
+                    "amount": 49
+                  }
+                ],
+                "confirmTime": true,
+                "merchantAddress": "東京都千代田区二番町8-8",
+                "receiptIds": [
+                  "3832da1f-f349-4ab2-8b7b-2b7463e8ebbf"
+                ]
+              }
+            }
+          ],
+          "createdAt": 1791046574.96667,
+          "expiresAt": 1791132974.96667,
+          "result": {
+            "proposalId": "f221f43d-bc6d-4152-9f36-82b690ffcf66",
+            "revision": 1,
+            "trajectoryDates": [],
+            "transactions": [
+              {
+                "amount": 1139,
+                "category": "その他",
+                "date": "2026-10-01T08:45",
+                "id": "8e6a2c85-ef59-5614-adf6-4c5f43701846",
+                "items": [
+                  {
+                    "amount": 137,
+                    "name": "手巻おにぎり 辛子明太子"
+                  },
+                  {
+                    "amount": 148,
+                    "name": "コカコーラ 500ml"
+                  },
+                  {
+                    "amount": 324,
+                    "name": "パラドゥ ミニネイル PK03"
+                  },
+                  {
+                    "amount": 481,
+                    "name": "メビウスワン"
+                  },
+                  {
+                    "amount": 49,
+                    "name": "50円切手"
+                  }
+                ],
+                "merchant": "セブン-イレブン 千代田店",
+                "merchantAddress": "東京都千代田区二番町8-8",
+                "paymentMethod": "e_money",
+                "receiptIds": [
+                  "3832da1f-f349-4ab2-8b7b-2b7463e8ebbf"
+                ],
+                "timeEstimated": false,
+                "title": "セブン-イレブン 千代田店",
+                "type": "expense"
+              }
+            ]
+          },
+          "before": [
+            null
+          ],
+          "after": [
+            {
+              "amount": 1139,
+              "category": "その他",
+              "date": "2026-10-01T08:45",
+              "id": "8e6a2c85-ef59-5614-adf6-4c5f43701846",
+              "items": [
+                {
+                  "amount": 137,
+                  "name": "手巻おにぎり 辛子明太子"
+                },
+                {
+                  "amount": 148,
+                  "name": "コカコーラ 500ml"
+                },
+                {
+                  "amount": 324,
+                  "name": "パラドゥ ミニネイル PK03"
+                },
+                {
+                  "amount": 481,
+                  "name": "メビウスワン"
+                },
+                {
+                  "amount": 49,
+                  "name": "50円切手"
+                }
+              ],
+              "merchant": "セブン-イレブン 千代田店",
+              "merchantAddress": "東京都千代田区二番町8-8",
+              "paymentMethod": "e_money",
+              "receiptIds": [
+                "3832da1f-f349-4ab2-8b7b-2b7463e8ebbf"
+              ],
+              "timeEstimated": false,
+              "title": "セブン-イレブン 千代田店",
+              "type": "expense"
+            }
+          ],
+          "metadata": {
+            "receiptId": "3832da1f-f349-4ab2-8b7b-2b7463e8ebbf",
+            "receiptReview": {
+              "receiptId": "3832da1f-f349-4ab2-8b7b-2b7463e8ebbf",
+              "candidate": {
+                "merchant": "セブン-イレブン 千代田店",
+                "merchant_address": "東京都千代田区二番町8-8",
+                "date": "2026-10-01",
+                "time": "08:45",
+                "total": 1161,
+                "paid_total": 1139,
+                "tax_groups": [
+                  {
+                    "id": "exclusive_8",
+                    "basis": "exclusive",
+                    "rate": 8,
+                    "subtotal": 270,
+                    "tax": 21
+                  },
+                  {
+                    "id": "exclusive_10",
+                    "basis": "exclusive",
+                    "rate": 10,
+                    "subtotal": 300,
+                    "tax": 30
+                  },
+                  {
+                    "id": "inclusive_10",
+                    "basis": "inclusive",
+                    "rate": 10,
+                    "subtotal": 490,
+                    "tax": null
+                  },
+                  {
+                    "id": "exempt",
+                    "basis": "exempt",
+                    "rate": null,
+                    "subtotal": 50,
+                    "tax": null
+                  }
+                ],
+                "currency": "JPY",
+                "payment_method": "e_money",
+                "items": [
+                  {
+                    "name": "手巻おにぎり 辛子明太子",
+                    "amount": 130,
+                    "tax_group": "exclusive_8"
+                  },
+                  {
+                    "name": "コカコーラ 500ml",
+                    "amount": 140,
+                    "tax_group": "exclusive_8"
+                  },
+                  {
+                    "name": "パラドゥ ミニネイル PK03",
+                    "amount": 300,
+                    "tax_group": "exclusive_10"
+                  },
+                  {
+                    "name": "メビウスワン",
+                    "amount": 490,
+                    "tax_group": "inclusive_10"
+                  },
+                  {
+                    "name": "50円切手",
+                    "amount": 50,
+                    "tax_group": "exempt"
+                  }
+                ],
+                "tax": null,
+                "discount": 22,
+                "unreadable_fields": []
+              },
+              "missingFields": [],
+              "itemMismatch": false,
+              "matches": [],
+              "calculation": {
+                "method": "printed-tax-largest-remainder-v1",
+                "rows": [
+                  {
+                    "name": "手巻おにぎり 辛子明太子",
+                    "printed": 130,
+                    "basis": "exclusive",
+                    "rate": 8,
+                    "addedTax": 10,
+                    "gross": 140,
+                    "discount": 3,
+                    "net": 137
+                  },
+                  {
+                    "name": "コカコーラ 500ml",
+                    "printed": 140,
+                    "basis": "exclusive",
+                    "rate": 8,
+                    "addedTax": 11,
+                    "gross": 151,
+                    "discount": 3,
+                    "net": 148
+                  },
+                  {
+                    "name": "パラドゥ ミニネイル PK03",
+                    "printed": 300,
+                    "basis": "exclusive",
+                    "rate": 10,
+                    "addedTax": 30,
+                    "gross": 330,
+                    "discount": 6,
+                    "net": 324
+                  },
+                  {
+                    "name": "メビウスワン",
+                    "printed": 490,
+                    "basis": "inclusive",
+                    "rate": 10,
+                    "addedTax": 0,
+                    "gross": 490,
+                    "discount": 9,
+                    "net": 481
+                  },
+                  {
+                    "name": "50円切手",
+                    "printed": 50,
+                    "basis": "exempt",
+                    "rate": null,
+                    "addedTax": 0,
+                    "gross": 50,
+                    "discount": 1,
+                    "net": 49
+                  }
+                ],
+                "issues": [],
+                "grossTotal": 1161,
+                "discountTotal": 22,
+                "paidTotal": 1139
+              },
+              "preparedDraft": {
+                "amount": 1139,
+                "items": [
+                  {
+                    "name": "手巻おにぎり 辛子明太子",
+                    "amount": 137
+                  },
+                  {
+                    "name": "コカコーラ 500ml",
+                    "amount": 148
+                  },
+                  {
+                    "name": "パラドゥ ミニネイル PK03",
+                    "amount": 324
+                  },
+                  {
+                    "name": "メビウスワン",
+                    "amount": 481
+                  },
+                  {
+                    "name": "50円切手",
+                    "amount": 49
+                  }
+                ]
+              },
+              "mimeType": "image/png"
+            },
+            "targetChoice": "new"
+          }
+        }
+      ],
+      "receiptReviews": [
+        {
+          "receiptId": "3832da1f-f349-4ab2-8b7b-2b7463e8ebbf",
+          "candidate": {
+            "merchant": "セブン-イレブン 千代田店",
+            "merchant_address": "東京都千代田区二番町8-8",
+            "date": "2026-10-01",
+            "time": "08:45",
+            "total": 1161,
+            "paid_total": 1139,
+            "tax_groups": [
+              {
+                "id": "exclusive_8",
+                "basis": "exclusive",
+                "rate": 8,
+                "subtotal": 270,
+                "tax": 21
+              },
+              {
+                "id": "exclusive_10",
+                "basis": "exclusive",
+                "rate": 10,
+                "subtotal": 300,
+                "tax": 30
+              },
+              {
+                "id": "inclusive_10",
+                "basis": "inclusive",
+                "rate": 10,
+                "subtotal": 490,
+                "tax": null
+              },
+              {
+                "id": "exempt",
+                "basis": "exempt",
+                "rate": null,
+                "subtotal": 50,
+                "tax": null
+              }
+            ],
+            "currency": "JPY",
+            "payment_method": "e_money",
+            "items": [
+              {
+                "name": "手巻おにぎり 辛子明太子",
+                "amount": 130,
+                "tax_group": "exclusive_8"
+              },
+              {
+                "name": "コカコーラ 500ml",
+                "amount": 140,
+                "tax_group": "exclusive_8"
+              },
+              {
+                "name": "パラドゥ ミニネイル PK03",
+                "amount": 300,
+                "tax_group": "exclusive_10"
+              },
+              {
+                "name": "メビウスワン",
+                "amount": 490,
+                "tax_group": "inclusive_10"
+              },
+              {
+                "name": "50円切手",
+                "amount": 50,
+                "tax_group": "exempt"
+              }
+            ],
+            "tax": null,
+            "discount": 22,
+            "unreadable_fields": []
+          },
+          "missingFields": [],
+          "itemMismatch": false,
+          "matches": [],
+          "calculation": {
+            "method": "printed-tax-largest-remainder-v1",
+            "rows": [
+              {
+                "name": "手巻おにぎり 辛子明太子",
+                "printed": 130,
+                "basis": "exclusive",
+                "rate": 8,
+                "addedTax": 10,
+                "gross": 140,
+                "discount": 3,
+                "net": 137
+              },
+              {
+                "name": "コカコーラ 500ml",
+                "printed": 140,
+                "basis": "exclusive",
+                "rate": 8,
+                "addedTax": 11,
+                "gross": 151,
+                "discount": 3,
+                "net": 148
+              },
+              {
+                "name": "パラドゥ ミニネイル PK03",
+                "printed": 300,
+                "basis": "exclusive",
+                "rate": 10,
+                "addedTax": 30,
+                "gross": 330,
+                "discount": 6,
+                "net": 324
+              },
+              {
+                "name": "メビウスワン",
+                "printed": 490,
+                "basis": "inclusive",
+                "rate": 10,
+                "addedTax": 0,
+                "gross": 490,
+                "discount": 9,
+                "net": 481
+              },
+              {
+                "name": "50円切手",
+                "printed": 50,
+                "basis": "exempt",
+                "rate": null,
+                "addedTax": 0,
+                "gross": 50,
+                "discount": 1,
+                "net": 49
+              }
+            ],
+            "issues": [],
+            "grossTotal": 1161,
+            "discountTotal": 22,
+            "paidTotal": 1139
+          },
+          "preparedDraft": {
+            "amount": 1139,
+            "items": [
+              {
+                "name": "手巻おにぎり 辛子明太子",
+                "amount": 137
+              },
+              {
+                "name": "コカコーラ 500ml",
+                "amount": 148
+              },
+              {
+                "name": "パラドゥ ミニネイル PK03",
+                "amount": 324
+              },
+              {
+                "name": "メビウスワン",
+                "amount": 481
+              },
+              {
+                "name": "50円切手",
+                "amount": 49
+              }
+            ]
+          },
+          "mimeType": "image/png"
+        }
+      ]
+    }
+  ],
+  "receipts": {
+    "3832da1f-f349-4ab2-8b7b-2b7463e8ebbf": {
+      "id": "3832da1f-f349-4ab2-8b7b-2b7463e8ebbf",
+      "mimeType": "image/png",
+      "pageCount": 1,
+      "sha256": "1e872a99a0d27d40d4efec005b9a463e610916c2914475fa30c95ee3b85b7ff3",
+      "createdAt": 1791046535.457409,
+      "transactionId": "8e6a2c85-ef59-5614-adf6-4c5f43701846",
+      "threadId": "70edd7ff-b5e8-4ed5-9252-86d5759fdbd5",
+      "path": "demo-data/receipts/3832da1f-f349-4ab2-8b7b-2b7463e8ebbf.png"
+    },
+    "3c168dcb-6451-4277-85ae-1e45197035ab": {
+      "id": "3c168dcb-6451-4277-85ae-1e45197035ab",
+      "mimeType": "image/png",
+      "pageCount": 1,
+      "sha256": "02f2645dc9ec3eae7bff0a2471fd1df77febbd3469da1b26f5cbd6133b6c6637",
+      "createdAt": 1791094552.731741,
+      "transactionId": "9f70c27c-1dd6-5e27-9b4e-ed976d898613",
+      "threadId": "ea095345-2bd1-4f1f-bc41-ae402b197eac",
+      "path": "demo-data/receipts/3c168dcb-6451-4277-85ae-1e45197035ab.png"
+    }
+  },
+  "placeLookup": {
+    "ChIJyefU0dGMGGARR1lv_2NVT4U": {
+      "name": "ファミリーマート 新宿マインズタワー店",
+      "address": "東京都渋谷区代々木2丁目1-1 新宿マインズタワー",
+      "sourceUrl": "https://www.openstreetmap.org/way/137189958",
+      "placeEvidence": "google_places",
+      "attribution": "© OpenStreetMap contributors (ODbL)",
+      "coordinates": [
+        139.6989516,
+        35.6866029
+      ],
+      "demoPositionUnconfirmed": false,
+      "demoNote": "東京都の店舗情報と住所を照合。OSMの新宿マインズタワー建物の代表点で、店の入口は未確認。"
+    },
+    "ChIJrTA_kxCLGGARkDeX1tNnmWI": {
+      "name": "ファミリーマート バスターミナル東京八重洲／Ｓ店",
+      "address": "東京都中央区八重洲2丁目2-1 東京ミッドタウン八重洲 地下2階",
+      "sourceUrl": "https://www.openstreetmap.org/way/1116244124",
+      "placeEvidence": "google_places",
+      "attribution": "© OpenStreetMap contributors (ODbL)",
+      "coordinates": [
+        139.7690941,
+        35.6792973
+      ],
+      "demoPositionUnconfirmed": false,
+      "demoNote": "施設公式B2店舗情報と住所を照合。OSMの東京ミッドタウン八重洲建物の代表点で、地下店舗の入口は未確認。"
+    }
+  }
+}

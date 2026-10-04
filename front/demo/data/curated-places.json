@@ -1,0 +1,28 @@
+{
+  "ChIJyefU0dGMGGARR1lv_2NVT4U": {
+    "name": "ファミリーマート 新宿マインズタワー店",
+    "address": "東京都渋谷区代々木2丁目1-1 新宿マインズタワー",
+    "coordinates": [
+      139.6989516,
+      35.6866029
+    ],
+    "sourceUrl": "https://www.openstreetmap.org/way/137189958",
+    "attribution": "© OpenStreetMap contributors (ODbL)",
+    "verifiedAt": "2026-10-05",
+    "note": "東京都の店舗情報と住所を照合。OSMの新宿マインズタワー建物の代表点で、店の入口は未確認。",
+    "identitySourceUrl": "https://kosodateswitch.metro.tokyo.lg.jp/shop/21677"
+  },
+  "ChIJrTA_kxCLGGARkDeX1tNnmWI": {
+    "name": "ファミリーマート バスターミナル東京八重洲／Ｓ店",
+    "address": "東京都中央区八重洲2丁目2-1 東京ミッドタウン八重洲 地下2階",
+    "coordinates": [
+      139.7690941,
+      35.6792973
+    ],
+    "sourceUrl": "https://www.openstreetmap.org/way/1116244124",
+    "attribution": "© OpenStreetMap contributors (ODbL)",
+    "verifiedAt": "2026-10-05",
+    "note": "施設公式B2店舗情報と住所を照合。OSMの東京ミッドタウン八重洲建物の代表点で、地下店舗の入口は未確認。",
+    "identitySourceUrl": "https://www.yaesu.tokyo-midtown.com/shop-restaurant/detail/00002"
+  }
+}
