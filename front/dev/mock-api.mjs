@@ -2,6 +2,7 @@ import { normalizeMerchantAddress,parseExpenseDraft } from '../src/lib/transacti
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { assignEstimatedTransactionDatetimes, isValidTransactionDateTime } from '../src/lib/transaction-datetime.js';
+import {isValidBudget} from '../src/lib/budget.js';
 
 const fixtureUrl = new URL('../src/data/september-transactions.json', import.meta.url);
 
@@ -16,6 +17,7 @@ export function mockApi() {
   return {
     name: 'kakei-json-api',
     configureServer(server) {
+      let budgets = {'食費':60000,'住まい':90000,'日用品':25000,'交通':25000,'娯楽':30000,'その他':20000};
       let transactions = assignEstimatedTransactionDatetimes(JSON.parse(readFileSync(fixtureUrl, 'utf8')));
       const timeline = JSON.parse(readFileSync(new URL('../src/data/september-timeline.json', import.meta.url), 'utf8'));
       const statusFor = (record, place) => !record?.merchantAddress ? 'trajectory_only' : record.merchantAddress.normalize('NFKC').replace(/\s/g,'') === place?.address?.normalize('NFKC').replace(/\s/g,'') ? 'matched' : 'needs_review';
@@ -23,6 +25,20 @@ export function mockApi() {
       server.middlewares.use(async (request, response, next) => {
         const path = new URL(request.url, 'http://localhost').pathname;
         if (!path.startsWith('/api/')) return next();
+
+        if (path === '/api/budget') {
+          if (request.method === 'GET') return send(response, 200, {categories: budgets});
+          if (request.method !== 'PUT') return send(response, 405, {error: {code: 'method_not_allowed'}});
+          try {
+            let raw = ''; for await (const chunk of request) raw += chunk;
+            const payload = JSON.parse(raw);
+            if (!isValidBudget(payload?.categories)) throw new Error('6つのカテゴリに0円から999,999,999円までの整数を指定してください。');
+            budgets = payload.categories;
+            return send(response, 200, {categories: budgets});
+          } catch (error) {
+            return send(response, 400, {error: {code: 'validation_error', field: 'categories', message: error.message}});
+          }
+        }
 
         if (path === '/api/transaction-addresses' && request.method === 'GET') {
           return send(response,200,{addresses:transactions.map(contextFor).filter(c=>c.places.length)});

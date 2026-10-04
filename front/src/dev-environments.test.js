@@ -21,6 +21,21 @@ afterEach(async () => {
   delete process.env.KAKEI_API_TARGET;
 });
 
+it('edits shared category budgets in mock mode without persisting across server restarts',async()=>{
+  let base=await startVite('mock');
+  const initial=await (await fetch(base+'/api/budget')).json();
+  expect(initial.categories).toEqual({'食費':60000,'住まい':90000,'日用品':25000,'交通':25000,'娯楽':30000,'その他':20000});
+  const changed={categories:{...initial.categories,'食費':70000}};
+  const save=await fetch(base+'/api/budget',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(changed)});
+  expect(save.status).toBe(200);
+  expect(await save.json()).toEqual(changed);
+  expect(await (await fetch(base+'/api/budget')).json()).toEqual(changed);
+  expect((await fetch(base+'/api/budget',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({categories:{...changed.categories,'食費':-1}})})).status).toBe(400);
+  expect(await (await fetch(base+'/api/budget')).json()).toEqual(changed);
+  await running.pop()();base=await startVite('mock');
+  expect((await (await fetch(base+'/api/budget')).json()).categories['食費']).toBe(60000);
+});
+
 it('uses the 37-record September JSON in mock mode and preserves mock operations', async () => {
   let base = await startVite('mock');
   expect(await (await fetch(`${base}/api/status`)).json()).toEqual({ initialized: true });
