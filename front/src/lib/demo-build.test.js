@@ -1,6 +1,6 @@
 // @vitest-environment node
 import {afterEach, describe, expect, it} from 'vitest';
-import {mkdtempSync, mkdirSync, writeFileSync, rmSync} from 'node:fs';
+import {mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {createHash} from 'node:crypto';
@@ -20,10 +20,41 @@ function fixture(){
  put('dist-demo/assets/main.js','import("./map.js"); const receipt="receipt-demo";');
  put('dist-demo/assets/map.js','export const map=true;');
  put('dist/index.html','<script src="/assets/main.js"></script>');put('dist/assets/main.js','normal');
- return {root,put};
+ const updateSnapshot=mutate=>{
+  mutate(snapshot);put('demo/data/snapshot.json',snapshot);
+  const manifest=JSON.parse(readFileSync(join(root,'demo/data/manifest.json'),'utf8'));
+  manifest.snapshotSha256=hash(JSON.stringify(snapshot));put('demo/data/manifest.json',manifest);
+ };
+ return {root,put,updateSnapshot};
 }
 afterEach(()=>roots.splice(0).forEach(root=>rmSync(root,{recursive:true,force:true})));
 describe('demo publication validation',()=>{
+ it.each(['pending','expired','applied'])('accepts %s saved history and originals with deleted historical transaction targets',status=>{
+  const {root,updateSnapshot}=fixture();
+  updateSnapshot(s=>{const t=s.threads[0];t.receiptReviews=[{receiptId:'receipt-demo'}];t.proposals=[{id:'proposal',threadId:t.id,status,expiresAt:1,
+   metadata:{receiptId:'receipt-demo',receiptReview:{receiptId:'receipt-demo'}},commands:[{identity:{id:'deleted-transaction'},data:{receiptIds:['receipt-demo']}}],
+   before:[{id:'deleted-transaction'}],after:[{id:'deleted-transaction',receiptIds:['receipt-demo']}],result:{transactions:[{id:'deleted-transaction'}]}}];});
+  expect(()=>validateDemoSource(root)).not.toThrow();expect(()=>validateDemoBuild(root)).not.toThrow();
+ });
+ it.each(['source','build'])('rejects saved display graph corruption at %s even with a matching snapshot hash',boundary=>{
+  for(const field of ['review','metadata','command','parent','duplicate','transport']){
+   const {root,updateSnapshot}=fixture();
+   updateSnapshot(s=>{
+    const t=s.threads[0],p={id:'proposal',threadId:t.id,metadata:{receiptId:'receipt-demo',receiptReview:{receiptId:'receipt-demo'}},commands:[{data:{receiptIds:['receipt-demo']}}]};
+    t.proposals=[p];t.receiptReviews=[{receiptId:'receipt-demo'}];
+    if(field==='review')t.receiptReviews[0].receiptId='missing-original';
+    if(field==='metadata')p.metadata.receiptReview.receiptId='missing-original';
+    if(field==='command')p.commands[0].data.receiptIds=['missing-original'];
+    if(field==='parent')p.threadId='missing-thread';
+    if(field==='duplicate')t.proposals.push(structuredClone(p));
+    if(field==='transport'){
+     s.timeline.places={p:{name:'地点',placeEvidence:'user',coordinates:[139.7,35.6]}};
+     s.timeline.days=[{date:'2026-10-02',events:[{id:'a',placeId:'p',time:null,timeEvidence:'unknown'},{id:'b',placeId:'p',time:null,timeEvidence:'unknown'}],legs:[{fromEventId:'a',toEventId:'b',modeHint:'train',modeEvidence:'fare',transportTransactionId:'missing-transaction'}]}];
+    }
+   });
+   expect(()=>boundary==='source'?validateDemoSource(root):validateDemoBuild(root)).toThrow(/receiptId|threadId|Duplicate.*proposal|transportTransactionId/);
+  }
+ });
  it('accepts valid source, /Kakei/ build, lazy chunks and isolated normal output',()=>{const {root}=fixture();expect(()=>validateDemoSource(root)).not.toThrow();expect(()=>validateDemoBuild(root)).not.toThrow();expect(()=>validateNormalBuild(root)).not.toThrow();});
  it.each(['demo/public','dist-demo'])('rejects missing receipt in %s',dir=>{const {root}=fixture();rmSync(join(root,dir,'demo-data/receipts/receipt-demo.png'));expect(()=>dir==='dist-demo'?validateDemoBuild(root):validateDemoSource(root)).toThrow(/receipt/);});
  it('rejects root absolute asset',()=>{const {root,put}=fixture();put('dist-demo/index.html','<script src="/assets/main.js"></script>');expect(()=>validateDemoBuild(root)).toThrow(/base/);});

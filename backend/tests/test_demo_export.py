@@ -41,3 +41,53 @@ class DemoExportTests(unittest.TestCase):
   s=self.export();self.assertIsNone(s['timeline']['places']['g']['coordinates']);self.assertTrue(s['timeline']['places']['g']['demoPositionUnconfirmed'])
   self.curated.write_text(json.dumps({'g-id':{'name':'店','address':'東京都','coordinates':[139.7,35.6],'sourceUrl':'https://example.org','attribution':'Independent','verifiedAt':'2026-10-05','note':'独立照合'}}))
   s=self.export();self.assertEqual(s['timeline']['places']['g']['coordinates'],[139.7,35.6]);self.assertNotIn('provider',s['timeline']['places']['g'])
+ def history(self):
+  s=self.export();t=s['threads'][0]
+  t['receiptReviews']=[{'receiptId':'receipt-1'}]
+  t['proposals']=[{'id':'proposal-1','threadId':t['id'],'status':'expired','expiresAt':1,
+   'metadata':{'receiptId':'receipt-1','receiptReview':{'receiptId':'receipt-1'}},
+   'commands':[{'kind':'transaction.update','identity':{'id':'deleted-transaction'},'data':{'receiptIds':['receipt-1']}}],
+   'before':[{'id':'deleted-transaction'}],'after':[{'id':'deleted-transaction','receiptIds':['receipt-1']}],
+   'result':{'transactions':[{'id':'deleted-transaction'}]}}]
+  return s
+ def test_rejects_missing_saved_original_references_with_paths(self):
+  for path in ('review','metadata','proposal-review','command','history','result','transaction'):
+   with self.subTest(path=path):
+    s=self.history();t=s['threads'][0];p=t['proposals'][0]
+    if path=='review':t['receiptReviews'][0]['receiptId']='missing-original';expected=r'receiptReviews\[0\].receiptId'
+    elif path=='metadata':p['metadata']['receiptId']='missing-original';expected='metadata.receiptId'
+    elif path=='proposal-review':p['metadata']['receiptReview']['receiptId']='missing-original';expected='metadata.receiptReview.receiptId'
+    elif path=='command':p['commands'][0]['data']['receiptIds']=['missing-original'];expected=r'commands\[0\].data.receiptIds\[0\]'
+    elif path=='history':p['after'][0]['receiptIds']=['missing-original'];expected=r'after\[0\].receiptIds\[0\]'
+    elif path=='result':p['result']['transactions'][0]['receiptIds']=['missing-original'];expected=r'result.transactions\[0\].receiptIds\[0\]'
+    else:s['transactions']=[{'id':'transaction','date':'2026-10-01','receiptIds':['missing-original']}];expected=r'transactions\[0\].receiptIds\[0\]'
+    with self.assertRaisesRegex(ValueError,expected):validate_snapshot(s,self.out/'public')
+ def test_rejects_parent_mismatches_and_duplicate_lookup_ids(self):
+  for case in ('thread','proposal-thread','wrong-proposal-thread','proposal','message','review','receipt-key','receipt-thread'):
+   with self.subTest(case=case):
+    s=self.history();t=s['threads'][0];p=t['proposals'][0]
+    if case=='thread':s['threads'].append(copy.deepcopy(t))
+    elif case=='proposal-thread':p['threadId']='missing-thread'
+    elif case=='wrong-proposal-thread':s['threads'].append({'id':'another-thread','messages':[],'proposals':[]});p['threadId']='another-thread'
+    elif case=='proposal':t['proposals'].append(copy.deepcopy(p))
+    elif case=='message':t['messages'].append(copy.deepcopy(t['messages'][0]))
+    elif case=='review':t['receiptReviews'].append(copy.deepcopy(t['receiptReviews'][0]))
+    elif case=='receipt-key':s['receipts']['receipt-1']['id']='wrong-key'
+    else:s['receipts']['receipt-1']['threadId']='missing-thread'
+    with self.assertRaises(ValueError):validate_snapshot(s,self.out/'public')
+ def test_accepts_pending_expired_and_applied_history_with_deleted_targets(self):
+  for status in ('pending','expired','applied'):
+   with self.subTest(status=status):
+    s=self.history();s['threads'][0]['proposals'][0]['status']=status
+    validate_snapshot(s,self.out/'public')
+ def test_export_rejects_retained_review_when_original_is_missing(self):
+  with self.store._connection() as c:
+   c.execute('INSERT INTO agent_turns VALUES (?,?,?,?,?,?,?)',(self.thread['id'],'saved-review','{}','lease','complete',1,json.dumps({'receiptReview':{'receiptId':'missing-original'}})))
+  before=self.dump()
+  with self.assertRaisesRegex(ValueError,r'receiptReviews\[0\].receiptId'):self.export()
+  self.assertEqual(self.dump(),before);self.assertFalse((self.out/'data/snapshot.json').exists())
+ def test_rejects_missing_current_transport_reference(self):
+  s=self.history();s['timeline']={'places':{'p':{'name':'p','coordinates':[139,35]}},'days':[{'date':'2026-10-01',
+   'events':[{'id':'a','placeId':'p'},{'id':'b','placeId':'p'}],
+   'legs':[{'fromEventId':'a','toEventId':'b','transportTransactionId':'missing-transaction'}]}]}
+  with self.assertRaisesRegex(ValueError,'Missing leg reference'):validate_snapshot(s,self.out/'public')
