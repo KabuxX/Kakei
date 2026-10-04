@@ -109,7 +109,7 @@ export default function Trajectory({ transactions = EMPTY, refreshKey = 0, reque
 
       <section className="trajectory-timeline-panel" aria-labelledby="trajectory-timeline-heading">
         <div className="trajectory-panel-heading"><div><p className="trajectory-section-label">TIMELINE</p><h2 id="trajectory-timeline-heading">時系列</h2></div><span>{day.events.length}件</span></div>
-        <ol className="trajectory-timeline">
+        <ol className="trajectory-timeline" tabIndex={0} aria-labelledby="trajectory-timeline-heading">
           {day.events.map((event, index) => {
             const before = day.segments.find(s => s.toEventId === event.id);
             return <li key={event.id}>

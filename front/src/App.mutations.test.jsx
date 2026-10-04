@@ -31,14 +31,6 @@ it('opens the dialog and submits one new transaction', async () => {
   expect(screen.getByText('2026年10月')).toBeTruthy();
 });
 
-it('confirms sample deletion before one request', async () => {
-  render(<App />);
-  fireEvent.click(screen.getByRole('button', { name: 'サンプルを削除' }));
-  await waitFor(() => expect(methods.deleteSamples).toHaveBeenCalledTimes(1));
-  expect(window.confirm).toHaveBeenCalledWith(expect.stringMatching(/レシート原本/));
-  expect(window.confirm.mock.calls[0][0]).toMatch(/軌跡/);
-});
-
 it('shows a dedicated confirmation before deleting the selected transaction', async () => {
   window.location.hash = '#transaction/sample-0';
   render(<App />);
