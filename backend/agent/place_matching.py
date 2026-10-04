@@ -19,6 +19,14 @@ def normalize_text(value):
 def compact(value): return normalize_text(value or '').replace(' ','')
 
 
+def merchant_key(value):
+    """Normalize known brand spellings without changing address matching."""
+    name=normalize_text(value or '')
+    name=re.sub(r'(?<![a-z])family\s*mart(?![a-z])','ファミリーマート',name)
+    name=name.translate(str.maketrans('‐‑‒–—−','------')).replace(' ','')
+    return name.replace('セブン-イレブン','セブンイレブン')
+
+
 def user_address_pair(message, name, address):
     """Accept explicit adjacent pairs; co-occurrence cannot establish identity."""
     body=normalize_text(message);name=normalize_text(name);address=normalize_text(address)
@@ -110,7 +118,7 @@ class EvidenceResolver:
                 elif source=='search':candidates=data.get('result',{}).get('candidates',[])+data.get('result',{}).get('unlocatedCandidates',[])
                 for candidate in candidates:
                     name=candidate.get('name') or ''
-                    if addresses_match(value,candidate.get('address')) and compact(request.get('brand') or request['query']) in compact(name) and (not request.get('branch') or compact(request['branch']) in compact(name)):
+                    if addresses_match(value,candidate.get('address')) and merchant_key(request.get('brand') or request['query']) in merchant_key(name) and (not request.get('branch') or merchant_key(request['branch']) in merchant_key(name)):
                         address_stores.append({'name':name,'address':value,'sources':candidate.get('sources',[]),'country_code':'jp'})
             values.setdefault(e['field'],set()).add(value)
             if source=='saved_place' and coordinates_valid(data.get('coordinates')):

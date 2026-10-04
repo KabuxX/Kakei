@@ -1,7 +1,7 @@
 """Bounded Web discovery, coordinate verification and grounded estimation."""
 import asyncio,copy,json,time,uuid
 from agent.limits import SEARCH_SECONDS,FINAL_REPLY_RESERVE,STAGE_LIMITS,PIPELINE_VERSION,SearchLimit
-from agent.place_matching import compact,coordinates_valid,locality_matches,distance
+from agent.place_matching import compact,merchant_key,coordinates_valid,locality_matches,distance
 from agent.place_http import PlaceProviderError
 from db.store import TrajectoryConflict
 from services.validation import ValidationError
@@ -71,11 +71,31 @@ class SearchBudget:
 def conditions(request):
     return {k:v for k,v in request.items() if k not in ('place_id','reuse_search_id','evidence','refresh','address_format')}
 
+def abbreviated_branch(place,request):
+    branch=merchant_key(request.get('branch'));actual=merchant_key(place.get('branch'))
+    stem=branch.removesuffix('店')
+    return bool(branch and branch.endswith('店') and len(stem)>=2 and actual.startswith(stem) and actual.endswith('店') and actual in merchant_key(place.get('name')) and branch!=actual and request.get('address') and addresses_match(request['address'],place.get('address')))
+
+def coordinate_warnings(place,request):
+    # Only these non-identity warnings can accompany independently verified pins.
+    warnings=[w['note'] for w in place.get('warnings',[]) if w['kind'] in ('historical_location_unconfirmed','building_relation_unconfirmed') or (w['kind']=='branch_label_difference' and abbreviated_branch(place,request))]
+    if abbreviated_branch(place,request):warnings.append('入力の支店名は掲載名と異なります。住所が一致する店舗の候補として確認してください。')
+    return warnings
+
+def annotate_candidate(candidate,place,request):
+    evidence=candidate.get('coordinateEvidence')
+    warnings=coordinate_warnings(place,request)
+    if evidence and warnings:
+        evidence['note']=(evidence['note']+' '+' '.join(warnings))[:500]
+        evidence['verification']='needs_confirmation'
+    if abbreviated_branch(place,request):candidate['matchReasons']=list(dict.fromkeys(candidate.get('matchReasons',[])+['branch_unconfirmed']))
+    return candidate
+
 def store_reasons(place,request,region):
-    reasons=[];name=compact(place.get('name'));brand=compact(request.get('brand') or request['query'])
+    reasons=[];name=merchant_key(place.get('name'));brand=merchant_key(request.get('brand') or request['query'])
     if brand not in name:reasons.append('name_mismatch')
-    branch=compact(request.get('branch'))
-    if branch and branch not in name:reasons.append('branch_unconfirmed')
+    branch=merchant_key(request.get('branch'))
+    if branch and branch not in name and not abbreviated_branch(place,request):reasons.append('branch_unconfirmed')
     if request.get('address') and not addresses_match(request['address'],place.get('address')):reasons.append('address_mismatch')
     if not locality_matches(request.get('locality'),place):reasons.append('locality_unconfirmed')
     if request.get('country_code') and place.get('country_code')!=request['country_code']:reasons.append('country_unconfirmed')
@@ -154,6 +174,9 @@ class PlaceSearchService:
         def record(a,**values):a.update(values);self.searches.record_attempt(self.context,sid,a)
         key=json.dumps(conditions(request),ensure_ascii=False,sort_keys=True)
         children=[];stores=[];anchors=[];failures=[];tried=[];a=None;geo_session=None;geo_attempt=None;geo_trials=[]
+        def preserve_unlocated():
+            located={(merchant_key(c['name']),compact(c['address'])) for c in out['candidates']}
+            out['unlocatedCandidates']=sources_for([{k:p[k] for k in ('id','name','address','sources')}|{'unresolved':p.get('unresolved') or list(dict.fromkeys(failures)) or ['position_unverified']} for p in unique_stores(stores)[:5] if (merchant_key(p['name']),compact(p['address'])) not in located])
         async def geolonia_locate(store):
             nonlocal geo_session,geo_attempt
             if self.geolonia is None:return None
@@ -202,11 +225,12 @@ class PlaceSearchService:
                             if not any(compact(h['anchorName'])==compact(p['name']) and addresses_match(h['anchorAddress'],p['address']) for h in hints):return
                         else:
                             reasons=store_reasons(p,request,None)+p.get('unresolved',[])
+                            if any(w['kind']=='branch_label_difference' for w in p.get('warnings',[])) and not abbreviated_branch(p,request):reasons.append('branch_unconfirmed')
                             if reasons:
                                 stores.append({**p,'unresolved':reasons});return
                             candidate=await geolonia_locate(p)
-                            if candidate and not store_reasons(candidate,request,resolved['region']):
-                                out['candidates'].append(candidate);stores.append(p);return
+                            if candidate and not store_reasons({**p,**candidate},request,resolved['region']):
+                                out['candidates'].append(annotate_candidate(candidate,p,request));stores.append(p);return
                         verify_key=json.dumps({'name':p['name'],'address':p['address'],'sources':p['sources'],'hints':p.get('hints',[])},sort_keys=True,ensure_ascii=False)
                         try:
                             result=await self.budget.verify(verify_key,lambda t:self.verifier.verify(p,timeout=t))
@@ -219,7 +243,7 @@ class PlaceSearchService:
                         if p.get('role')=='anchor':anchors.extend(result['anchors']);return
                         stores.append({**p,'verifiedHints':result.get('verifiedHints',[])})
                         for c in result['candidates']:
-                            if not store_reasons({**p,**c},request,resolved['region']):out['candidates'].append(c)
+                            if not store_reasons({**p,**c},request,resolved['region']):out['candidates'].append(annotate_candidate(c,p,request))
                     children=[asyncio.create_task(locate(p)) for p in rows]
                     await asyncio.gather(*children)
                     stores=unique_stores(stores)[:5]
@@ -228,7 +252,7 @@ class PlaceSearchService:
                         a=start('estimate',{'anchors':[p['name'] for p in anchors]})
                         for store in stores:
                             for c in estimate_coordinates(store,anchors):
-                                if not store_reasons({**store,**c},request,resolved['region']):out['candidates'].append(c)
+                                if not store_reasons({**store,**c},request,resolved['region']):out['candidates'].append(annotate_candidate(c,store,request))
                         record(a,status='complete',candidates=out['candidates'],finishedAt=time.time())
                     if out['candidates']:break
                 except PlaceProviderError as e:
@@ -236,8 +260,7 @@ class PlaceSearchService:
                     if e.stop_turn:break
             a=start('compare',{});out['candidates']=sources_for(compare_candidates(out['candidates']))
             record(a,status='complete',candidates=out['candidates'],finishedAt=time.time())
-            located={(compact(c['name']),compact(c['address'])) for c in out['candidates']}
-            out['unlocatedCandidates']=sources_for([{k:p[k] for k in ('id','name','address','sources')}|{'unresolved':p.get('unresolved') or list(dict.fromkeys(failures)) or ['position_unverified']} for p in stores if (compact(p['name']),compact(p['address'])) not in located])
+            preserve_unlocated()
             out['unresolved']=list(dict.fromkeys(failures))
             if failures or out['unlocatedCandidates']:
                 out['error']='一部の店舗の位置確認・探索が完了していません。';return finish('partial' if stores or out['candidates'] else 'error')
@@ -247,6 +270,7 @@ class PlaceSearchService:
             code=e.code if isinstance(e,PlaceProviderError) else str(e)
             if a:record(a,status='failed',errorCode=code,finishedAt=time.time())
             out['candidates']=sources_for(compare_candidates(out['candidates']));out['unresolved'].append(code);out['error']='地点検索は途中で終了しました（'+code+'）。'
+            failures.append(code);preserve_unlocated()
             return finish('partial')
         except asyncio.CancelledError:
             for task in children:task.cancel()
@@ -263,7 +287,7 @@ class PlaceSearchService:
 def compare_candidates(candidates):
     groups={}
     for candidate in candidates:
-        key=(compact(candidate['name']),compact(candidate['address']))
+        key=(merchant_key(candidate['name']),compact(candidate['address']))
         group=groups.setdefault(key,[])
         if any(c['coordinates']==candidate['coordinates'] and c.get('coordinateEvidence',{}).get('status')==candidate.get('coordinateEvidence',{}).get('status') for c in group):continue
         group.append(copy.deepcopy(candidate))

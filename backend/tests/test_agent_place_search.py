@@ -85,7 +85,7 @@ class SearchTests(unittest.IsolatedAsyncioTestCase):
         self.verifier.error=PlaceProviderError('network')
         out=await self.service.search(self.req)
         rec=self.searches.get(self.ctx['thread_id'],out['searchId'])
-        self.assertEqual(out['pipelineVersion'],'geolonia-web-coordinates-v2');self.assertEqual(out['status'],'partial')
+        self.assertEqual(out['pipelineVersion'],'geolonia-web-coordinates-v3');self.assertEqual(out['status'],'partial')
         self.assertEqual([a['stage'] for a in rec['attempts']][:3],['web','extract','verify'])
         self.assertEqual(out['unlocatedCandidates'][0]['address'],WEB_PLACE['address']);self.assertEqual(out['candidates'],[])
     async def test_parallel_duplicate_searches_have_distinct_ids_and_shared_requests(self):
@@ -240,7 +240,7 @@ class SearchTests(unittest.IsolatedAsyncioTestCase):
         self.verifier.verify=verify
         out=await self.service.search(self.req)
         self.assertEqual(out['candidates'][0]['coordinateEvidence']['status'],'estimated')
-        self.assertEqual(out['pipelineVersion'],'geolonia-web-coordinates-v2')
+        self.assertEqual(out['pipelineVersion'],'geolonia-web-coordinates-v3')
         self.assertEqual([call[1]['strategy'] for call in self.provider.calls if call[0]=='web'],['store','maps','address','anchor'])
     async def test_same_url_relationship_discovered_later_keeps_resolvable_ids(self):
         from agent.place_search import unique_stores

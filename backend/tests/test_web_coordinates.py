@@ -24,6 +24,44 @@ class MapLinkTests(unittest.TestCase):
             with self.subTest(url=url):self.assertIsNone(parse_map_link(url))
 
 class VerificationTests(unittest.TestCase):
+    def test_address_followed_by_phone_is_not_concatenated_into_house_number(self):
+        out=verify_page(STORE_ROW,page(article(extra='03-1234-5678 緯度33.590 経度130.400')),SOURCE)
+        self.assertEqual([c['coordinates'] for c in out['candidates']],[[130.4,33.59]])
+        wrong=article(address=ADDRESS+'0',extra='03-1234-5678 緯度33.590 経度130.400')
+        self.assertEqual(verify_page(STORE_ROW,page(wrong),SOURCE)['candidates'],[])
+        for suffix in ('-4',' -4',' 4'):
+            with self.subTest(suffix=suffix):
+                self.assertEqual(verify_page(STORE_ROW,page(article(address=ADDRESS+suffix)),SOURCE)['candidates'],[])
+
+    def test_embedded_geojson_point_is_bound_to_its_own_properties(self):
+        row={**STORE_ROW,'name':'セブン-イレブン テスト店','branch':'テスト店'}
+        features=[{'type':'Feature','geometry':{'type':'Point','coordinates':[131,34]},'properties':{'name':'別の店','address':ADDRESS}}, {'type':'Feature','geometry':{'type':'Point','coordinates':[130.4,33.59]},'properties':{'name':'セブンイレブンテスト店','address':ADDRESS}}]
+        body='<script type="application/json">'+json.dumps({'cache':{'body':{'features':features}}},ensure_ascii=False)+'</script>'
+        out=verify_page(row,page(body),SOURCE)
+        self.assertEqual([c['coordinates'] for c in out['candidates']],[[130.4,33.59]])
+        features[1]['properties']['address']=ADDRESS+'0'
+        self.assertEqual(verify_page(row,page('<script type="application/json">'+json.dumps(features,ensure_ascii=False)+'</script>'),SOURCE)['candidates'],[])
+
+    def test_geojson_nonpoint_other_crs_and_invalid_coordinates_are_not_pins(self):
+        feature={'type':'Feature','geometry':{'type':'Point','coordinates':[130.4,33.59]},'properties':{'name':NAME,'address':ADDRESS}}
+        cases=[{**feature,'crs':{'type':'name','properties':{'name':'EPSG:3857'}}},{**feature,'geometry':{'type':'LineString','coordinates':[130.4,33.59]}},{**feature,'geometry':{'type':'Point','coordinates':[True,33.59]}}]
+        for value in cases:
+            with self.subTest(value=value):
+                self.assertEqual(verify_page(STORE_ROW,page('<script type="application/json">'+json.dumps(value)+'</script>'),SOURCE)['candidates'],[])
+
+    def test_structured_address_conflicting_postcodes_remain_excluded(self):
+        row={**STORE_ROW,'address':'〒810-0001 '+ADDRESS}
+        body='<script type="application/ld+json">'+json.dumps({'name':NAME,'address':'〒810-9999 '+ADDRESS,'geo':{'latitude':33.59,'longitude':130.4}})+'</script>'
+        self.assertEqual(verify_page(row,page(body),SOURCE)['candidates'],[])
+        for actual in ('〒810-9999 '+ADDRESS,'〒810-9999 住所: '+ADDRESS,'〒8109999 '+ADDRESS):
+            with self.subTest(actual=actual):self.assertEqual(verify_page(row,page(article(address=actual)),SOURCE)['candidates'],[])
+
+    def test_unicode_hyphen_variant_preserves_store_identity(self):
+        row={**STORE_ROW,'name':'セブン‐イレブン テスト店','branch':'テスト店'}
+        out=verify_page(row,page(article(name='セブン-イレブン テスト店')),SOURCE)
+        self.assertEqual([c['coordinates'] for c in out['candidates']],[[130.4,33.59]])
+        self.assertEqual(verify_page(row,page(article(name='セブン-イレブン 別支店')),SOURCE)['candidates'],[])
+
     def test_explicit_text_coordinates_are_store_bound(self):
         out=verify_page(copy.deepcopy(STORE_ROW),page(article()),SOURCE)
         self.assertEqual(out['candidates'][0]['coordinates'],[130.4,33.59])
@@ -71,6 +109,19 @@ class VerificationTests(unittest.TestCase):
         self.assertEqual(out['candidates'],[]);self.assertEqual(out['anchors'][0]['coordinates'],[130.4,33.59])
 
 class DiscoveryTests(unittest.IsolatedAsyncioTestCase):
+    async def test_discovered_public_map_detail_is_checked_even_if_extractor_omits_url(self):
+        url='https://mapfan.com/spots/synthetic-test'
+        class Pages:
+            def __init__(self):self.calls=[]
+            async def fetch(self,requested,**kwargs):
+                self.calls.append(requested)
+                return page(article(extra='座標なし') if requested==SOURCE['url'] else article(),requested)
+        pages=Pages()
+        row={**copy.deepcopy(STORE_ROW),'urls':[],'discoveredUrls':[url]}
+        result=await WebCoordinateVerifier(pages,None).verify(row,timeout=5)
+        self.assertEqual([c['coordinates'] for c in result['candidates']],[[130.4,33.59]])
+        self.assertIn(url,pages.calls)
+
     async def test_short_map_link_keeps_verified_source_context(self):
         short='https://maps.app.goo.gl/real-link'
         class Pages:

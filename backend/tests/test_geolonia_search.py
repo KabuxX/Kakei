@@ -26,6 +26,22 @@ class GeoloniaSearchTests(unittest.IsolatedAsyncioTestCase):
 
     async def asyncTearDown(self):await self.budget.close()
 
+    async def test_discovered_abbreviated_branch_uses_detailed_geolonia_match(self):
+        self.provider.rows[0].update(name='セブン-イレブン 千代田二番町店',branch='千代田二番町店')
+        self.resolver.messages=[{'id':'u','role':'user','text':ADDRESS}]
+        out=await self.service.search({**self.grounded,'query':'セブン-イレブン 千代田店','brand':'セブン-イレブン','branch':'千代田店'})
+        self.assertEqual(out['candidates'][0]['coordinateEvidence']['status'],'address_matched')
+        self.assertIn('branch_unconfirmed',out['candidates'][0]['matchReasons'])
+        self.assertIn('入力の支店名',out['candidates'][0]['coordinateEvidence']['note'])
+        self.assertEqual(self.verifier.calls,[])
+
+    async def test_transaction_brand_alias_keeps_geolonia_first(self):
+        from test_merchant_address import DRAFT
+        transaction=self.store.create_transaction({**DRAFT,'merchant':'FamilyMart','merchantAddress':ADDRESS})
+        out=await self.service.search({'query':'ファミリーマート','brand':'ファミリーマート','place_id':'p','address':ADDRESS,'evidence':[{'field':'address','source':'transaction','source_id':transaction['id'],'value':ADDRESS}]})
+        self.assertEqual(out['candidates'][0]['coordinateEvidence']['status'],'address_matched')
+        self.assertEqual(self.provider.calls,[])
+
     async def test_grounded_address_uses_geolonia_before_web(self):
         out=await self.service.search(self.grounded)
         self.assertEqual(out['candidates'][0]['coordinateEvidence']['status'],'address_matched')

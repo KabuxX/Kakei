@@ -11,11 +11,20 @@ REPORT=f'{NAME} | {ADDRESS} | jp | 福岡市 [1]'
 def payload(text=REPORT):
     return {'status':'completed','output':[{'type':'web_search_call','status':'completed','action':{'type':'search','queries':['shop'],'sources':[{'url':SOURCE['url'],'type':'url'}]}},{'type':'message','content':[{'type':'output_text','text':text,'annotations':[{'type':'url_citation','url':SOURCE['url'],'title':'店舗情報','start_index':text.index('[1]'),'end_index':text.index('[1]')+3}]}]}],'usage':{'input_tokens':5}}
 def extraction(sid,**patches):
-    row={'name':NAME,'branch':'西鉄福岡駅店','address':ADDRESS,'country_code':'jp','locality':'福岡市','sourceIds':[sid],'evidenceText':REPORT.split(' [1]')[0],'unresolved':[],'role':'store','urls':[SOURCE['url']],'hints':[]}
+    row={'name':NAME,'branch':'西鉄福岡駅店','address':ADDRESS,'country_code':'jp','locality':'福岡市','sourceIds':[sid],'evidenceText':REPORT.split(' [1]')[0],'unresolved':[],'warnings':[],'role':'store','urls':[SOURCE['url']],'hints':[]}
     row.update(patches)
     return {'status':'completed','output':[{'type':'message','content':[{'type':'output_text','text':json.dumps({'places':[row]})}]}]}
 
 class WebTests(unittest.IsolatedAsyncioTestCase):
+    async def test_warning_categories_are_validated_and_preserved(self):
+        report={'sources':[SOURCE],'supports':{SOURCE['id']:REPORT},'text':REPORT}
+        warning={'kind':'historical_location_unconfirmed','note':'訪問日当日の所在地は確認できていない。'}
+        for warnings in ([warning],[{**warning,'kind':'different_store'}],[{**warning,'note':2}]):
+            async with httpx.AsyncClient(transport=httpx.MockTransport(lambda req:httpx.Response(200,json=extraction(SOURCE['id'],warnings=warnings)))) as c:
+                rows=await WebPlaceProvider(c).extract(report,timeout=1)
+            if warnings==[warning]:self.assertEqual(rows[0]['warnings'],warnings)
+            else:self.assertEqual(rows,[])
+
     async def test_research_includes_visit_date_and_historical_location_instruction(self):
         sent=[]
         async def handle(req):sent.append(json.loads(req.content));return httpx.Response(200,json=payload())

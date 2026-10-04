@@ -1,13 +1,13 @@
 """Coordinate authority comes from fetched, store-bound public material."""
 import copy,json,re,uuid
 from html.parser import HTMLParser
-from urllib.parse import urljoin
+from urllib.parse import urljoin,urlsplit
 from agent.map_links import parse_map_link
-from agent.place_matching import compact
+from agent.place_matching import compact,merchant_key,normalize_text
 from agent.place_http import PlaceProviderError
 from agent.limits import SearchLimit
 from services.coordinate_evidence import valid_coordinates
-from services.merchant_address import addresses_match, normalize_address
+from services.merchant_address import addresses_match, normalize_address,japanese_parts
 from services.place_evidence import safe_source_url
 from services.validation import ValidationError
 
@@ -28,9 +28,21 @@ class Document(HTMLParser):
             if self.stack[i].tag==tag:self.stack=self.stack[:i];break
     def handle_data(self,text):self.stack[-1].parts.append(text)
 
-def matches(row,name,address):
-    expected=compact(row['name']);branch=compact(row.get('branch',''))
-    return expected in compact(name) and (not branch or branch in compact(name)) and (addresses_match(row['address'],address) or bool(re.search(re.escape(normalize_address(row['address']))+r'(?![\d-])',normalize_address(address))))
+def matches(row,name,address,*,structured_address=False):
+    expected=merchant_key(row['name']);branch=merchant_key(row.get('branch',''))
+    if expected not in merchant_key(name) or (branch and branch not in merchant_key(name)):return False
+    if structured_address:return addresses_match(row['address'],address)
+    expected_postal,street=japanese_parts(row['address'])
+    street=normalize_address(street)
+    # Remove only complete telephone numbers, leaving every address digit and
+    # spaced suffix intact for the existing whole-address normalization.
+    body=normalize_text(address)
+    body=re.sub(r'(?<![\d\-])0\d{1,3}[-−‐]\d{1,4}[-−‐]\d{3,4}(?![\d\-])',' 電話 ',body)
+    actual=normalize_address(body)
+    if expected_postal:
+        postals=re.findall(r'(?<![\d.‐−-])〒?\s*(\d{3})[-−‐]?(\d{4})(?![\d.‐−-])',body)
+        if any(a+b!=expected_postal for a,b in postals):return False
+    return addresses_match(row['address'],address) or bool(re.search(re.escape(street)+r'(?![\d-])',actual))
 
 def empty():return {'candidates':[],'anchors':[],'unresolved':[],'identityVerified':False,'verifiedHints':[],'links':[],'pages':[]}
 
@@ -43,13 +55,21 @@ def emit(out,row,source,kind,excerpt,coords):
 
 def verify_page(row,page,source):
     out=empty();body=page['body'].decode('utf-8',errors='replace');doc=Document(body)
-    def structured(value):
+    def structured(value,geojson_allowed=True):
         if isinstance(value,list):
-            for v in value:structured(v)
+            for v in value:structured(v,geojson_allowed)
         elif isinstance(value,dict):
+            geojson_allowed=geojson_allowed and 'crs' not in value
+            properties=value.get('properties');geometry=value.get('geometry')
+            if geojson_allowed and value.get('type')=='Feature' and isinstance(properties,dict) and isinstance(geometry,dict) and 'crs' not in geometry and geometry.get('type')=='Point' and matches(row,str(properties.get('name','')),str(properties.get('address','')),structured_address=True):
+                coords=geometry.get('coordinates')
+                if valid_coordinates(coords):
+                    out['identityVerified']=True
+                    observation={'type':'Feature','geometry':geometry,'properties':{k:properties.get(k) for k in ('name','address')}}
+                    emit(out,row,source,'structured_geo',json.dumps(observation,ensure_ascii=False),coords)
             addr=value.get('address','')
             if isinstance(addr,dict):addr=''.join(str(addr.get(k,'')) for k in ('addressRegion','addressLocality','streetAddress'))
-            if matches(row,str(value.get('name','')),str(addr)):
+            if matches(row,str(value.get('name','')),str(addr),structured_address=True):
                 out['identityVerified']=True;geo=value.get('geo',{})
                 if isinstance(geo,dict):
                     try:
@@ -57,14 +77,15 @@ def verify_page(row,page,source):
                         coords=[float(v) for v in values] if all(type(v) in (str,int,float) for v in values) else None
                     except (KeyError,ValueError,TypeError):coords=None
                     if valid_coordinates(coords):emit(out,row,source,'structured_geo',json.dumps({k:value[k] for k in ('name','address','geo') if k in value},ensure_ascii=False),coords)
-            if '@graph' in value:structured(value['@graph'])
+            for nested in value.values():
+                if isinstance(nested,(dict,list)):structured(nested,geojson_allowed)
     if page['content_type'] in ('application/json','application/ld+json','application/geo+json'):
         try:structured(json.loads(body))
-        except ValueError:pass
+        except (ValueError,RecursionError):pass
     for n in doc.root.walk():
-        if n.tag=='script' and n.attrs.get('type')=='application/ld+json':
+        if n.tag=='script' and n.attrs.get('type') in ('application/ld+json','application/json','application/geo+json'):
             try:structured(json.loads(''.join(n.parts)))
-            except ValueError:pass
+            except (ValueError,RecursionError):pass
     # Only the smallest matching record may supply coordinates or outgoing links.
     # A matching ancestor also contains neighbouring stores and is not authority.
     matching=[n for n in doc.root.walk() if n.tag in ('root','body','main','div','article','section','li','tr') and matches(row,n.text(),n.text())]
@@ -98,7 +119,7 @@ def verify_page(row,page,source):
             try:safe_source_url(url)
             except ValidationError:continue
             parsed=parse_map_link(url)
-            if parsed and parsed['targetName'] and compact(parsed['targetName']) not in compact(row['name']):continue
+            if parsed and parsed['targetName'] and merchant_key(parsed['targetName']) not in merchant_key(row['name']):continue
             out['links'].append(url)
             if parsed:emit(out,row,source,parsed['kind'],url,parsed['coordinates'])
     return out
@@ -107,6 +128,14 @@ class WebCoordinateVerifier:
     def __init__(self,pages,budget):self.pages=pages;self.budget=budget;self.cache={}
     async def verify(self,row,*,timeout):
         result=empty();queue=[(s['url'],s,None) for s in row['sources']];seen=set()
+        # Hosted research may discover a coordinate page which extraction omits.
+        # Only bounded public map detail pages are added, then independently bound.
+        detail_urls=[]
+        for url in row.get('discoveredUrls',[]):
+            parsed=urlsplit(url)
+            if (parsed.hostname in ('mapfan.com','www.mapfan.com') and parsed.path.startswith('/spots/')) or (parsed.hostname=='www.mapion.co.jp' and parsed.path.startswith('/phonebook/') and parsed.path.rstrip('/').endswith('_ipclm')):
+                if url not in {s['url'] for s in row['sources']} and url not in detail_urls:detail_urls.append(url)
+        for url in reversed(detail_urls[:3]):queue.insert(0,(url,{'id':str(uuid.uuid4()),'title':'Web検索で取得した公開地図ページ','url':url,'kind':'directory','retrievedAt':row['sources'][0]['retrievedAt']},None))
         for url in row.get('urls',[]):
             if url in row.get('discoveredUrls',[]) and url not in {s['url'] for s in row['sources']}:
                 queue.append((url,{'id':str(uuid.uuid4()),'title':'Web検索で取得した公開ページ','url':url,'kind':'unknown','retrievedAt':row['sources'][0]['retrievedAt']},None))
@@ -129,7 +158,7 @@ class WebCoordinateVerifier:
             result['pages'].extend({**record,'sourceId':source['id'],'verification':'verified' if verified['identityVerified'] or context else 'identity_unverified'} for record in records)
             if context:
                 parsed=parse_map_link(page['final_url'])
-                if parsed and (not parsed['targetName'] or compact(parsed['targetName']) in compact(row['name'])):
+                if parsed and (not parsed['targetName'] or merchant_key(parsed['targetName']) in merchant_key(row['name'])):
                     # The original page proves which store this outgoing map link belongs to.
                     obs_source={**source,'url':page['final_url'],'retrievedAt':page['retrieved_at']}
                     emit(verified,row,obs_source,parsed['kind'],page['final_url'],parsed['coordinates'])
@@ -140,7 +169,6 @@ class WebCoordinateVerifier:
             result['identityVerified']|=verified['identityVerified']
             for link in verified['links']:
                 # Follow only outgoing map service links; ordinary pages must be search sources.
-                from urllib.parse import urlsplit
                 if urlsplit(link).hostname not in ('maps.app.goo.gl','maps.apple.com','www.google.com','maps.google.com','www.openstreetmap.org'):continue
                 if parse_map_link(link):continue
                 child={**source,'id':str(uuid.uuid4()),'url':link}
