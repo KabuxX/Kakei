@@ -10,6 +10,38 @@ from coordinate_fixtures import PUBLISHED_PLACE, ESTIMATED_PLACE
 from web_place_fixtures import PLACE
 
 class CoordinateEvidenceTests(unittest.TestCase):
+    def test_geolonia_requires_detailed_address_and_point(self):
+        from geolonia_fixtures import GEOLONIA_PLACE
+        validate_place_evidence(copy.deepcopy(GEOLONIA_PLACE))
+        for patch in ({'level':3},{'pointLevel':3},{'level':True},{'record':None}):
+            place=copy.deepcopy(GEOLONIA_PLACE);place['coordinateEvidence']['addressMatch'].update(patch)
+            with self.subTest(patch=patch),self.assertRaises(ValidationError):validate_place_evidence(place)
+
+    def test_geolonia_coordinates_and_record_are_bound(self):
+        from geolonia_fixtures import GEOLONIA_PLACE
+        mutations=[lambda p:p.update(coordinates=[139.8,35.7]),
+            lambda p:p['coordinateEvidence']['addressMatch']['record']['fields'].update(rsdt_num='4'),
+            lambda p:p['coordinateEvidence']['addressMatch']['fetches'][0].update(sha256='invalid'),
+            lambda p:p['coordinateEvidence']['addressMatch']['fetches'][0].update(range={'offset':-1,'length':100}),
+            lambda p:p['coordinateEvidence']['addressMatch']['fetches'][0].update(url='https://evil.example/data'),
+            lambda p:p['coordinateEvidence']['addressMatch'].update(matchedAddress='東京都文京区本郷一丁目2-4'),
+            lambda p:p['coordinateEvidence']['addressMatch'].update(originalAddress='東京都文京区本郷1-2-4'),
+            lambda p:p['coordinateEvidence'].update(version=True)]
+        for mutation in mutations:
+            p=copy.deepcopy(GEOLONIA_PLACE);mutation(p)
+            with self.subTest(mutation=mutation),self.assertRaises(ValidationError):validate_place_evidence(p)
+
+    def test_geolonia_rebind_and_bounding_keep_atomic_evidence(self):
+        from geolonia_fixtures import GEOLONIA_PLACE
+        from services.coordinate_evidence import rebind_candidate_sources
+        from db.agent_search_store import bounded_result
+        original=copy.deepcopy(GEOLONIA_PLACE);rebound=rebind_candidate_sources(original,{'g1':'new'})
+        self.assertEqual(rebound['coordinateEvidence']['addressMatch']['fetches'][0]['sourceId'],'new')
+        validate_place_evidence(rebound);self.assertEqual(original,GEOLONIA_PLACE)
+        large=copy.deepcopy(GEOLONIA_PLACE);large['coordinateEvidence']['note']='x'*9000
+        result=bounded_result({'status':'found','candidates':[large,GEOLONIA_PLACE],'sources':GEOLONIA_PLACE['sources']})
+        self.assertEqual(result['candidates'],[GEOLONIA_PLACE]);self.assertEqual(result['omittedCandidates'],1)
+
     def test_normal_evidence_forms(self):
         area=copy.deepcopy(ESTIMATED_PLACE);area['coordinateEvidence'].update(method='area_anchor',precision='area')
         relative=copy.deepcopy(ESTIMATED_PLACE);relative['coordinateEvidence'].update(method='relative_offset',precision='nearby')

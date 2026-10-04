@@ -19,6 +19,10 @@ def references(value, available):
 
 def validate_coordinate_evidence(place: dict) -> None:
     evidence=place.get('coordinateEvidence')
+    if isinstance(evidence,dict) and type(evidence.get('version')) is int and evidence['version']==2:
+        from services.geolonia_evidence import validate_geolonia_evidence
+        validate_geolonia_evidence(place)
+        return
     fields={'version','status','method','sourceIds','retrievedAt','precision','note','verification','observations'}
     if not isinstance(evidence,dict) or not fields<=evidence.keys() or evidence.keys()-fields-{'basis'} or 'geocoding' in place:invalid()
     if type(evidence['version'])!=int or evidence['version']!=1 or evidence['verification'] not in ('needs_confirmation','user_confirmed'):invalid()
@@ -66,4 +70,7 @@ def rebind_candidate_sources(candidate: dict, mapping: dict[str,str]) -> dict:
         evidence['sourceIds']=list(dict.fromkeys(mapping.get(i,i) for i in evidence['sourceIds']))
         for observation in evidence['observations']:observation['sourceId']=mapping.get(observation['sourceId'],observation['sourceId'])
         if 'basis' in evidence:evidence['basis']['relationSourceIds']=list(dict.fromkeys(mapping.get(i,i) for i in evidence['basis']['relationSourceIds']))
+        if evidence.get('version')==2:
+            from services.geolonia_evidence import rebind_geolonia_sources
+            rebind_geolonia_sources(evidence,mapping)
     return result

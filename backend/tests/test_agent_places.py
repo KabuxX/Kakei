@@ -59,6 +59,22 @@ class PlacesTests(unittest.TestCase):
    self.assertEqual(saved['coordinates'],PLACE['coordinates'])
 
 class WebCoordinateSelectionTests(unittest.TestCase):
+    def test_geolonia_selection_roundtrip_preserves_evidence(self):
+        from geolonia_fixtures import GEOLONIA_PLACE
+        import copy
+        with tempfile.TemporaryDirectory() as directory:
+            store=Store(Path(directory)/'db');store.initialize([])
+            agent=AgentStore(store.db_path);thread=agent.create_thread()['id']
+            candidate={**copy.deepcopy(GEOLONIA_PLACE),'id':'geolonia'}
+            proposal=agent.create_proposal(thread,[COMMAND],place_candidates=[{'placeId':'unknown-store','query':'店舗','candidates':[candidate]}])
+            with self.assertRaises(ValidationError):agent.select_place_candidate(proposal['id'],1,'geolonia')
+            selected=agent.select_place_candidate(proposal['id'],1,'geolonia',confirmed=True)
+            store.apply_agent_proposal(selected['id'],selected['revision'])
+            saved=Store(store.db_path).get_trajectory_day('2027-01-04')['places']['unknown-store']['coordinateEvidence']
+            self.assertEqual(saved['status'],'address_matched')
+            self.assertEqual(saved['addressMatch'],GEOLONIA_PLACE['coordinateEvidence']['addressMatch'])
+            self.assertEqual(saved['verification'],'user_confirmed')
+
     def test_new_published_and_estimated_require_explicit_confirmation(self):
         from coordinate_fixtures import PUBLISHED_PLACE,ESTIMATED_PLACE
         from services.agent_places import choose
