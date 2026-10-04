@@ -61,7 +61,9 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
         class FakeProvider(Provider):
             async def __aenter__(self): return self
             async def __aexit__(self,*args): pass
-        with patch('agent.web_places.WebPlaceProvider',FakeProvider), patch('agent.web_coordinates.WebCoordinateVerifier',lambda *args:Verifier()):
+        from test_geolonia_search import Geolonia
+        geo=Geolonia();geo.status='unavailable'
+        with patch('agent.web_places.WebPlaceProvider',FakeProvider), patch('agent.web_coordinates.WebCoordinateVerifier',lambda *args:Verifier()),patch('agent.geolonia_client.GeoloniaClient',lambda:geo):
             raw=await AgentRunner(self.store,model=model).run_turn(thread,repository.get_thread(thread)['messages'],turn_context=ctx)
         response=repository.complete_turn(thread,'one',lease,raw)
         self.assertIsNone(response['proposal'])
@@ -74,6 +76,25 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
         serialized=json.dumps([[m.model_dump() for m in turn] for turn in model._seen],ensure_ascii=False,default=str)
         self.assertNotIn(lease['token'],serialized)
         self.assertNotIn('run_token',serialized)
+
+    async def test_runtime_geolonia_candidate_sources_survive_reload(self):
+        import json
+        from db.agent_store import AgentStore
+        from db.agent_search_store import AgentSearchStore
+        from test_geolonia_search import Geolonia
+        from geolonia_fixtures import ADDRESS
+        repository=AgentStore(self.store.db_path);thread=repository.create_thread()['id']
+        lease=repository.begin_turn(thread,'one','合成テスト店舗 '+ADDRESS)
+        messages=repository.get_thread(thread)['messages']
+        request={'query':'合成テスト店舗','place_id':'p','address':ADDRESS,'evidence':[{'field':'address','source':'user_message','source_id':messages[-1]['id'],'value':ADDRESS}]}
+        model=ScriptModel(replies=[AIMessage(content='',tool_calls=[{'name':'search_place','args':request,'id':'s','type':'tool_call'}]),AIMessage(content='住所に対応する座標です')])
+        with patch('agent.geolonia_client.GeoloniaClient',Geolonia):
+            raw=await AgentRunner(self.store,model=model).run_turn(thread,messages,turn_context={'thread_id':thread,'client_message_id':'one','run_token':lease['token']})
+        response=repository.complete_turn(thread,'one',lease,raw)
+        self.assertTrue(response['message']['sources'])
+        record=AgentSearchStore(self.store.db_path).history(thread)['records'][0]['result']
+        self.assertEqual(record['candidates'][0]['coordinateEvidence']['status'],'address_matched')
+        self.assertEqual(response['message']['sources'],repository.get_thread(thread)['messages'][-1]['sources'])
 
     async def test_history_overrides_unsupported_assistant_claim(self):
         import json

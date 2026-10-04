@@ -8,6 +8,8 @@ from services.validation import ValidationError
 from services.merchant_address import addresses_match
 from services.coordinate_evidence import rebind_candidate_sources,validate_coordinate_evidence
 from agent.coordinate_estimation import estimate_coordinates
+from agent.geolonia_addresses import eligible_address
+from agent.geolonia_candidates import candidate_from_match
 
 class SearchBudget:
     def __init__(self,turn_deadline,*,clock=time.monotonic):
@@ -101,8 +103,9 @@ def unique_stores(rows):
     return list(merged.values())
 
 class PlaceSearchService:
-    def __init__(self,web,verifier,searches,resolver,context,budget):
+    def __init__(self,web,verifier,searches,resolver,context,budget,*,geolonia=None):
         self.web,self.verifier,self.searches,self.resolver,self.context,self.budget=web,verifier,searches,resolver,context,budget
+        self.geolonia=geolonia
     async def search(self,request):
         resolved=self.resolver.resolve(request);request=resolved['request']
         refresh=request.get('refresh',False);reuse=request.get('reuse_search_id')
@@ -150,8 +153,36 @@ class PlaceSearchService:
             a={'id':str(uuid.uuid4()),'stage':stage,'params':params,'startedAt':time.time(),'status':'running'};attempts.append(a);self.searches.record_attempt(self.context,sid,a);return a
         def record(a,**values):a.update(values);self.searches.record_attempt(self.context,sid,a)
         key=json.dumps(conditions(request),ensure_ascii=False,sort_keys=True)
-        children=[];stores=[];anchors=[];failures=[];tried=[];a=None
+        children=[];stores=[];anchors=[];failures=[];tried=[];a=None;geo_session=None;geo_attempt=None;geo_trials=[]
+        async def geolonia_locate(store):
+            nonlocal geo_session,geo_attempt
+            if self.geolonia is None:return None
+            address=store.get('address') if store else request.get('address')
+            reason='geolonia_address_unavailable' if not address else 'geolonia_not_japanese' if not eligible_address(address,request.get('country_code')) else 'geolonia_store_unconfirmed' if not store else None
+            if geo_attempt is None:geo_attempt=start('geolonia',{'address':address})
+            summary=out.setdefault('geolonia',{'status':'skipped','unresolved':[],'supplementalMatches':[]})
+            if reason:
+                summary['unresolved']=list(dict.fromkeys(summary['unresolved']+[reason]))
+                record(geo_attempt,status='complete',trials=geo_trials,unresolved=summary['unresolved'],finishedAt=time.time());return None
+            if geo_session is None:geo_session=self.geolonia.session(key,self.budget)
+            # Administrative prefixes must themselves be quoted in validated evidence.
+            prefixes=[e['value'] for e in request.get('evidence',[]) if e['field']=='locality']
+            result=await geo_session.lookup(address,grounded_prefixes=prefixes)
+            geo_trials.extend(result.get('attempts',[]))
+            summary['status']=result['status'];summary['unresolved']=list(dict.fromkeys(summary['unresolved']+result.get('unresolved',[])))
+            candidate=candidate_from_match(store,result)
+            if result.get('match') and not candidate and len(summary['supplementalMatches'])<6:
+                match=result['match'];point=match.get('point') or {}
+                summary['supplementalMatches'].append({'originalAddress':address,'matchedAddress':''.join(match.get(k) or '' for k in ('pref','city','town','addr')),'level':match.get('level'),'pointLevel':point.get('level'),'fetches':result.get('proof',{}).get('fetches',[]),'reasons':result.get('unresolved') or ['geolonia_invalid_response']})
+            record(geo_attempt,status='complete',trials=geo_trials,unresolved=summary['unresolved'],finishedAt=time.time())
+            return candidate
         try:
+            if request.get('address'):
+                candidate=await geolonia_locate(resolved.get('address_store'))
+                if candidate and not store_reasons(candidate,request,resolved['region']):
+                    out['candidates']=sources_for([candidate]);return finish('found')
+            elif self.geolonia is not None:
+                await geolonia_locate(None)
             for index in range(4):
                 strategy='store' if index==0 or not stores else ('maps','address','anchor')[index-1]
                 prior={'stores':[{k:p[k] for k in ('name','address')} for p in stores],'hints':[h for p in stores for h in p.get('verifiedHints',[])],'tried':tried,'unresolved':failures}
@@ -173,6 +204,9 @@ class PlaceSearchService:
                             reasons=store_reasons(p,request,None)+p.get('unresolved',[])
                             if reasons:
                                 stores.append({**p,'unresolved':reasons});return
+                            candidate=await geolonia_locate(p)
+                            if candidate and not store_reasons(candidate,request,resolved['region']):
+                                out['candidates'].append(candidate);stores.append(p);return
                         verify_key=json.dumps({'name':p['name'],'address':p['address'],'sources':p['sources'],'hints':p.get('hints',[])},sort_keys=True,ensure_ascii=False)
                         try:
                             result=await self.budget.verify(verify_key,lambda t:self.verifier.verify(p,timeout=t))
@@ -223,6 +257,8 @@ class PlaceSearchService:
                 finish('cancelled')
             except TrajectoryConflict:pass
             raise
+        finally:
+            if geo_session is not None:await geo_session.close()
 
 def compare_candidates(candidates):
     groups={}
@@ -233,7 +269,7 @@ def compare_candidates(candidates):
         group.append(copy.deepcopy(candidate))
     result=[]
     for group in list(groups.values())[:5]:
-        published=[c for c in group if c.get('coordinateEvidence',{}).get('status')=='published']
+        published=[c for c in group if c.get('coordinateEvidence',{}).get('status') in ('published','address_matched')]
         if any(distance(a['coordinates'],b['coordinates'])>100 for a in published for b in published):
             for c in published:c['matchReasons']=list(dict.fromkeys(c.get('matchReasons',[])+['coordinate_conflict']))
         result.extend(group[:3])

@@ -82,6 +82,11 @@ def bounded_result(result,maximum=40*1024):
         return rows
     rows=refresh()
     while size(clean)>maximum:
+        supplemental=clean.get('geolonia',{}).get('supplementalMatches',[])
+        if supplemental:
+            supplemental.pop()
+            geo=clean['geolonia'];geo['omittedSupplementalMatches']=geo.get('omittedSupplementalMatches',0)+1;geo['truncated']=True
+            continue
         secondary=[c for c in rows if 'coordinateEvidence' not in c and len(c.get('sources',[]))>1]
         if secondary:
             largest=max(secondary,key=lambda c:size(c['sources'][-1]))

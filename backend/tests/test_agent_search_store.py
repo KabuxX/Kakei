@@ -9,6 +9,14 @@ from services.agent_places import source_version
 from agent_search_fixtures import active_turn, REQUEST, result
 
 class SearchStoreTests(unittest.TestCase):
+    def test_large_supplemental_is_omitted_before_valid_candidates(self):
+        from db.agent_search_store import bounded_result
+        from geolonia_fixtures import GEOLONIA_PLACE
+        raw={'status':'found','candidates':[GEOLONIA_PLACE],'geolonia':{'status':'coarse','unresolved':[],'supplementalMatches':[{'originalAddress':'x'*50000,'pointLevel':3}]}}
+        out=bounded_result(raw)
+        self.assertEqual(out['candidates'],[GEOLONIA_PLACE])
+        self.assertEqual(out['geolonia']['supplementalMatches'],[])
+        self.assertEqual(out['geolonia']['omittedSupplementalMatches'],1)
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
         self.path = Path(self.tmp.name)/'db'

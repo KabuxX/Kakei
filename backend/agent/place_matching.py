@@ -58,7 +58,7 @@ class EvidenceResolver:
         if not isinstance(evidence,list) or len(evidence)>12: raise ValidationError('evidence','検索の根拠を確認してください。')
         with self.store._connection() as c: state=read_state(c)
         users={m.get('id'):m.get('text','') for m in self.messages if m.get('role')=='user'}
-        values={}; region=None; saved_region_data=None
+        values={}; region=None; saved_region_data=None;address_stores=[]
         for e in evidence:
             if not isinstance(e,dict) or set(e)!={'field','source','source_id','value'} or e['field'] not in ('brand','branch','locality','landmark','country_code','address','visit_date') or not all(isinstance(v,str) for v in e.values()):
                 raise ValidationError('evidence','根拠の形式が不正です。')
@@ -86,6 +86,16 @@ class EvidenceResolver:
                 supported=value in dates(data.get('date','')) if source=='transaction' else any(value in dates(s) for s in strings(data))
             else:supported=any(compact(value) in compact(s) for s in strings(data))
             if not supported:raise ValidationError('evidence','引用された根拠が一致しません。')
+            if e['field']=='address':
+                candidates=[]
+                if source=='transaction':candidates=[{'name':data.get('merchant'),'address':data.get('merchantAddress'),'sources':[]}]
+                elif source=='saved_place':candidates=[data]
+                elif source=='user_message' and compact(request['query']) in compact(data):candidates=[{'name':request['query'],'address':value,'sources':[]}]
+                elif source=='search':candidates=data.get('result',{}).get('candidates',[])+data.get('result',{}).get('unlocatedCandidates',[])
+                for candidate in candidates:
+                    name=candidate.get('name') or ''
+                    if addresses_match(value,candidate.get('address')) and compact(request.get('brand') or request['query']) in compact(name) and (not request.get('branch') or compact(request['branch']) in compact(name)):
+                        address_stores.append({'name':name,'address':value,'sources':candidate.get('sources',[]),'country_code':'jp'})
             values.setdefault(e['field'],set()).add(value)
             if source=='saved_place' and coordinates_valid(data.get('coordinates')):
                 region={'kind':'point','coordinates':data['coordinates'],'source_id':sid}
@@ -116,7 +126,8 @@ class EvidenceResolver:
         saved=[{**p,'id':str(uuid.uuid4()),'savedPlaceId':sid} for sid,p in state['timeline']['places'].items()]
         name=request['query']+' '+request.get('brand','')
         category='catering.cafe' if any(word in name for word in ('コーヒー','カフェ','coffee','cafe','café')) else None
-        return {'request':request,'saved_places':saved,'region':region,'clarification':None,'category':category}
+        identities={(compact(p['name']),compact(p['address'])) for p in address_stores}
+        return {'request':request,'saved_places':saved,'region':region,'clarification':None,'category':category,'address_store':address_stores[0] if len(identities)==1 else None}
 
 
 def locality_matches(locality, place):
