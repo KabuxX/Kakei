@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from db.schema import ensure_schema
+from db.budget_store import read_budget, write_budget
+from services.budget_validation import normalize_budget
 from db.trajectory_store import detach_trajectory_references, read_trajectory_day, read_trajectory_timeline, replace_trajectory
 from services.trajectory_mutation import TrajectoryCommand
 from services.trajectory_validation import validate_timeline
@@ -168,6 +170,16 @@ def _apply_trajectory_command(timeline: dict, command: TrajectoryCommand, action
 
 
 class Store:
+    def get_budget(self) -> dict[str, int]:
+        with self._connection() as connection:
+            return read_budget(connection)
+
+    def update_budget(self, payload: object) -> dict[str, int]:
+        categories = normalize_budget(payload)
+        with self._connection() as connection:
+            write_budget(connection, categories)
+            return read_budget(connection)
+
     def __init__(self, db_path: Path):
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)

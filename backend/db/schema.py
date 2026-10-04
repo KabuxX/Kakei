@@ -4,6 +4,7 @@ import json
 import sqlite3
 
 from transaction_datetime import assign_estimated_datetimes
+from db.budget_store import ensure_budget_schema
 
 
 def _create_transactions(connection: sqlite3.Connection, table_name: str) -> None:
@@ -171,6 +172,7 @@ def _ensure_domain_schema(connection: sqlite3.Connection) -> None:
     The caller enables foreign keys before calling and commits or rolls back.
     """
     connection.execute("BEGIN IMMEDIATE")
+    ensure_budget_schema(connection)
     connection.execute("""
         CREATE TABLE IF NOT EXISTS meta (
             key TEXT PRIMARY KEY,
