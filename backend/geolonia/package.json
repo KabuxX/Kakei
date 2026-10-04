@@ -1,0 +1,14 @@
+{
+  "name": "kakei-geolonia-worker",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@geolonia/normalize-japanese-addresses": "3.1.3"
+  }
+}

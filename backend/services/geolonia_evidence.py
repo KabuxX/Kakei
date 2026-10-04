@@ -12,7 +12,7 @@ def dataset_url(value):
     from services.place_evidence import safe_source_url
     safe_source_url(value)
     u = urlsplit(value)
-    return u.hostname == DATASET_HOST and u.path.startswith('/api/ja') and not u.query and not u.fragment
+    return u.hostname == DATASET_HOST and u.path.startswith('/api/ja') and (not u.query or re.fullmatch(r'v=\d+',u.query)) and not u.fragment
 
 
 def address_agrees(original, query, matched, components):

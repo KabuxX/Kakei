@@ -31,6 +31,16 @@ class CoordinateEvidenceTests(unittest.TestCase):
             p=copy.deepcopy(GEOLONIA_PLACE);mutation(p)
             with self.subTest(mutation=mutation),self.assertRaises(ValidationError):validate_place_evidence(p)
 
+    def test_geolonia_numeric_dataset_version_is_safe(self):
+        from geolonia_fixtures import GEOLONIA_PLACE
+        place=copy.deepcopy(GEOLONIA_PLACE)
+        url=place['sources'][0]['url']+'?v=1234'
+        place['sources'][0]['url']=url;place['coordinateEvidence']['addressMatch']['fetches'][0]['url']=url
+        validate_place_evidence(place)
+        place['sources'][0]['url']=url+'&token=secret'
+        place['coordinateEvidence']['addressMatch']['fetches'][0]['url']=place['sources'][0]['url']
+        with self.assertRaises(ValidationError):validate_place_evidence(place)
+
     def test_geolonia_rebind_and_bounding_keep_atomic_evidence(self):
         from geolonia_fixtures import GEOLONIA_PLACE
         from services.coordinate_evidence import rebind_candidate_sources
