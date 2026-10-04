@@ -81,3 +81,5 @@ it('allows cancelling unsaved changes after a background refresh fails',async()=
  fireEvent.click(screen.getByRole('button',{name:'キャンセル',exact:true}));
  await screen.findByRole('heading',{name:'取引詳細'});visibility.mockRestore();
 });
+
+vi.mock('../useBudget.js', () => ({useBudget: () => ({categories: {'食費':60000,'住まい':90000,'日用品':25000,'交通':25000,'娯楽':30000,'その他':20000}, status:'ready',error:null,busy:false,load:vi.fn(),save:vi.fn()})}));

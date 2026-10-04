@@ -34,3 +34,13 @@ it('switches transaction type without changing the summary', () => {
   expect(screen.queryByRole('link', { name: '給与' })).toBeNull();
   expect(screen.getByText('¥298,800')).toBeTruthy();
 });
+
+it('shows finite meters and excess amounts with all budgets zero',()=>{
+  const budgets={'食費':0,'住まい':0,'日用品':0,'交通':0,'娯楽':0,'その他':0};
+  const view=render(<Dashboard month={month} model={dashboardForMonth(records,month,budgets)} status="ready" budgetStatus="ready" onMonthChange={vi.fn()}/>);
+  expect(screen.getByRole('meter',{name:'食費の予算使用率'}).getAttribute('aria-valuenow')).toBe('100');
+  expect(screen.getByRole('meter',{name:'住まいの予算使用率'}).getAttribute('aria-valuenow')).toBe('0');
+  expect(document.getElementById('remaining-budget').textContent).toBe('−¥1,200');
+  expect(screen.getAllByText('¥1,200 超過').length).toBeGreaterThan(0);
+  expect(view.container.innerHTML).not.toMatch(/NaN|Infinity/);
+});

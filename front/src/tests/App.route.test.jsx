@@ -76,3 +76,5 @@ it('waits for local transaction initialization before loading agent threads',asy
  expect(screen.getByText('家計データを準備しています…')).toBeTruthy();
  expect(fetch).not.toHaveBeenCalled();
 });
+
+vi.mock('../useBudget.js', () => ({useBudget: () => ({categories: {'食費':60000,'住まい':90000,'日用品':25000,'交通':25000,'娯楽':30000,'その他':20000}, status:'ready',error:null,busy:false,load:vi.fn(),save:vi.fn()})}));

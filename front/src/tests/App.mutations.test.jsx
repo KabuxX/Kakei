@@ -94,3 +94,5 @@ it('does not download a partial CSV when address loading fails and allows retry'
  await waitFor(()=>expect(URL.createObjectURL).toHaveBeenCalledTimes(1));
  click.mockRestore();vi.unstubAllGlobals();
 });
+
+vi.mock('../useBudget.js', () => ({useBudget: () => ({categories: {'食費':60000,'住まい':90000,'日用品':25000,'交通':25000,'娯楽':30000,'その他':20000}, status:'ready',error:null,busy:false,load:vi.fn(),save:vi.fn()})}));
