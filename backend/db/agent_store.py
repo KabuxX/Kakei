@@ -73,7 +73,8 @@ class AgentStore:
             if row is None:
                 return None
             messages = [{'id': m['id'], 'clientMessageId': m['client_message_id'], 'role': m['role'],
-                         'text': m['text'], 'createdAt': m['created_at'], 'sources':json.loads(m['metadata_json']).get('sources',[])} for m in c.execute(
+                         'text': m['text'], 'createdAt': m['created_at'], 'sources':json.loads(m['metadata_json']).get('sources',[]),
+                         **({key:json.loads(m['metadata_json'])[key] for key in ('trajectoryCreation','placeSearch') if key in json.loads(m['metadata_json'])})} for m in c.execute(
                              'SELECT * FROM agent_messages WHERE thread_id = ? ORDER BY created_at, rowid', (thread_id,))]
             proposals = [proposal_record(p) for p in c.execute(
                 'SELECT * FROM agent_proposals WHERE thread_id = ? ORDER BY created_at', (thread_id,))]
@@ -168,6 +169,12 @@ class AgentStore:
         sources=result.get('sources',[])
         validate_sources(sources, maximum=45)
         text = result.get('text')
+        prepared=result.get('preparedCreation')
+        if prepared is not None:
+            from services.trajectory_creation import result_text
+            if result.get('commands'):
+                raise ValidationError('trajectory','軌跡の直接作成と他の変更を同時に保存できません。')
+            text=result_text(prepared.result)
         if not isinstance(text, str) or not 1 <= len(text) <= 16000:
             raise ValidationError('message', '応答の形式が正しくありません。')
         with self.store._connection() as c:
@@ -175,15 +182,26 @@ class AgentStore:
             row = c.execute('SELECT * FROM agent_turns WHERE thread_id=? AND client_message_id=?', (thread_id, client_id)).fetchone()
             if not row or row['token'] != lease['token'] or row['status'] != 'processing':
                 raise TrajectoryConflict('この応答は無効になりました。再送してください。')
+            if prepared is not None and time.time()-row['started_at'] >= TURN_LEASE_SECONDS:
+                raise TrajectoryConflict('この応答の保存期限が切れました。再送してください。')
             proposal = None
+            creation=None
+            if prepared is not None:
+                from services.trajectory_creation import apply_creation, result_text
+                creation=apply_creation(c,prepared,now=time.time())
+                text=result_text(creation)
             if result.get('commands'):
                 if hashlib.sha256(canonical(read_state(c)).encode()).hexdigest() != lease['sourceVersion']:
                     raise TrajectoryConflict('応答中に元データが変更されました。再送してください。')
                 proposal = self._create_proposal(c, thread_id, result['commands'], result.get('placeCandidates'))
             message = {'id': str(uuid.uuid4()), 'role': 'assistant', 'text': text, 'createdAt': time.time(), 'sources':sources}
+            if creation is not None:
+                message['trajectoryCreation']=creation
             c.execute('INSERT INTO agent_messages (id,thread_id,client_message_id,role,text,created_at) VALUES (?, ?, ?, ?, ?, ?)', (message['id'], thread_id, 'assistant:'+client_id, 'assistant', text, message['createdAt']))
-            c.execute('UPDATE agent_messages SET metadata_json=? WHERE id=?', (dumps({'sources':sources,'searchIds':result.get('searchIds',[])}),message['id']))
+            c.execute('UPDATE agent_messages SET metadata_json=? WHERE id=?', (dumps({'sources':sources,'searchIds':result.get('searchIds',[]),**({'trajectoryCreation':creation} if creation is not None else {})}),message['id']))
             response = {'message': message, 'proposal': proposal}
+            if creation is not None:
+                response['trajectoryCreation']=creation
             if result.get('receiptReview'):
                 response['receiptReview'] = result['receiptReview']
             c.execute("UPDATE agent_turns SET status='complete', result_json=? WHERE thread_id=? AND client_message_id=?", (dumps(response), thread_id, client_id))

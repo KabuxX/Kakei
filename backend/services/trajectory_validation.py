@@ -134,7 +134,7 @@ def validate_timeline(value: object, *, require_complete: bool = True) -> dict:
                 _string(event.get('timeEvidenceNote'), f'{event_path}.timeEvidenceNote')
             if event['time'] is not None:
                 _time(event['time'], f'{event_path}.time')
-                if previous_time is not None and event['time'] <= previous_time:
+                if previous_time is not None and event['time'] < previous_time:
                     raise ValueError(f'{event_path}.time: events must be chronological')
                 previous_time = event['time']
             _string(event["placeId"], f"{event_path}.placeId")
