@@ -54,7 +54,7 @@ def _create_trajectory_tables(connection: sqlite3.Connection) -> None:
     tables = ('trajectory_places','trajectory_days','trajectory_events','trajectory_legs','trajectory_leg_via_places')
     columns = {r[1] for r in connection.execute('PRAGMA table_info(trajectory_places)')}
     saved = {}
-    if columns and 'place_evidence' not in columns:
+    if columns and ('place_evidence' not in columns or 'provider' not in columns):
         for table in tables:
             cursor = connection.execute(f'SELECT * FROM {table}')
             names = [d[0] for d in cursor.description]
@@ -68,11 +68,15 @@ def _create_trajectory_tables(connection: sqlite3.Connection) -> None:
             id TEXT PRIMARY KEY,
             name TEXT NOT NULL,
             address TEXT,
-            longitude REAL NOT NULL CHECK (longitude BETWEEN -180 AND 180),
-            latitude REAL NOT NULL CHECK (latitude BETWEEN -90 AND 90),
+            longitude REAL CHECK (longitude BETWEEN -180 AND 180),
+            latitude REAL CHECK (latitude BETWEEN -90 AND 90),
             source_url TEXT,
             place_evidence TEXT NOT NULL DEFAULT 'legacy',
-            attribution TEXT
+            attribution TEXT,
+            provider TEXT CHECK (provider IS NULL OR provider = 'google'),
+            provider_place_id TEXT,
+            CHECK ((provider = 'google' AND provider_place_id IS NOT NULL AND longitude IS NULL AND latitude IS NULL)
+                OR (provider IS NULL AND provider_place_id IS NULL AND longitude IS NOT NULL AND latitude IS NOT NULL))
         )
     """)
     connection.execute("""
@@ -128,6 +132,14 @@ def _create_trajectory_tables(connection: sqlite3.Connection) -> None:
             columns = ','.join(row)
             placeholders = ','.join('?' for _ in row)
             connection.execute(f'INSERT INTO {table} ({columns}) VALUES ({placeholders})', tuple(row.values()))
+
+    connection.execute('''CREATE TABLE IF NOT EXISTS google_place_coordinates (
+        place_id TEXT PRIMARY KEY,
+        longitude REAL NOT NULL CHECK (longitude BETWEEN -180 AND 180),
+        latitude REAL NOT NULL CHECK (latitude BETWEEN -90 AND 90),
+        obtained_at REAL NOT NULL,
+        expires_at REAL NOT NULL
+    )''')
 
 
 def _legacy_items(row: tuple) -> list[tuple[str, int, str, int]]:

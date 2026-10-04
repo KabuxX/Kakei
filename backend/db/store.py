@@ -173,6 +173,9 @@ class Store:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         with self._connection() as connection:
             ensure_schema(connection)
+            from db.google_place_cache import purge_expired_coordinates
+            import time
+            purge_expired_coordinates(connection, time.time())
 
     @contextmanager
     def _connection(self):

@@ -76,6 +76,9 @@ def parse_trajectory_command(payload: object, method: str) -> TrajectoryCommand:
         if not isinstance(data, dict):
             _invalid("data はJSONオブジェクトで指定してください。")
         required, optional = _DATA_FIELDS[kind]
+        if kind == 'place' and data.get('provider') == 'google':
+            required = {'name','address','sourceUrl','placeEvidence','provider','providerPlaceId'}
+            optional = set()
         if required - data.keys() or data.keys() - required - optional:
             _invalid("data の項目が正しくありません。")
         if kind == "day" and (not isinstance(data["events"], list) or not isinstance(data["legs"], list)):

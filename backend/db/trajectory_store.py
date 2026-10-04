@@ -30,11 +30,11 @@ def replace_trajectory(connection: sqlite3.Connection, timeline: dict) -> None:
         connection.execute(f"DELETE FROM {table}")
 
     connection.executemany("""
-        INSERT INTO trajectory_places (id, name, address, longitude, latitude, source_url, place_evidence, attribution, sources_json, geocoding_json, coordinate_evidence_json)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO trajectory_places (id, name, address, longitude, latitude, source_url, place_evidence, attribution, sources_json, geocoding_json, coordinate_evidence_json, provider, provider_place_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
-        (place_id, place["name"], place["address"], place["coordinates"][0],
-         place["coordinates"][1], place["sourceUrl"], place.get("placeEvidence", "legacy"), place.get("attribution"), json.dumps(place.get("sources", []), ensure_ascii=False), json.dumps(place["geocoding"], ensure_ascii=False) if "geocoding" in place else None, json.dumps(place["coordinateEvidence"], ensure_ascii=False) if "coordinateEvidence" in place else None)
+        (place_id, place["name"], place["address"], place.get("coordinates", [None,None])[0],
+         place.get("coordinates", [None,None])[1], place["sourceUrl"], place.get("placeEvidence", "legacy"), place.get("attribution"), json.dumps(place.get("sources", []), ensure_ascii=False), json.dumps(place["geocoding"], ensure_ascii=False) if "geocoding" in place else None, json.dumps(place["coordinateEvidence"], ensure_ascii=False) if "coordinateEvidence" in place else None, place.get('provider'), place.get('providerPlaceId'))
         for place_id, place in timeline["places"].items()
     ))
 
@@ -114,17 +114,10 @@ def read_trajectory_day(connection: sqlite3.Connection, date: str) -> dict | Non
     places = {}
     if place_ids:
         for row in connection.execute(f"""
-            SELECT id, name, address, longitude, latitude, source_url, place_evidence, attribution, sources_json, geocoding_json, coordinate_evidence_json
+            SELECT *
             FROM trajectory_places WHERE id IN ({placeholders}) ORDER BY rowid
         """, tuple(place_ids)):
-            places[row["id"]] = {
-                "name": row["name"], "address": row["address"],
-                "coordinates": [row["longitude"], row["latitude"]],
-                "sourceUrl": row["source_url"], "placeEvidence": row["place_evidence"], "attribution": row["attribution"],
-                **({"sources": json.loads(row["sources_json"])} if json.loads(row["sources_json"]) else {}),
-                **({"geocoding": json.loads(row["geocoding_json"])} if row["geocoding_json"] else {}),
-                **({"coordinateEvidence": json.loads(row["coordinate_evidence_json"])} if row["coordinate_evidence_json"] else {}),
-            }
+            places[row["id"]] = _place_record(row)
     return {"places": places, "days": [{"date": date, "events": events, "legs": legs}]}
 
 
@@ -132,19 +125,22 @@ def read_trajectory_timeline(connection: sqlite3.Connection) -> dict:
     """Read every saved place and day, including places not yet used by a day."""
     places = {}
     for row in connection.execute("""
-        SELECT id, name, address, longitude, latitude, source_url, place_evidence, attribution, sources_json, geocoding_json, coordinate_evidence_json
+        SELECT *
         FROM trajectory_places ORDER BY rowid
     """):
-        places[row["id"]] = {
-            "name": row["name"], "address": row["address"],
-            "coordinates": [row["longitude"], row["latitude"]],
-            "sourceUrl": row["source_url"], "placeEvidence": row["place_evidence"], "attribution": row["attribution"],
-                **({"sources": json.loads(row["sources_json"])} if json.loads(row["sources_json"]) else {}),
-                **({"geocoding": json.loads(row["geocoding_json"])} if row["geocoding_json"] else {}),
-                **({"coordinateEvidence": json.loads(row["coordinate_evidence_json"])} if row["coordinate_evidence_json"] else {}),
-        }
+        places[row["id"]] = _place_record(row)
     days = [
         read_trajectory_day(connection, row["date"])["days"][0]
         for row in connection.execute("SELECT date FROM trajectory_days ORDER BY date")
     ]
     return {"places": places, "days": days}
+
+
+def _place_record(row):
+    value={'name':row['name'],'address':row['address'],'sourceUrl':row['source_url'],'placeEvidence':row['place_evidence']}
+    if row['provider']=='google':
+        return {**value,'provider':'google','providerPlaceId':row['provider_place_id']}
+    return {**value,'coordinates':[row['longitude'],row['latitude']],'attribution':row['attribution'],
+        **({'sources':json.loads(row['sources_json'])} if json.loads(row['sources_json']) else {}),
+        **({'geocoding':json.loads(row['geocoding_json'])} if row['geocoding_json'] else {}),
+        **({'coordinateEvidence':json.loads(row['coordinate_evidence_json'])} if row['coordinate_evidence_json'] else {})}

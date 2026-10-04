@@ -73,6 +73,15 @@ def validate_timeline(value: object, *, require_complete: bool = True) -> dict:
     for place_id, place in places.items():
         _string(place_id, "placeId")
         path = f"places.{place_id}"
+        if isinstance(place, dict) and place.get('provider') == 'google':
+            from agent.google_places import valid_place_id
+            _shape(place, {'name','address','sourceUrl','placeEvidence','provider','providerPlaceId'}, set(), path)
+            _string(place['name'], f'{path}.name')
+            if place['address'] is not None:
+                _string(place['address'], f'{path}.address')
+            if place['sourceUrl'] is not None or place['placeEvidence'] != 'google_places' or not valid_place_id(place['providerPlaceId']):
+                raise ValueError(f'{path}: valid Google reference required')
+            continue
         _shape(place, {"name", "address", "coordinates", "sourceUrl"}, {"placeEvidence", "attribution", "sources", "geocoding", "coordinateEvidence"}, path)
         _string(place["name"], f"{path}.name")
         from services.place_evidence import validate_place_evidence
