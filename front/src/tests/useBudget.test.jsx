@@ -1,0 +1,54 @@
+import {afterEach,expect,it,vi} from 'vitest';
+import {act,cleanup,renderHook,waitFor} from '@testing-library/react';
+import {useBudget} from '../useBudget.js';
+const initial={'食費':60000,'住まい':90000,'日用品':25000,'交通':25000,'娯楽':30000,'その他':20000};
+const response=categories=>({ok:true,status:200,json:async()=>({categories})});
+const deferred=()=>{let resolve;const promise=new Promise(r=>resolve=r);return {promise,resolve};};
+afterEach(()=>{cleanup();vi.unstubAllGlobals();});
+it('retries an initial failure instead of substituting defaults',async()=>{
+  vi.stubGlobal('fetch',vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValue(response(initial)));
+  const {result}=renderHook(()=>useBudget());
+  await waitFor(()=>expect(result.current.status).toBe('loadError'));
+  expect(result.current.categories).toBeNull();
+  await act(async()=>{await result.current.load();});
+  expect(result.current.status).toBe('ready');
+  expect(result.current.categories).toEqual(initial);
+});
+it('preserves loaded values after a failed save and recovers',async()=>{
+  const fetchImpl=vi.fn().mockResolvedValueOnce(response(initial)).mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(response({...initial,'食費':70000}));
+  vi.stubGlobal('fetch',fetchImpl);
+  const {result}=renderHook(()=>useBudget());
+  await waitFor(()=>expect(result.current.status).toBe('ready'));
+  await act(async()=>{await expect(result.current.save({...initial,'食費':70000})).rejects.toThrow('offline');});
+  expect(result.current.categories).toEqual(initial);
+  expect(result.current.status).toBe('ready');
+  expect(result.current.busy).toBe(false);
+  await act(async()=>{await result.current.save({...initial,'食費':70000});});
+  expect(result.current.categories['食費']).toBe(70000);
+});
+it('does not overwrite a saved value with an older load response',async()=>{
+  const old=deferred();
+  vi.stubGlobal('fetch',vi.fn().mockResolvedValueOnce(response(initial)).mockReturnValueOnce(old.promise).mockResolvedValueOnce(response({...initial,'食費':70000})));
+  const {result}=renderHook(()=>useBudget());
+  await waitFor(()=>expect(result.current.status).toBe('ready'));
+  let loading;
+  act(()=>{loading=result.current.load();});
+  await act(async()=>{await result.current.save({...initial,'食費':70000});});
+  await act(async()=>{old.resolve(response(initial));await loading;});
+  expect(result.current.categories['食費']).toBe(70000);
+  expect(result.current.status).toBe('ready');
+});
+it('locks duplicate writes and loads while saving',async()=>{
+  const saving=deferred();
+  const requests=[];
+  vi.stubGlobal('fetch',async(path,options)=>{requests.push(options.method);return options.method==='GET'?response(initial):saving.promise;});
+  const {result}=renderHook(()=>useBudget());
+  await waitFor(()=>expect(result.current.status).toBe('ready'));
+  let write;
+  act(()=>{write=result.current.save(initial);});
+  expect(result.current.busy).toBe(true);
+  await act(async()=>{await expect(result.current.save(initial)).rejects.toThrow();expect(await result.current.load()).toBe(false);});
+  await act(async()=>{saving.resolve(response(initial));await write;});
+  expect(requests).toEqual(['GET','PUT']);
+  expect(result.current.busy).toBe(false);
+});
