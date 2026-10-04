@@ -25,6 +25,8 @@ Detailed coordinates: longitude 141.315540696, latitude 43.074206115. Proofs con
 
 The initial sandbox-restricted connection returned `geolonia_network`; repeating with authorized network access succeeded. Live data coverage may change. This check does not establish historical store location, store identity, or an entrance point.
 
+A final suite run with network access exposed an existing API Web-search test that had not injected the Geolonia fixture. Live coordinates replaced its expected Web fixture coordinates. That test now explicitly simulates unavailable Geolonia, matching the runtime Web tests; official network coverage remains a separate read-only check.
+
 ## Visual and interaction checks
 
 Inspected the screenshots at desktop 1440×900 and phone 375×812:
@@ -57,3 +59,4 @@ These decisions were recorded during execution, in this order:
 3. Permit only numeric `v` query parameters on the fixed dataset endpoint because the official library uses them. Cost if wrong: fetch/provenance compatibility; safe and unsafe queries are tested.
 4. Require grounded store/address association before direct candidate creation; an address alone does not establish the requested store name. Cost if wrong: additional Web discovery. Review strengthened enforcement for user messages.
 5. Reference-count shared sessions and close them when their last search finishes, with turn-level cleanup as fallback. Cost if wrong: stale processes or lost shared cache; process/parallel tests cover ownership.
+6. Isolate Geolonia in the existing API Web-search lifecycle test after a network-enabled final run exposed an unmocked live lookup. Cost if wrong: missing integrated real-network coverage; the separate official-client live check covers actual connectivity.

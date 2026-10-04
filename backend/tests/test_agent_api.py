@@ -92,6 +92,7 @@ class AgentAPITests(unittest.TestCase):
         from agent.runtime import AgentRunner
         from test_agent_runtime import ScriptModel
         from test_agent_place_search import Provider, Verifier
+        from test_geolonia_search import Geolonia
         from langchain_core.messages import AIMessage
         from agent_search_fixtures import SEARCH, SHOP
         from db.agent_search_store import AgentSearchStore
@@ -104,7 +105,8 @@ class AgentAPITests(unittest.TestCase):
         def call(name,args,identifier): return AIMessage(content='',tool_calls=[{'name':name,'args':args,'id':identifier,'type':'tool_call'}])
         model=ScriptModel(replies=[call('search_place',{**SEARCH,'query':'ドトールコーヒーショップ 西鉄福岡駅店'},'s'),call('edit_trajectory',args,'e'),AIMessage(content='支店未確認の候補です。保存前に確認してください。'),call('read_place_search_history',{},'h'),AIMessage(content='福岡市の候補を取得しました。支店は未確認です。')])
         app=create_app(self.app.state.store.db_path,Path(self.temp.name),runner_factory=lambda store:AgentRunner(store,model=model))
-        with TestClient(app,base_url='http://localhost:8765',headers={'Origin':'http://localhost:8765'}) as client, patch('agent.web_places.WebPlaceProvider',FakeProvider), patch('agent.web_coordinates.WebCoordinateVerifier',lambda *args:Verifier()):
+        geo=Geolonia();geo.status='unavailable'
+        with TestClient(app,base_url='http://localhost:8765',headers={'Origin':'http://localhost:8765'}) as client, patch('agent.web_places.WebPlaceProvider',FakeProvider), patch('agent.web_coordinates.WebCoordinateVerifier',lambda *args:Verifier()), patch('agent.geolonia_client.GeoloniaClient',lambda:geo):
             thread=client.post('/api/agent/threads',json={}).json()['thread']['id'];url=f'/api/agent/threads/{thread}'
             response=client.post(url+'/messages',json={'clientMessageId':'one','text':'2026年10月2日の取引記録によって、軌跡を作成して'})
             self.assertEqual(response.status_code,200,response.text)
