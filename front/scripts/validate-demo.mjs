@@ -83,6 +83,13 @@ export function validateDemoBuild(root=frontRoot){
    : path.endsWith('.css') ? /url\(\s*["']?([^\s"')]+)/g
    : /\bimport\s*\(\s*["']([^"']+)["']|\bfrom\s+["']([^"']+)["']|["']((?:\.?\.?\/|\/)?assets\/[^"']+\.(?:js|css|png|svg|woff2?))["']/g;
   const refs=[...text.matchAll(pattern)];
+  if(path.endsWith('.js')){
+   // Static module statements have no required space before their URL after
+   // `from` or `import`. Limit bindings to module-import syntax, rather than
+   // treating every inert occurrence of the word "from" as an import.
+   const staticImports=/(?:^|[;\n}])\s*import\s*(?:[\p{ID_Continue}$*{},\s]+?\bfrom\s*)?["']([^"']+)["']/gu;
+   refs.push(...text.matchAll(staticImports));
+  }
   for(const match of refs){const ref=match.slice(1).find(Boolean);if(!ref||/^(?:data:|blob:|#)/.test(ref))continue;
    if(/^https?:/.test(ref))fail(`External asset reference: ${ref}`);
    if(ref.startsWith('/')&&!ref.startsWith('/Kakei/'))fail(`Wrong asset base: ${ref}`);
