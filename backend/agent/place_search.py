@@ -13,6 +13,10 @@ class SearchBudget:
     def __init__(self,turn_deadline,*,clock=time.monotonic):
         self.turn_deadline,self.clock=turn_deadline,clock;self.deadline=None
         self.counts=dict.fromkeys(STAGE_LIMITS,0);self.stopped={};self.tasks={};self.lock=asyncio.Lock();self.page_slots=asyncio.Semaphore(3)
+    def geolonia_time_remaining(self):
+        now=self.clock()
+        if self.deadline is None:self.deadline=min(now+SEARCH_SECONDS,self.turn_deadline-FINAL_REPLY_RESERVE)
+        return max(0,self.deadline-now-35)
     async def run(self,stage,key,call):
         provider='pages' if stage=='page' else 'openai'
         async with self.lock:
