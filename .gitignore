@@ -12,3 +12,8 @@ prompt-log.md
 /README_demo.md
 
 front/dist-demo/
+
+# Backend
+/backend/**/data/
+/backend/**/.venv
+/backend/**/__pycache__/
