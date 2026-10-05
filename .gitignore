@@ -7,6 +7,8 @@ backend/geolonia/node_modules/
 front/test-results/
 front/playwright-report/
 prompt-log.md
+/front/README.md
+/backend/README.md
 /README_demo.md
 
 front/dist-demo/
