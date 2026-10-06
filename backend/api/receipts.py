@@ -8,6 +8,7 @@ from db.receipt_store import ReceiptStore
 from db.store import TrajectoryNotFound
 from services.receipt_validation import MAX_BYTES, validate_receipt
 from services.validation import ValidationError
+from services.receipt_images import primary_jpeg
 
 def register_receipts(app,store):
     receipts=ReceiptStore(store.db_path)
@@ -32,14 +33,17 @@ def register_receipts(app,store):
             return json_response(201,receipts.create_pending(thread_id,validate_receipt(data,file.filename)))
         finally:await form.close()
 
-    def file_response(asset):
-        return Response(asset['data'],media_type=asset['mime_type'],headers={'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':"sandbox; default-src 'none'",'Content-Disposition':'inline; filename="receipt.'+{'image/png':'png','image/jpeg':'jpg','image/webp':'webp','application/pdf':'pdf'}[asset['mime_type']]+'"'})
+    def file_response(asset, preview=False):
+        data,mime=asset['data'],asset['mime_type']
+        if preview and mime.startswith('image/'):
+            data,mime=primary_jpeg(data),'image/jpeg'
+        return Response(data,media_type=mime,headers={'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':"sandbox; default-src 'none'",'Content-Disposition':'inline; filename="receipt.'+{'image/png':'png','image/jpeg':'jpg','image/webp':'webp','image/heic':'heic','application/pdf':'pdf'}[mime]+'"'})
 
     @app.get('/api/agent/threads/{thread_id}/receipts/{receipt_id}')
-    def preview(thread_id:str,receipt_id:str):
+    def preview(thread_id:str,receipt_id:str,preview:bool=False):
         asset=receipts.get_asset(receipt_id)
         if not asset or asset['thread_id']!=thread_id:raise TrajectoryNotFound('レシートが見つかりません。')
-        return file_response(asset)
+        return file_response(asset,preview)
 
     @app.post('/api/agent/threads/{thread_id}/receipt-proposals')
     async def propose(thread_id:str,request:Request):
@@ -53,7 +57,7 @@ def register_receipts(app,store):
         return json_response(200,{'receipts':receipts.list_for_transaction(transaction_id)})
 
     @app.get('/api/receipts/{receipt_id}')
-    def approved(receipt_id:str):
+    def approved(receipt_id:str,preview:bool=False):
         asset=receipts.get_asset(receipt_id)
         if not asset or not asset['transaction_id']:raise TrajectoryNotFound('レシートが見つかりません。')
-        return file_response(asset)
+        return file_response(asset,preview)

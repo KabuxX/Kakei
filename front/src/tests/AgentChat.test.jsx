@@ -62,6 +62,18 @@ it('uploads a receipt without submitting or approving it',async()=>{
  expect(await screen.findByRole('img',{name:'添付レシート'})).toBeTruthy();
  expect(api.sendMessage).not.toHaveBeenCalled();expect(api.approve).not.toHaveBeenCalled();
 });
+it('offers phone formats and displays a HEIC preview while linking the original',async()=>{
+ api.uploadReceipt.mockResolvedValue({id:'phone',mimeType:'image/heic'});
+ render(<AgentChat onCommitted={vi.fn()}/>);
+ const input=screen.getByLabelText('レシートファイル');
+ await vi.waitFor(()=>expect(input.disabled).toBe(false));
+ for(const suffix of ['.jpg','.jpeg','.mpo','.heic','.heif'])expect(input.accept.split(',')).toContain(suffix);
+ fireEvent.change(input,{target:{files:[new File(['phone'],'IMG_7767.HEIC',{type:'image/heic'})]}});
+ const preview=await screen.findByRole('img',{name:'添付レシート'});
+ expect(preview.getAttribute('src')).toBe('/api/agent/threads/t/receipts/phone?preview=true');
+ expect(preview.closest('a').getAttribute('href')).toBe('/api/agent/threads/t/receipts/phone');
+ expect(screen.getByText(/iPhoneの写真はそのまま添付できます/)).toBeTruthy();
+});
 it('refreshes application data when proposal reload discovers committed approval',async()=>{
  const onCommitted=vi.fn().mockResolvedValue(true);
  api.approve.mockRejectedValueOnce(new Error('lost response'));
@@ -75,7 +87,7 @@ it('refreshes application data when proposal reload discovers committed approval
 it('keeps receipt source and destination context in the final approval and edit card',async()=>{
  proposal={...proposal,threadId:'t',metadata:{receiptId:'r',targetChoice:'existing',receiptReview:{receiptId:'r',mimeType:'image/png',matches:[{reason:'hash',transaction:{id:'existing',title:'既存の食材',date:'2026-10-01T12:00',amount:100}}]}}};
  render(<AgentChat onCommitted={vi.fn()}/>);await start();
- expect(screen.getByRole('img',{name:'確認するレシート'}).getAttribute('src')).toBe('/api/agent/threads/t/receipts/r');
+ expect(screen.getByRole('img',{name:'確認するレシート'}).getAttribute('src')).toBe('/api/agent/threads/t/receipts/r?preview=true');
  expect(screen.getByRole('link',{name:'レシート原本を開く'})).toBeTruthy();
  expect(screen.getByText(/保存先:.*既存の食材/)).toBeTruthy();expect(screen.getByText(/同じレシート/)).toBeTruthy();
  fireEvent.click(screen.getByRole('button',{name:'内容を修正'}));

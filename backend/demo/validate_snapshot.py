@@ -54,9 +54,13 @@ def validate_snapshot(snapshot, receipts_dir):
  for identifier,r in snapshot['receipts'].items():
   if identifier!=r.get('id'):raise ValueError(f'Invalid receipt table key: receipts.{identifier}.id')
   if r.get('threadId') not in threads:raise ValueError(f'Missing receipt thread: receipts.{identifier}.threadId')
-  if not re.fullmatch(r'demo-data/receipts/[A-Za-z0-9_-]+\.(png|jpg|pdf|webp)',r['path']):raise ValueError('Unsafe receipt path')
+  if not re.fullmatch(r'demo-data/receipts/[A-Za-z0-9_-]+\.(png|jpg|pdf|webp|heic)',r['path']):raise ValueError('Unsafe receipt path')
   p=receipts_dir/r['path']
   if not p.is_file() or hashlib.sha256(p.read_bytes()).hexdigest()!=r['sha256']:raise ValueError('Missing or corrupt receipt')
+  if 'previewPath' in r:
+   if not re.fullmatch(r'demo-data/receipts/[A-Za-z0-9_-]+\.jpg',r['previewPath']):raise ValueError('Unsafe receipt preview path')
+   preview=receipts_dir/r['previewPath']
+   if not preview.is_file() or hashlib.sha256(preview.read_bytes()).hexdigest()!=r.get('previewSha256'):raise ValueError('Missing or corrupt receipt preview')
   if r.get('transactionId') and r['transactionId'] not in ids:raise ValueError('Missing receipt transaction')
  receipt_references(tx,'transactions',snapshot['receipts'])
  receipt_references(snapshot['threads'],'threads',snapshot['receipts'])

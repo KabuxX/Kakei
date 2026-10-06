@@ -28,6 +28,19 @@ class DemoExportTests(unittest.TestCase):
   with self.assertRaises(ValueError):validate_snapshot(s,self.out/'public')
   p.unlink()
   with self.assertRaises(ValueError):validate_snapshot(s,self.out/'public')
+ def test_heic_export_keeps_original_and_provides_browser_preview(self):
+  from receipt_image_fixtures import phone_photo
+  from test_iphone_receipts import assert_primary_jpeg
+  data=phone_photo('HEIF')
+  with self.store._connection() as c:
+   c.execute('UPDATE receipt_assets SET mime_type=?,data=?,sha256=? WHERE id=?',('image/heic',data,hashlib.sha256(data).hexdigest(),'receipt-1'))
+  s=self.export();receipt=s['receipts']['receipt-1']
+  self.assertEqual((self.out/'public'/receipt['path']).read_bytes(),data)
+  self.assertTrue(receipt['path'].endswith('.heic'))
+  preview=self.out/'public'/receipt['previewPath']
+  assert_primary_jpeg(self,preview.read_bytes())
+  preview.write_bytes(b'corrupt')
+  with self.assertRaises(ValueError):validate_snapshot(s,self.out/'public')
  def test_rejects_invalid_budget_and_references(self):
   s=self.export();s['categories']['食費']=-1
   with self.assertRaises(ValueError):validate_snapshot(s,self.out/'public')

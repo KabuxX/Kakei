@@ -1,4 +1,4 @@
-import {receiptUrl as originalUrl,snapshotTime} from '@kakei/runtime';
+import {receiptUrl as originalUrl,receiptPreviewUrl,snapshotTime} from '@kakei/runtime';
 import PlaceSources from '../places/PlaceSources.jsx';
 import MerchantAddressField from '../transactions/MerchantAddressField.jsx';
 import React, { useState } from 'react';
@@ -53,7 +53,7 @@ export default function AgentProposal({proposal,onChange,onCommitted,busy,setBus
     <header><h2>{pending?`確認待ち · 第${proposal.revision}版`:({applied:'保存済み',rejected:'却下済み'}[proposal.status]||'期限切れ')}</h2><p>{readOnly?'保存時点の変更案を表示しています。':<>内容を確認してから保存してください。{pending&&' この案は24時間で期限切れになります。'}</>}</p></header>
     {receipt&&['pending','applied'].includes(proposal.status)&&<section aria-label="レシートの根拠">
       <h3>レシートと保存先</h3>
-      {receipt.mimeType?.startsWith('image/')&&<img className="receipt-preview" alt="確認するレシート" src={receiptUrl}/>}
+      {receipt.mimeType?.startsWith('image/')&&<img className="receipt-preview" alt="確認するレシート" src={receiptPreviewUrl(receipt.receiptId,proposal.status==='applied'?undefined:proposal.threadId)}/>}
       <p><a href={receiptUrl} target="_blank" rel="noreferrer">レシート原本を開く</a></p>
       <p>保存先: {target?`${target.date} ${target.title} ${target.amount}円 を編集`:'新しい取引として追加'}</p>
       <ReceiptCalculation review={receipt} current={editing?draft[0]?.data:proposal.after[0]}/>

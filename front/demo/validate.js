@@ -44,7 +44,10 @@ export function validateDemoSnapshot(s,manifest){
   }
  }
  buildTrajectoryDays(s.transactions,s.timeline);
- for(const [id,r] of Object.entries(s.receipts))if(id!==r.id||!/^demo-data\/receipts\/[A-Za-z0-9_-]+\.(png|jpg|pdf|webp)$/.test(r.path)||!threads.has(r.threadId)||(r.transactionId&&!tx.has(r.transactionId)))throw new Error('Invalid receipt reference');
+ for(const [id,r] of Object.entries(s.receipts)){
+  if(id!==r.id||!/^demo-data\/receipts\/[A-Za-z0-9_-]+\.(png|jpg|pdf|webp|heic)$/.test(r.path)||!threads.has(r.threadId)||(r.transactionId&&!tx.has(r.transactionId)))throw new Error('Invalid receipt reference');
+  if(r.previewPath!==undefined&&(!/^demo-data\/receipts\/[A-Za-z0-9_-]+\.jpg$/.test(r.previewPath)||!/^[a-f0-9]{64}$/.test(r.previewSha256??'')))throw new Error('Invalid receipt preview reference');
+ }
  receiptReferences(s.transactions,'transactions',s.receipts);
  receiptReferences(s.threads,'threads',s.receipts);
  if(manifest && (manifest.schemaVersion!==1||manifest.exportedAt!==s.exportedAt||manifest.counts.transactions!==s.transactions.length||manifest.counts.days!==s.timeline.days.length||manifest.counts.receipts!==Object.keys(s.receipts).length))throw new Error('Invalid DEMO manifest');

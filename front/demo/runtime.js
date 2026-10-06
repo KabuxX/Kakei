@@ -10,5 +10,6 @@ export const getInitialMonth=()=>{const [year,month]=manifest.latestMonth.split(
 export const apiFetch=createDemoFetch(snapshot);
 export const assetUrl=path=>`${import.meta.env.BASE_URL}${path.replace(/^\//,'')}`;
 export const receiptUrl=id=>snapshot.receipts[id]?assetUrl(snapshot.receipts[id].path):'';
+export const receiptPreviewUrl=id=>snapshot.receipts[id]?assetUrl(snapshot.receipts[id].previewPath||snapshot.receipts[id].path):'';
 export const loadTrajectoryMap=()=>import('../src/components/trajectory/OfflineTrajectoryMap.jsx');
 export const demoPlaces=snapshot.placeLookup;

@@ -1,4 +1,4 @@
-import {receiptUrl} from '@kakei/runtime';
+import {receiptUrl,receiptPreviewUrl} from '@kakei/runtime';
 import {RecordView} from '../agent/AgentProposal.jsx';
 import React,{useRef,useState} from 'react';
 import {TransactionFields} from '../agent/AgentProposal.jsx';
@@ -24,9 +24,9 @@ export default function ReceiptReview({review,threadId,busy,setBusy,onProposed,r
  const mismatch=command.data.items?.length && (command.data.items.reduce((s,i)=>s+Number(i.amount),0)!==Number(command.data.amount)||command.data.items.some(i=>i.amount<=0));
  const url=receiptUrl(review.receiptId,threadId);
  const submit=async(e)=>{e.preventDefault();if(busy||(needsVerification&&!verified))return;setBusy(true);setError('');try{onProposed(await api.proposeReceipt(threadId,{receiptId:review.receiptId,target,currency,draft:{...command.data,...(Object.hasOwn(addressEdits.current,target)||candidateAddress?{merchantAddress:normalizeMerchantAddress(displayAddress)}:{})}}));}catch(e){setError(e.message);}finally{setBusy(false);}};
- if(readOnly)return <article className="agent-proposal receipt-review" aria-label="レシートの読み取り結果"><h2>レシートの読み取り結果</h2>{review.mimeType?.startsWith('image/')&&<img className="receipt-preview" alt="レシートのプレビュー" src={url}/>}<p><a href={url} target="_blank" rel="noreferrer">レシート原本を開く</a></p><ReceiptCalculation review={review} current={command.data}/><RecordView value={candidate}/></article>;
+ if(readOnly)return <article className="agent-proposal receipt-review" aria-label="レシートの読み取り結果"><h2>レシートの読み取り結果</h2>{review.mimeType?.startsWith('image/')&&<img className="receipt-preview" alt="レシートのプレビュー" src={receiptPreviewUrl(review.receiptId,threadId)}/>}<p><a href={url} target="_blank" rel="noreferrer">レシート原本を開く</a></p><ReceiptCalculation review={review} current={command.data}/><RecordView value={candidate}/></article>;
  return <article className="agent-proposal receipt-review" aria-label="レシートの確認"><h2>レシートを確認</h2>
- {review.mimeType?.startsWith('image/')&&<img className="receipt-preview" alt="レシートのプレビュー" src={url}/>}
+ {review.mimeType?.startsWith('image/')&&<img className="receipt-preview" alt="レシートのプレビュー" src={receiptPreviewUrl(review.receiptId,threadId)}/>}
  <p><a href={url} target="_blank" rel="noreferrer">レシート原本を開く</a></p>
  <ReceiptCalculation review={review} current={command.data}/>
  {review.missingFields.length>0&&<p className="agent-notice">読み取れない項目があります。原本を確認し、空欄を補ってください。</p>}

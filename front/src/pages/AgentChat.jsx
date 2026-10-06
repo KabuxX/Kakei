@@ -1,4 +1,4 @@
-import {receiptUrl as originalUrl} from '@kakei/runtime';
+import {receiptUrl as originalUrl,receiptPreviewUrl} from '@kakei/runtime';
 import DemoPlaceResults from '../components/places/DemoPlaceResults.jsx';
 import React, {useEffect, useRef, useState} from 'react';
 import AgentProposal from '../components/agent/AgentProposal.jsx';
@@ -52,13 +52,13 @@ export default function AgentChat({session,onCommitted,onOpenTrajectory,readOnly
       {status?.available&&status.placesAvailable===false&&<p className="agent-notice">{status.placesMessage||'地点検索を利用できません。保存済み地点や座標指定は利用できます。'}</p>}
       <form className="agent-composer" aria-label="メッセージを作成" onSubmit={submit}>
         {receipt&&<div className="agent-attachment">
-          <a href={receiptUrl} target="_blank" rel="noreferrer" aria-label="添付レシートを開く">{receipt.mimeType.startsWith('image/')?<img alt="添付レシート" src={receiptUrl}/>:<ChatIcon name="file"/>}<span>{receipt.name||'添付レシート'}</span></a>
+          <a href={receiptUrl} target="_blank" rel="noreferrer" aria-label="添付レシートを開く">{receipt.mimeType.startsWith('image/')?<img alt="添付レシート" src={receiptPreviewUrl(receipt.id,thread.id)}/>:<ChatIcon name="file"/>}<span>{receipt.name||'添付レシート'}</span></a>
           <ChatButton label="添付を外す" icon="close" disabled={busy} onClick={removeReceipt}/>
         </div>}
         <label className="sr-only" htmlFor="agent-message">メッセージ</label>
         <textarea id="agent-message" ref={composer} value={draft.text} onChange={e=>setText(e.target.value)} onKeyDown={shortcut} onCompositionStart={()=>{composing.current=true;}} onCompositionEnd={()=>{composing.current=false;}} rows={active?2:3} maxLength="16000" disabled={busy||unavailable} placeholder="記録したいこと、相談したいことを入力" aria-describedby="agent-input-help"/>
         <div className="agent-composer-tools">
-          <input ref={file} id="agent-receipt" className="sr-only" tabIndex="-1" type="file" aria-label="レシートファイル" accept="image/jpeg,image/png,image/webp,application/pdf" disabled={busy||unavailable} onChange={e=>{upload(e.target.files?.[0]);e.target.value='';}}/>
+          <input ref={file} id="agent-receipt" className="sr-only" tabIndex="-1" type="file" aria-label="レシートファイル" accept="image/jpeg,image/mpo,image/heic,image/heif,image/png,image/webp,application/pdf,.jpg,.jpeg,.mpo,.heic,.heif" disabled={busy||unavailable} onChange={e=>{upload(e.target.files?.[0]);e.target.value='';}}/>
           <ChatButton label="レシートを添付" icon="attach" disabled={busy||unavailable} onClick={()=>file.current?.click()}/>
           <span className="agent-compose-status" role="status">{loading?'接続を確認中…':busy&&!sending?'処理しています…':''}</span>
           <ChatButton type="submit" label={draft.retry&&!sending?'再送':'送信'} icon={busy&&!sending?'spinner':draft.retry&&!sending?'retry':'send'} className="agent-send" disabled={busy||unavailable||!draft.text.trim()}/>
@@ -66,7 +66,7 @@ export default function AgentChat({session,onCommitted,onOpenTrajectory,readOnly
       </form>
       {refreshError&&<p role="alert">{refreshError}</p>}
       {error&&<div role="alert" className="agent-error">{error}<ChatButton label="状態を再読み込み" icon="retry" onClick={load} disabled={busy}/></div>}
-      <div className="agent-input-help" id="agent-input-help"><span>AIへの送信に使用します · ⌘ / Ctrl + Enter で送信</span><details><summary>添付できるファイル</summary><p>JPEG・PNG・WebP・PDF / 10 MiBまで、PDFは3ページまで</p></details></div>
+      <div className="agent-input-help" id="agent-input-help"><span>AIへの送信に使用します · ⌘ / Ctrl + Enter で送信</span><details><summary>添付できるファイル</summary><p>JPEG・MPO・HEIC・HEIF・PNG・WebP・PDF / 10 MiBまで、PDFは3ページまで。iPhoneの写真はそのまま添付できます。</p></details></div>
     </div>}
   </section>;
 }

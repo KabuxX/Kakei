@@ -5,6 +5,7 @@ from services.receipt_amounts import calculate_receipt
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from services.merchant_address import normalize_merchant_address
 from langsmith import tracing_context
+from services.receipt_images import primary_jpeg
 
 class ReceiptItem(BaseModel):
     model_config=ConfigDict(extra='forbid',strict=True)
@@ -42,9 +43,10 @@ class ReceiptCandidate(BaseModel):
         return normalize_merchant_address(value)
 
 async def extract_receipt(file,model):
-    encoded=base64.b64encode(file.data).decode()
+    data=file.data if file.mime_type=='application/pdf' else primary_jpeg(file.data)
+    encoded=base64.b64encode(data).decode()
     block=({'type':'file','file':{'filename':'receipt.pdf','file_data':'data:application/pdf;base64,'+encoded}}
-           if file.mime_type=='application/pdf' else {'type':'image_url','image_url':{'url':f'data:{file.mime_type};base64,{encoded}'}})
+           if file.mime_type=='application/pdf' else {'type':'image_url','image_url':{'url':f'data:image/jpeg;base64,{encoded}'}})
     with tracing_context(enabled=False):
         result=await model.with_structured_output(ReceiptCandidate).ainvoke([
             {'role':'system','content':EXTRACTION_INSTRUCTIONS},

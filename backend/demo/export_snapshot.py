@@ -7,6 +7,7 @@ from db.trajectory_store import read_trajectory_timeline
 from db.agent_store import proposal_record
 from services.transaction_addresses import read_transaction_addresses,annotate_location_status
 from demo.validate_snapshot import validate_snapshot
+from services.receipt_images import primary_jpeg
 
 # Business display DTOs may be nested. Never include execution/cache metadata.
 PRIVATE={'baselines','sourceVersion','authorizedPlaces','placeCandidates','searchIds','token','input','raw','rawResponse','google_place_coordinates','geocoding','coordinateEvidence'}
@@ -50,11 +51,15 @@ def export_demo(db_path:Path,out_dir:Path,curated_path:Path,captured_at:str)->di
      if review:reviews[review['receiptId']]=clean(review)
     threads.append({'id':t['id'],'title':t['title'],'createdAt':t['created_at'],'messages':messages,'proposals':proposals,'receiptReviews':list(reviews.values())})
    receipts={};public=root/'public';(public/'demo-data/receipts').mkdir(parents=True)
-   ext={'image/png':'png','image/jpeg':'jpg','image/webp':'webp','application/pdf':'pdf'}
+   ext={'image/png':'png','image/jpeg':'jpg','image/webp':'webp','image/heic':'heic','application/pdf':'pdf'}
    for r in c.execute('SELECT * FROM receipt_assets'):
     if not re.fullmatch('[A-Za-z0-9_-]+',r['id']):raise ValueError('Unsafe receipt ID')
     path=f"demo-data/receipts/{r['id']}.{ext[r['mime_type']]}";(public/path).write_bytes(r['data'])
     receipts[r['id']]={'id':r['id'],'mimeType':r['mime_type'],'pageCount':r['page_count'],'sha256':r['sha256'],'createdAt':r['created_at'],'transactionId':r['transaction_id'],'threadId':r['thread_id'],'path':path}
+    if r['mime_type']=='image/heic':
+     preview_path=f"demo-data/receipts/{r['id']}-preview.jpg";preview_data=primary_jpeg(r['data'])
+     (public/preview_path).write_bytes(preview_data)
+     receipts[r['id']].update(previewPath=preview_path,previewSha256=hashlib.sha256(preview_data).hexdigest())
    s={'schemaVersion':1,'exportedAt':captured_at,'transactions':transactions,'categories':{r['category']:r['amount'] for r in c.execute('select * from category_budgets')},'timeline':timeline,'addresses':addresses,'threads':threads,'receipts':receipts,'placeLookup':lookup}
    validate_snapshot(s,public)
    data=json.dumps(s,ensure_ascii=False,allow_nan=False,indent=2)+'\n'

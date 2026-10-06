@@ -48,6 +48,7 @@ function resources(root,output){
  for(const [id,receipt] of Object.entries(snapshot.receipts??{})){
   if(receipt.sha256!==manifest.receiptHashes[id])fail(`Receipt manifest hash mismatch: ${id}`);
   verifyFile(safePath(output,receipt.path),receipt.sha256);
+  if(receipt.previewPath)verifyFile(safePath(output,receipt.previewPath),receipt.previewSha256);
  }
 }
 export function validateDemoSource(root=frontRoot){
