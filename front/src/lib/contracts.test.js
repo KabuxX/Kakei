@@ -9,34 +9,32 @@ import { resolve } from 'node:path';
 
 const json = (status, value) => ({ status, ok: status < 400, json: async () => value });
 
-describe('initial server import', () => {
-  it.each([
-    [null, [{ id: 'sample-0' }]],
-    ['[]', []],
-  ])('imports %s once', async (raw, expected) => {
-    const fetchImpl = vi.fn()
-      .mockResolvedValueOnce(json(200, { initialized: false }))
-      .mockResolvedValueOnce(json(201, { count: expected.length }))
-      .mockResolvedValueOnce(json(200, { transactions: expected }));
+describe('fresh server initialization', () => {
+  it.each([null, '[]', '[{"id":"old-browser-record"}]', '{'])('starts empty despite browser storage %s', async (raw) => {
+    let records;
+    const fetchImpl = vi.fn(async (path, options) => {
+      if (path === '/api/status') return json(200, { initialized: false });
+      if (path === '/api/initialize') {
+        records = JSON.parse(options.body).transactions;
+        return json(201, { count: records.length });
+      }
+      if (path === '/api/transactions') return json(200, { transactions: records });
+      throw new Error(`Unexpected path: ${path}`);
+    });
     const result = await loadInitialTransactions({
       fetchImpl, storage: { getItem: () => raw }, sampleFactory: () => [{ id: 'sample-0' }],
     });
-    expect(result).toEqual(expected);
-    expect(JSON.parse(fetchImpl.mock.calls[1][1].body).transactions).toEqual(expected);
+    expect(result).toEqual([]);
+    expect(records).toEqual([]);
   });
 
-  it('does not import malformed storage', async () => {
-    const fetchImpl = vi.fn().mockResolvedValue(json(200, { initialized: false }));
-    await expect(loadInitialTransactions({ fetchImpl, storage: { getItem: () => '{' }, sampleFactory: () => [] })).rejects.toThrow();
-    expect(fetchImpl).toHaveBeenCalledTimes(1);
-  });
-
-  it('accepts a competing initializer', async () => {
+  it('accepts a competing initializer and returns its saved records', async () => {
+    const saved = [{ id: 'saved-record' }];
     const fetchImpl = vi.fn()
       .mockResolvedValueOnce(json(200, { initialized: false }))
       .mockResolvedValueOnce(json(409, { error: { code: 'already_initialized' } }))
-      .mockResolvedValueOnce(json(200, { transactions: [] }));
-    await expect(loadInitialTransactions({ fetchImpl, storage: { getItem: () => '[]' }, sampleFactory: () => [] })).resolves.toEqual([]);
+      .mockResolvedValueOnce(json(200, { transactions: saved }));
+    await expect(loadInitialTransactions({ fetchImpl })).resolves.toEqual(saved);
   });
 });
 
@@ -55,7 +53,7 @@ it('preserves old expense fields and safe CSV escaping', () => {
   expect(serializeTransactionsCsv([record])).toContain('"100","","",""');
 });
 
-it('uses September transaction JSON for fresh dashboard totals', () => {
+it('calculates September sample dashboard totals', () => {
   const samples = createSampleTransactions();
   expect(samples).toHaveLength(37);
   expect(samples.find((record) => record.id === 'sample-0')).toMatchObject({ title: '給与', amount: 320000 });
@@ -76,10 +74,11 @@ it('preserves the old sixteen transaction fixture as a separate JSON file', () =
 });
 
 it('loads an initialized server without touching browser storage', async () => {
+  const saved = [{ id: 'saved-record', title: '保存済みの取引' }];
   const fetchImpl = vi.fn()
     .mockResolvedValueOnce(json(200, { initialized: true }))
-    .mockResolvedValueOnce(json(200, { transactions: [] }));
-  await expect(loadInitialTransactions({ fetchImpl, storage: { getItem: () => { throw new Error('unexpected storage read'); } }, sampleFactory: () => [] })).resolves.toEqual([]);
+    .mockResolvedValueOnce(json(200, { transactions: saved }));
+  await expect(loadInitialTransactions({ fetchImpl, storage: { getItem: () => { throw new Error('unexpected storage read'); } }, sampleFactory: () => [] })).resolves.toEqual(saved);
   expect(fetchImpl.mock.calls.map(([path]) => path)).toEqual(['/api/status', '/api/transactions']);
 });
 

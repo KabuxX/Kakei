@@ -1,7 +1,6 @@
 import {apiFetch} from '@kakei/runtime';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import * as api from './lib/api.js';
-import { createSampleTransactions } from './lib/sample-data.js';
 
 export function useTransactions() {
   const [transactions, setTransactions] = useState([]);
@@ -19,8 +18,6 @@ export function useTransactions() {
     try {
       const next = await api.loadInitialTransactions({
         fetchImpl: apiFetch,
-        storage: { getItem: (key) => window.localStorage.getItem(key) },
-        sampleFactory: createSampleTransactions,
       });
       setTransactions(next);
       setStatus('ready');

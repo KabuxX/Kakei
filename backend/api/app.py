@@ -15,17 +15,17 @@ from api.budget import register_budget
 from api.transaction_addresses import register_transaction_addresses
 from api.agent import register_agent
 from api.receipts import register_receipts
-from config.paths import TIMELINE_PATH
 from db.store import AlreadyInitialized, NotInitialized, Store, TrajectoryConflict, TrajectoryNotFound
 from services.trajectory_validation import load_timeline
 from services.validation import ValidationError
 
 
 def create_app(db_path: Path, front_dir: Path, *, port: int = 8765,
-               timeline_path: Path = TIMELINE_PATH, runner_factory=None) -> FastAPI:
+               timeline_path: Path | None = None, runner_factory=None) -> FastAPI:
     """Build an app with an isolated store for tests or local execution."""
     store = Store(db_path)
-    store.seed_trajectory_once(lambda: load_timeline(timeline_path))
+    if timeline_path is not None:
+        store.seed_trajectory_once(lambda: load_timeline(timeline_path))
     @asynccontextmanager
     async def lifespan(app):
         async def cleanup():

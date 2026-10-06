@@ -1,5 +1,4 @@
 import {apiFetch} from '@kakei/runtime';
-  const storageKey = 'kakei-transactions-v1';
 
   class ApiError extends Error {
     constructor(status, detail = {}) {
@@ -30,15 +29,12 @@ import {apiFetch} from '@kakei/runtime';
     return result.transactions;
   }
 
-  async function loadInitialTransactions({ fetchImpl = apiFetch, storage, sampleFactory }) {
+  async function loadInitialTransactions({ fetchImpl = apiFetch } = {}) {
     const status = await request('GET', '/api/status', undefined, fetchImpl);
     if (typeof status?.initialized !== 'boolean') throw new ApiError(200, { code: 'invalid_response', message: 'サーバーの状態を確認できませんでした。' });
     if (!status.initialized) {
-      const raw = storage.getItem(storageKey);
-      const records = raw === null ? sampleFactory() : JSON.parse(raw);
-      if (!Array.isArray(records)) throw new Error('保存済みの取引データは配列ではありません。');
       try {
-        await request('POST', '/api/initialize', { transactions: records }, fetchImpl);
+        await request('POST', '/api/initialize', { transactions: [] }, fetchImpl);
       } catch (error) {
         if (!(error instanceof ApiError && error.status === 409 && error.code === 'already_initialized')) throw error;
       }

@@ -1,5 +1,5 @@
 """Deterministic browser fixture; always uses disposable SQLite, never user data."""
-import sys, tempfile
+import json, sys, tempfile
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import uvicorn
@@ -79,5 +79,9 @@ if __name__ == '__main__':
     from agent import google_places
     google_places.GooglePlacesClient=BrowserGoogle
     with tempfile.TemporaryDirectory(prefix='kakei-agent-browser-') as directory:
-        app = create_app(Path(directory)/'test.sqlite3', Path(__file__).resolve().parents[2]/'front/dist', port=8767, runner_factory=lambda store: BrowserRunner(store))
+        root = Path(__file__).resolve().parents[2]
+        app = create_app(Path(directory)/'test.sqlite3', root/'front/dist', port=8767,
+                         timeline_path=root/'front/src/data/september-timeline.json',
+                         runner_factory=lambda store: BrowserRunner(store))
+        app.state.store.initialize(json.loads((root/'front/src/data/september-transactions.json').read_text()))
         uvicorn.run(app, host='127.0.0.1', port=8767, log_level='warning')

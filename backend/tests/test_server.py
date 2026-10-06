@@ -50,7 +50,7 @@ class ServerTests(unittest.TestCase):
         (self.front / "index.html").write_text("<title>Kakei</title>", encoding="utf-8")
         (self.front / "app.js").write_text("const app = true;", encoding="utf-8")
         (root / "secret.txt").write_text("private", encoding="utf-8")
-        self.app = server.create_app(self.db, self.front)
+        self.app = server.create_app(self.db, self.front, timeline_path=TIMELINE_PATH)
         self.client = TestClient(self.app, raise_server_exceptions=False)
         self.addCleanup(self.client.close)
 
@@ -68,8 +68,25 @@ class ServerTests(unittest.TestCase):
         content = response.json() if response.headers.get("Content-Type", "").startswith("application/json") and response.content else response.content
         return response.status_code, content
 
+    def test_fresh_app_starts_without_sample_data(self):
+        database = Path(self.temp.name) / "fresh.sqlite3"
+        app = create_app(database, self.front)
+        headers = {"Host": "localhost:8765", "Origin": "http://localhost:8765"}
+        with TestClient(app) as client:
+            self.assertEqual(client.get("/api/trajectory", headers=headers).json(), {"dates": []})
+            response = client.post("/api/initialize", json={"transactions": []}, headers=headers)
+            self.assertEqual((response.status_code, response.json()), (201, {"count": 0}))
+            self.assertEqual(client.get("/api/transactions", headers=headers).json(), {"transactions": []})
+        with sqlite3.connect(database) as connection:
+            for table in ("transactions", "trajectory_days", "trajectory_places", "trajectory_events"):
+                self.assertEqual(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0], 0)
+        reopened = create_app(database, self.front)
+        with TestClient(reopened) as client:
+            self.assertEqual(client.get("/api/trajectory", headers=headers).json(), {"dates": []})
+            self.assertEqual(client.get("/api/transactions", headers=headers).json(), {"transactions": []})
+
     def test_api_package_factory_preserves_status_and_trajectory_contracts(self):
-        app = create_app(Path(self.temp.name) / "package.sqlite3", self.front)
+        app = create_app(Path(self.temp.name) / "package.sqlite3", self.front, timeline_path=TIMELINE_PATH)
         with TestClient(app) as client:
             headers = {"Host": "localhost:8765"}
             status = client.get("/api/status", headers=headers)

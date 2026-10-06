@@ -18,8 +18,8 @@ test('first viewport shows period and financial state at desktop and phone width
   await expect(page.locator('#dashboard-view')).toHaveClass(/data-ready/);
   await expect(page.locator('#month-label')).toHaveText('2026年9月');
   await expect(page.locator('#balance-amount')).not.toHaveText('—');
-  expect(initialized).toHaveLength(37);
-  await expect(page.getByRole('button', { name: '取引を追加' })).toBeVisible();
+  expect(initialized).toEqual([]);
+  await expect(page.getByRole('button', { name: '取引を追加', exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   const desktop = await page.locator('.balance-card').boundingBox();
   expect(desktop.y).toBeLessThan(200);
@@ -103,20 +103,21 @@ test('deletion confirmation keeps the selected transaction and actions visible a
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
-test('imports an existing browser array once', async ({ page }) => {
+test('starts empty instead of importing an existing browser array', async ({ page }) => {
   const record = { id: 'from-browser', date: '2026-09-12', type: 'income', title: '移行した収入', category: '収入', amount: 1234 };
   await page.addInitScript((saved) => localStorage.setItem('kakei-transactions-v1', JSON.stringify(saved)), [record]);
   let imported;
   await page.route('**/api/**', async (route) => {
     const pathname = new URL(route.request().url()).pathname;
     if (pathname === '/api/status') return route.fulfill({ status: 200, json: { initialized: false } });
-    if (pathname === '/api/initialize') { imported = route.request().postDataJSON(); return route.fulfill({ status: 201, json: { count: 1 } }); }
-    if (pathname === '/api/transactions') return route.fulfill({ status: 200, json: { transactions: [record] } });
+    if (pathname === '/api/initialize') { imported = route.request().postDataJSON(); return route.fulfill({ status: 201, json: { count: imported.transactions.length } }); }
+    if (pathname === '/api/transactions') return route.fulfill({ status: 200, json: { transactions: imported.transactions } });
     return route.continue();
   });
   await page.goto('/');
-  await expect(page.getByRole('link', { name: '移行した収入' })).toBeVisible();
-  expect(imported).toEqual({ transactions: [record] });
+  await expect(page.locator('#dashboard-view')).toHaveClass(/data-ready/);
+  await expect(page.getByRole('link', { name: '移行した収入' })).toHaveCount(0);
+  expect(imported).toEqual({ transactions: [] });
 });
 
 test('modal Escape restores focus and detail back restores the list row', async ({ page }) => {
