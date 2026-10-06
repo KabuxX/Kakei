@@ -19,7 +19,7 @@ Kakeiは、自分のパソコンで起動し、ブラウザから利用するア
 以下をインストールしてください。
 
 - Git
-- [uv（Python環境管理ツール） (https://docs.astral.sh/uv/getting-started/installation/)](https://docs.astral.sh/uv/getting-started/installation/)
+- [uv（Python環境管理ツール）](https://docs.astral.sh/uv/getting-started/installation/)
 
 Python 3.14は、必要に応じてuvが自動で取得します。通常の利用にはNode.jsは不要です。
 
@@ -44,7 +44,7 @@ uv sync --project backend --locked
 uv run --project backend --locked fastapi run backend/server.py --host 127.0.0.1 --port 8765
 ```
 
-起動後、ブラウザで [http://localhost:8765/ (http://localhost:8765/)](http://localhost:8765/) を開いてください。
+起動後、ブラウザで [http://localhost:8765/](http://localhost:8765/) を開いてください。
 
 利用中はターミナルを開いたままにします。終了するときは `Ctrl + C` を押してください。次回以降は、`Kakei` フォルダで同じ起動コマンドを実行します。
 
