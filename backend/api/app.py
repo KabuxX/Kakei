@@ -98,7 +98,7 @@ def create_app(db_path: Path, front_dir: Path, *, port: int = 8765,
     else:
         register_receipt_locations(app, store, service_factory=receipt_location_service_factory)
     register_receipts(app, store)
-    register_agent(app, store, runner_factory)
+    register_agent(app, store, runner_factory, receipt_location_service_factory)
     register_transactions(app, store)
     register_budget(app, store)
     register_transaction_addresses(app, store)

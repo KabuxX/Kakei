@@ -16,7 +16,7 @@ async def body(request):
     return value
 
 
-def register_agent(app, store, runner_factory=None):
+def register_agent(app, store, runner_factory=None, receipt_location_service_factory=None):
     repository = AgentStore(store.db_path)
 
     @app.get('/api/agent/status')
@@ -52,7 +52,7 @@ def register_agent(app, store, runner_factory=None):
         if 'cached' in lease:
             return json_response(200, lease['cached'])
         try:
-            runner = runner_factory(store) if runner_factory else AgentRunner(store)
+            runner = runner_factory(store) if runner_factory else AgentRunner(store, **({"receipt_location_service_factory":receipt_location_service_factory} if receipt_location_service_factory else {}))
             result = await asyncio.wait_for(runner.run_turn(thread_id, repository.get_thread(thread_id)['messages'], payload.get('receiptId'), turn_context={'thread_id':thread_id,'client_message_id':client_id,'run_token':lease['token']}), TURN_SECONDS)
             try:
                 response=repository.complete_turn(thread_id, client_id, lease, result)
@@ -91,6 +91,11 @@ def register_agent(app, store, runner_factory=None):
     async def revise(proposal_id: str, request: Request):
         payload = await body(request)
         return json_response(200, {'proposal': repository.revise_proposal(proposal_id, payload.get('revision'), payload.get('commands'))})
+
+    @app.post('/api/agent/proposals/{proposal_id}/receipt-location')
+    async def reconfirm_receipt_location(proposal_id: str, request: Request):
+        payload = await body(request)
+        return json_response(200, {'proposal': repository.revise_receipt_proposal_location(proposal_id,payload.get('revision'),payload.get('draft'),payload.get('location'))})
 
     @app.post('/api/agent/proposals/{proposal_id}/approve')
     async def approve(proposal_id: str, request: Request):

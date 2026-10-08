@@ -23,11 +23,15 @@ def read_state(connection):
         items.setdefault(row['transaction_id'], []).append({'name': row['name'], 'amount': row['amount']})
     records = {row['id']: Store._record(row, items.get(row['id'], []))
                for row in connection.execute('SELECT * FROM transactions')}
-    return {'transactions': records, 'timeline': read_trajectory_timeline(connection)}
+    from db.merchant_place_store import read_merchant_place
+    places = {row['transaction_id']: read_merchant_place(connection,row['transaction_id']) for row in connection.execute('SELECT transaction_id FROM transaction_merchant_places')}
+    return {'transactions': records, 'timeline': read_trajectory_timeline(connection), 'merchantPlaces':places}
 
 
 def baseline_value(state, key):
     kind, identifier = key.split(':', 1)
+    if kind == 'merchant-place':
+        return state.get('merchantPlaces',{}).get(identifier)
     if kind == 'transaction':
         return state['transactions'].get(identifier)
     if kind == 'day':
@@ -92,6 +96,7 @@ def prepare_changes(connection, commands):
             changed_transactions.add(identifier)
             if old:
                 keys.add('transaction:' + identifier)
+                keys.add('merchant-place:' + identifier)
                 for day in original['timeline']['days']:
                     visits = [e for e in day['events'] if e.get('transactionId') == identifier]
                     fares = [leg for leg in day['legs'] if leg.get('transportTransactionId') == identifier]
@@ -202,10 +207,19 @@ def apply_proposal(connection, proposal_id, revision):
     if unresolved(metadata):
         raise TrajectoryConflict('未確定の地点があります。候補または座標を選んでください。')
     validate_bound_places(json.loads(row['commands_json']), metadata)
+    from services.receipt_location_proposals import validate_receipt_location
+    receipt_commands = json.loads(row['commands_json'])
+    if 'receiptLocation' in metadata:
+        if len(receipt_commands) != 1:
+            raise ValidationError('location', 'レシート変更案の内容を確認してください。')
+        validate_receipt_location(metadata, receipt_commands[0], now=time.time())
     expected = json.loads(row['baselines_json'])
     if fingerprints(read_state(connection), expected) != expected:
         raise TrajectoryConflict('元データが変更されました。差分を更新して再確認してください。')
     preview = prepare_changes(connection, resolve_places(json.loads(row['commands_json']), metadata))
+    if 'receiptLocation' in metadata:
+        from services.receipt_location_proposals import receipt_location_preview
+        receipt_location_preview(connection,preview,metadata['receiptLocation'])
     mapping = {f'new:{index}': str(uuid.uuid5(uuid.UUID(proposal_id), f'transaction:{index}'))
                for index, command in enumerate(preview['commands']) if command['kind'] == 'transaction.create'}
     changed = []
@@ -218,6 +232,9 @@ def apply_proposal(connection, proposal_id, revision):
                 Store._update(connection, record)
             from db.receipt_store import ReceiptStore
             ReceiptStore.attach(connection, command['data'].get('receiptIds', []), record['id'], row['thread_id'])
+            if 'receiptLocation' in metadata:
+                from services.receipt_location_proposals import apply_receipt_location
+                apply_receipt_location(connection, record['id'], metadata['receiptLocation'])
             changed.append(record)
     if any(c['kind'].startswith('trajectory.') for c in preview['commands']):
         replace_trajectory(connection, resolve_ids(preview['state']['timeline'], mapping))

@@ -50,7 +50,7 @@ def register_receipts(app,store):
         from api.agent import body
         from db.agent_store import AgentStore
         value=await body(request)
-        return json_response(201,{'proposal':AgentStore(store.db_path).create_receipt_proposal(thread_id,value.get('receiptId'),value.get('target'),value.get('draft'),value.get('currency'))})
+        return json_response(201,{'proposal':AgentStore(store.db_path).create_receipt_proposal(thread_id,value.get('receiptId'),value.get('target'),value.get('draft'),value.get('currency'),location=value.get('location'))})
 
     @app.get('/api/transactions/{transaction_id}/receipts')
     def list_receipts(transaction_id:str):

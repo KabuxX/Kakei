@@ -80,6 +80,13 @@ class AgentStore:
                 'SELECT * FROM agent_proposals WHERE thread_id = ? ORDER BY created_at', (thread_id,))]
             reviews = [json.loads(r[0])['receiptReview'] for r in c.execute("SELECT result_json FROM agent_turns WHERE thread_id=? AND status='complete' ORDER BY started_at", (thread_id,)) if json.loads(r[0]).get('receiptReview')]
             reviews = list({r['receiptId']: r for r in reviews}.values())
+            from db.receipt_location_store import ReceiptLocationStore, _resolution
+            for review in reviews:
+                current = ReceiptLocationStore._row(c,thread_id,review['receiptId'],time.time())
+                if current:
+                    review['locationResolution'] = _resolution(current)
+                elif review.get('locationResolution'):
+                    review['locationResolution'] = {**review['locationResolution'],'status':'unavailable','reason':'expired','method':None,'selectedPlaceId':None,'placeIds':[],'confirmedAt':None}
             return {'id': row['id'], 'title': row['title'], 'createdAt': row['created_at'], 'messages': messages, 'proposals': proposals, 'receiptReviews': reviews}
 
     def append_message(self, thread_id, client_message_id, role, text):
@@ -235,8 +242,19 @@ class AgentStore:
             from services.agent_places import check_source, preview as place_preview, validate_bound_places
             metadata = json.loads(row['metadata_json'])
             check_source(c, metadata)
+            if 'receiptLocation' in metadata:
+                from services.receipt_location_proposals import validate_receipt_location
+                if len(commands) != 1:
+                    raise ValidationError('location','レシート変更案の内容を確認してください。')
+                validate_receipt_location(metadata, commands[0], now=time.time())
             validate_bound_places(commands, metadata)
             preview = place_preview(c, commands, metadata)
+            if 'receiptLocation' in metadata:
+                from services.receipt_location_proposals import receipt_location_preview
+                receipt_location_preview(c,preview,metadata['receiptLocation'])
+            if 'receiptLocation' not in metadata:
+                old_keys = json.loads(row['baselines_json'])
+                preview['baselines'] = {k:v for k,v in preview['baselines'].items() if not k.startswith('merchant-place:') or k in old_keys}
             from agent.trajectory import order_required
             metadata['orderRequired'] = order_required([value for command, value in zip(commands, preview['after']) if command['kind'] != 'trajectory.delete'])
             metadata['orderConfirmed'] = False
@@ -270,7 +288,7 @@ class AgentStore:
             c.execute('DELETE FROM receipt_assets WHERE thread_id=? AND transaction_id IS NULL', (thread_id,))
             c.execute('DELETE FROM agent_threads WHERE id = ?', (thread_id,))
 
-    def create_receipt_proposal(self, thread_id, receipt_id, target, draft, currency):
+    def create_receipt_proposal(self, thread_id, receipt_id, target, draft, currency, location=None):
         from db.receipt_store import ReceiptStore
         if currency != 'JPY':
             raise ValidationError('currency', 'この家計簿は日本円に対応しています。金額と通貨を確認してください。')
@@ -293,11 +311,38 @@ class AgentStore:
             command = {'kind': 'transaction.create' if target == 'new' else 'transaction.update',
                        'identity': {} if target == 'new' else {'id': target},
                        'data': {**draft, 'receiptIds': [receipt_id]}}
+            from services.receipt_location_proposals import bind_receipt_location, receipt_location_address
+            binding = bind_receipt_location(c, thread_id, receipt_id, target, draft, location, now=time.time())
+            command['data']['merchantAddress'] = receipt_location_address(binding)
             proposal = self._create_proposal(c, thread_id, [command])
-            metadata = {'receiptId': receipt_id, 'receiptReview': review, 'targetChoice': target}
+            from services.receipt_location_proposals import receipt_location_preview
+            receipt_location_preview(c,proposal,binding)
+            c.execute('UPDATE agent_proposals SET before_json=?,after_json=? WHERE id=?',(dumps(proposal['before']),dumps(proposal['after']),proposal['id']))
+            metadata = {**proposal['metadata'], 'receiptId': receipt_id, 'receiptReview': review, 'targetChoice': target, 'receiptLocation':binding}
             c.execute('UPDATE agent_proposals SET metadata_json=? WHERE id=?', (dumps(metadata), proposal['id']))
             proposal['metadata'] = metadata
             return proposal
+
+    def revise_receipt_proposal_location(self, proposal_id, expected_revision, draft, location):
+        from services.receipt_location_proposals import bind_receipt_location, receipt_location_address
+        from services.agent_changes import prepare_changes
+        from db.receipt_store import ReceiptStore
+        with self.store._connection() as c:
+            c.execute('BEGIN IMMEDIATE')
+            row = self._pending(c, proposal_id, expected_revision)
+            metadata = json.loads(row['metadata_json'])
+            if not metadata.get('receiptId'):
+                raise ValidationError('receiptId','レシート変更案を指定してください。')
+            target = metadata['targetChoice']; receipt_id = metadata['receiptId']
+            binding = bind_receipt_location(c,row['thread_id'],receipt_id,target,draft,location,now=time.time())
+            command = {'kind':'transaction.create' if target == 'new' else 'transaction.update','identity':{} if target == 'new' else {'id':target},'data':{**draft,'merchantAddress':receipt_location_address(binding),'receiptIds':[receipt_id]}}
+            ReceiptStore.validate_commands(c,[command],row['thread_id'])
+            preview = prepare_changes(c,[command]); metadata['receiptLocation'] = binding
+            from services.receipt_location_proposals import receipt_location_preview
+            receipt_location_preview(c,preview,binding)
+            c.execute('UPDATE agent_proposals SET commands_json=?,metadata_json=?,baselines_json=?,before_json=?,after_json=?,revision=revision+1 WHERE id=?',
+                      (dumps(preview['commands']),dumps(metadata),dumps(preview['baselines']),dumps(preview['before']),dumps(preview['after']),proposal_id))
+            return proposal_record(c.execute('SELECT * FROM agent_proposals WHERE id=?',(proposal_id,)).fetchone())
 
     def select_place_candidate(self, proposal_id, revision, candidate_id=None, *, manual=None, place_id=None, confirmed=False):
         from services.agent_places import choose, preview as place_preview
