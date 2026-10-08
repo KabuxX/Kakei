@@ -75,3 +75,11 @@ class ReceiptMatchingTests(unittest.TestCase):
         row = candidate(name='Example Coffee')
         self.assertEqual(match_receipt_places(receipt(merchant='Example Coffee', branch=None), [row])['status'], 'needs_selection')
         self.assertEqual(match_receipt_places(receipt(merchant='Example Coffee', branch=None, locality='東京都千代田区'), [row])['status'], 'resolved')
+
+    def test_bare_brand_variation_is_not_branch_evidence(self):
+        value = receipt(merchant='スターバックス コーヒー', branch=None)
+        row = candidate(name='スターバックス コーヒー')
+        result = match_receipt_places(value, [row])
+        self.assertEqual(result['status'], 'needs_selection')
+        self.assertIsNone(result['selectedPlaceId'])
+        self.assertEqual(result['reason'], 'insufficient_identity')

@@ -41,8 +41,8 @@ def match_receipt_places(value: ReceiptLocationInput, candidates: list[GoogleCan
     branch = normalize_name(value['branch'] or '')
     expected = merchant if not branch or merchant.endswith(branch) else merchant + branch
     brand_only = not branch and merchant in BRANDS
-    specific = bool(branch or value['locality'] or value['merchantAddress'] or
-                    any(merchant.startswith(brand) and merchant != brand for brand in BRANDS))
+    # A brand suffix may be a brand spelling variation, not a branch.
+    specific = bool(branch or value['locality'] or value['merchantAddress'])
     ids = []
     prefix_only = False
     for candidate in candidates:
