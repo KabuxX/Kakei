@@ -143,3 +143,24 @@ class ProposalTests(unittest.TestCase):
                 metadata['receiptLocation']=invalid
                 with self.store._connection() as c:c.execute('UPDATE agent_proposals SET metadata_json=? WHERE id=?',(json.dumps(metadata),p['id']))
                 with self.assertRaises(ValidationError):self.store.apply_agent_proposal(p['id'],1)
+    def test_reconfirmation_store_requires_integer_revision(self):
+        self.review_turn();p=self.proposal(self.resolve());loc=self.resolve('本人住所')
+        for revision in (None,True,False,'1',1.0):
+            with self.subTest(revision=revision):
+                with self.assertRaises(ValidationError):
+                    self.agent.revise_receipt_proposal_location(p['id'],revision,{**DRAFT,'merchantAddress':'本人住所'},loc)
+                self.assertEqual(self.agent.get_proposal(p['id']),p)
+    def test_reconfirmation_api_requires_explicit_integer_revision(self):
+        from fastapi.testclient import TestClient
+        from api.app import create_app
+        self.review_turn();p=self.proposal(self.resolve());loc=self.resolve('本人住所')
+        app=create_app(self.store.db_path,Path(self.store.db_path).parent)
+        with TestClient(app,base_url='http://localhost:8765',headers={'origin':'http://localhost:8765'}) as client:
+            url='/api/agent/proposals/'+p['id']+'/receipt-location'
+            body={'draft':{**DRAFT,'merchantAddress':'本人住所'},'location':loc}
+            for value in ({}, {'revision':None}, {'revision':True}, {'revision':False}, {'revision':'1'}, {'revision':1.0}):
+                with self.subTest(value=value):
+                    response=client.post(url,json={**body,**value})
+                    self.assertEqual(response.status_code,400,response.text)
+                    self.assertEqual(response.json()['error']['field'],'revision')
+                    self.assertEqual(self.agent.get_proposal(p['id']),p)

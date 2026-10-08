@@ -327,6 +327,8 @@ class AgentStore:
         from services.receipt_location_proposals import bind_receipt_location, receipt_location_address
         from services.agent_changes import prepare_changes
         from db.receipt_store import ReceiptStore
+        if type(expected_revision) is not int:
+            raise ValidationError('revision', '確認した版を指定してください。')
         with self.store._connection() as c:
             c.execute('BEGIN IMMEDIATE')
             row = self._pending(c, proposal_id, expected_revision)
