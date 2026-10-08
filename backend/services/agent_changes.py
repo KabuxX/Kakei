@@ -23,8 +23,11 @@ def read_state(connection):
         items.setdefault(row['transaction_id'], []).append({'name': row['name'], 'amount': row['amount']})
     records = {row['id']: Store._record(row, items.get(row['id'], []))
                for row in connection.execute('SELECT * FROM transactions')}
-    from db.merchant_place_store import read_merchant_place
-    places = {row['transaction_id']: read_merchant_place(connection,row['transaction_id']) for row in connection.execute('SELECT transaction_id FROM transaction_merchant_places')}
+    from db.merchant_place_store import read_merchant_places, merchant_place_projection
+    places = read_merchant_places(connection)
+    for identifier, binding in places.items():
+        if identifier in records:
+            records[identifier]['merchantPlace'] = merchant_place_projection(binding)
     return {'transactions': records, 'timeline': read_trajectory_timeline(connection), 'merchantPlaces':places}
 
 
@@ -88,6 +91,13 @@ def prepare_changes(connection, commands):
                 record['merchantAddress'] = resolve_updated_merchant_address(old or {}, draft)
             if old and old['date'] == record['date'] and not confirm:
                 record['timeEstimated'] = old['timeEstimated']
+            from db.merchant_place_store import should_clear_merchant_place, merchant_place_projection
+            binding = state['merchantPlaces'].get(identifier)
+            if old and binding:
+                if should_clear_merchant_place(old, record):
+                    state['merchantPlaces'].pop(identifier, None)
+                else:
+                    record['merchantPlace'] = merchant_place_projection(binding)
             before[index] = copy.deepcopy(old)
             if receipt_ids:
                 record['receiptIds'] = receipt_ids

@@ -19,3 +19,23 @@ def write_merchant_place(connection, transaction_id, binding: dict) -> None:
 
 def clear_merchant_place(connection, transaction_id) -> None:
     connection.execute('DELETE FROM transaction_merchant_places WHERE transaction_id=?', (transaction_id,))
+
+def merchant_place_projection(binding: dict) -> dict:
+    return {key: binding[key] for key in ('provider', 'placeId', 'method')}
+
+
+def read_merchant_places(connection) -> dict:
+    return {row['transaction_id']: dict(provider=row['provider'], placeId=row['place_id'],
+        method=row['method'], input=json.loads(row['input_json']), confirmedAt=row['confirmed_at'])
+        for row in connection.execute('SELECT * FROM transaction_merchant_places')}
+
+
+def should_clear_merchant_place(old: dict, draft: dict, *, address_only=False) -> bool:
+    from services.merchant_address import normalize_merchant_address
+    if address_only:
+        return True
+    merchant = lambda value: value.strip() if isinstance(value, str) else value
+    return (draft.get('type', old.get('type')) == 'income'
+        or merchant(draft.get('merchant', old.get('merchant'))) != merchant(old.get('merchant'))
+        or ('merchantAddress' in draft and normalize_merchant_address(draft['merchantAddress'])
+            != normalize_merchant_address(old.get('merchantAddress'))))

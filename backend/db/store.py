@@ -304,6 +304,9 @@ class Store:
                 raise ValidationError('merchantAddress', '支出の住所だけを編集できます。')
             if expected != {'merchant': row['merchant'], 'merchantAddress': row['merchant_address']}:
                 raise TrajectoryConflict('取引が変更されました。再読み込みして確認してください。')
+            from db.merchant_place_store import clear_merchant_place, should_clear_merchant_place
+            if should_clear_merchant_place(self._record(row, []), {'merchantAddress': address}, address_only=True):
+                clear_merchant_place(connection, transaction_id)
             connection.execute('UPDATE transactions SET merchant_address=? WHERE id=?', (address, transaction_id))
             row = connection.execute('SELECT * FROM transactions WHERE id=?', (transaction_id,)).fetchone()
             items = [dict(r) for r in connection.execute('SELECT name,amount FROM transaction_items WHERE transaction_id=? ORDER BY position',(transaction_id,))]
@@ -376,7 +379,11 @@ class Store:
                 items_by_transaction.setdefault(item["transaction_id"], []).append({
                     "name": item["name"], "amount": item["amount"],
                 })
-            return [self._record(row, items_by_transaction.get(row["id"], [])) for row in rows]
+            from db.merchant_place_store import read_merchant_places, merchant_place_projection
+            places = read_merchant_places(connection)
+            return [{**self._record(row, items_by_transaction.get(row["id"], [])),
+                     **({'merchantPlace': merchant_place_projection(places[row['id']])} if row['id'] in places else {})}
+                    for row in rows]
 
     def get_transaction(self, transaction_id: str) -> Optional[dict]:
         with self._connection() as connection:
@@ -392,7 +399,9 @@ class Store:
                     WHERE transaction_id = ? ORDER BY position
                 """, (transaction_id,))
             ]
-            return self._record(row, items)
+            from db.merchant_place_store import read_merchant_place, merchant_place_projection
+            place = read_merchant_place(connection, transaction_id)
+            return {**self._record(row, items), **({'merchantPlace': merchant_place_projection(place)} if place else {})}
 
     def create_transaction(self, draft):
         normalized = normalize_transaction(draft)
@@ -407,6 +416,10 @@ class Store:
 
     @staticmethod
     def _update(connection, record):
+        from db.merchant_place_store import clear_merchant_place, should_clear_merchant_place
+        old = connection.execute('SELECT * FROM transactions WHERE id=?', (record['id'],)).fetchone()
+        if old and should_clear_merchant_place(Store._record(old, []), record):
+            clear_merchant_place(connection, record['id'])
         connection.execute("""
             UPDATE transactions SET title = ?, date = ?, type = ?, category = ?, amount = ?,
                 merchant = ?, payment_method = ?, time_estimated = ?, merchant_address = ? WHERE id = ?

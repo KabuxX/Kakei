@@ -3,8 +3,8 @@ import {afterEach,expect,it,vi} from 'vitest';
 import {cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
 import App from '../app/App.jsx';
 const initial={id:'a/b 日本語',title:'買物',date:'2026-10-01T12:00',type:'expense',category:'食費',amount:300,merchant:'店',merchantAddress:'住所A',paymentMethod:'cash',items:[{name:'パン',amount:100},{name:'飲物',amount:200}],timeEstimated:true};
-function setup({fail=false,refreshFail=false,category=initial.category,backgroundFail=false}={}){
- let record={...initial,category},saved=false,reads=0;
+function setup({fail=false,refreshFail=false,category=initial.category,backgroundFail=false,overrides={}}={}){
+ let record={...initial,category,...overrides},saved=false,reads=0;
  window.scrollTo=vi.fn();window.location.hash='#transaction/a%2Fb%20%E6%97%A5%E6%9C%AC%E8%AA%9E/edit';
  vi.stubGlobal('fetch',vi.fn(async(url,options={})=>{
   let body={},status=200;
@@ -83,3 +83,17 @@ it('allows cancelling unsaved changes after a background refresh fails',async()=
 });
 
 vi.mock('../useBudget.js', () => ({useBudget: () => ({categories: {'食費':60000,'住まい':90000,'日用品':25000,'交通':25000,'娯楽':30000,'その他':20000}, status:'ready',error:null,busy:false,load:vi.fn(),save:vi.fn()})}));
+
+it('keeps Google display content out of editing and amount-only saves',async()=>{
+ const merchantPlace={provider:'google',placeId:'fixture-one',method:'google_selected'};
+ const current=setup({overrides:{merchantAddress:null,merchantPlace}});render(<App/>);
+ await screen.findByRole('heading',{name:'取引を編集'});
+ expect(screen.getByRole('textbox',{name:'住所（任意）',exact:true}).value).toBe('');
+ fireEvent.change(screen.getByRole('spinbutton',{name:'品目2の金額（円）'}),{target:{value:'250'}});
+ fireEvent.click(screen.getByRole('button',{name:'保存する'}));
+ await screen.findByRole('heading',{name:'取引詳細'});
+ const put=fetch.mock.calls.find(([,options])=>options?.method==='PUT');
+ const body=JSON.parse(put[1].body);
+ expect(body.merchantAddress).toBeNull();expect(body.merchantPlace).toBeUndefined();
+ expect(current().merchantPlace).toEqual(merchantPlace);expect(current().amount).toBe(350);
+});

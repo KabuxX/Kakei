@@ -70,3 +70,27 @@ it('shows only the direct address without address actions or linked-address labe
  expect(screen.queryByRole('button',{name:/住所/})).toBeNull();
  expect(screen.getByRole('link',{name:'編集'}).getAttribute('href')).toBe('#transaction/purchase/edit');
 });
+
+const merchantPlace={provider:'google',placeId:'fixture-one',method:'google_selected'};
+it('address_precedes_google',async()=>{
+ mockFetch(async()=>response(timeline));
+ render(<TransactionDetail record={{...record,merchantAddress:'本人住所',merchantPlace}}/>);
+ expect(screen.getByText('本人住所')).toBeTruthy();
+ expect(screen.queryByLabelText('Googleの地点情報')).toBeNull();
+});
+it('details_failure_keeps_transaction_and_offers_retry',async()=>{
+ let fail=true;
+ vi.stubGlobal('fetch',vi.fn(async url=>url.includes('/places/google/')?response(fail?{}:{name:'Google店舗',address:'一時Google住所'},fail?503:200):response({receipts:[]})));
+ const saved={...record,merchantPlace};render(<TransactionDetail record={saved}/>);
+ expect(await screen.findByText('地点情報を取得できませんでした。')).toBeTruthy();
+ expect(saved.merchantPlace).toEqual(merchantPlace);
+ fail=false;fireEvent.click(screen.getByRole('button',{name:'再読み込み'}));
+ expect(await screen.findByText('一時Google住所')).toBeTruthy();
+ expect(fetch.mock.calls.some(([url])=>url.includes('transaction-addresses'))).toBe(false);
+});
+it('uses independent demo details without lookup',async()=>{
+ vi.stubGlobal('fetch',vi.fn(async()=>response({receipts:[]})));
+ render(<TransactionDetail readOnly record={{...record,merchantPlace}}/>);
+ expect(screen.getByLabelText('DEMOの地点情報')).toBeTruthy();
+ expect(fetch.mock.calls.some(([url])=>url.includes('/places/')||url.includes('transaction-addresses'))).toBe(false);
+});
