@@ -78,3 +78,24 @@ it('reconfirms_same_pending_proposal_and_preserves_source_address',async()=>{
  fireEvent.submit(screen.getByRole('button',{name:'変更案を確認'}).closest('form'));
  expect(api.reconfirmReceiptProposal.mock.lastCall[0]).toBe('same');expect(api.reconfirmReceiptProposal.mock.lastCall[1].draft.merchantAddress).toBe(input.merchantAddress);expect(api.proposeReceipt).not.toHaveBeenCalled();
 });
+it('preserves amount and item edits when inherited search resolves later',async()=>{
+ let finish;api.searchReceiptLocation.mockReturnValue(new Promise(resolve=>{finish=resolve;}));
+ const input={merchant:'店',branch:null,locality:null,merchantAddress:'原本住所'};
+ const resolution={id:'loc',receiptId:'r',revision:1,input,status:'needs_input',expiresAt:Date.now()/1000+3600};
+ const review={receiptId:'r',candidate:{merchant:'店',merchant_address:'原本住所',total:100,currency:'JPY',items:[{name:'原本品目',amount:100}]},missingFields:[],matches:[{reason:'near',transaction:{id:'A',title:'店',merchantPlace:{provider:'google',placeId:'saved'}}}],locationResolution:resolution};
+ api.proposeReceipt.mockResolvedValue({});
+ render(<ReceiptReview review={review} threadId="t" busy={false} setBusy={vi.fn()} onProposed={vi.fn()}/>);
+ fireEvent.change(screen.getByLabelText('保存先'),{target:{value:'A'}});
+ fireEvent.click(screen.getByRole('button',{name:'保存先の店舗参照を確認'}));
+ fireEvent.change(screen.getByLabelText('金額 1'),{target:{value:'250'}});
+ fireEvent.change(screen.getByLabelText('品目名 1'),{target:{value:'修正品目'}});
+ fireEvent.change(screen.getByLabelText('品目金額 1'),{target:{value:'250'}});
+ finish({...resolution,revision:2,input:{...input,merchantAddress:null},status:'resolved',method:'existing_google',sourceTransactionId:'A'});
+ await waitFor(()=>expect(screen.getByRole('button',{name:'変更案を確認'}).disabled).toBe(false));
+ expect(screen.getByLabelText('原本・本人確認済みの住所').value).toBe('');
+ expect(screen.getByLabelText('金額 1').value).toBe('250');
+ expect(screen.getByLabelText('品目名 1').value).toBe('修正品目');
+ expect(screen.getByLabelText('品目金額 1').value).toBe('250');
+ fireEvent.submit(screen.getByRole('button',{name:'変更案を確認'}).closest('form'));
+ expect(api.proposeReceipt.mock.lastCall[1].draft).toMatchObject({amount:250,items:[{name:'修正品目',amount:250}],merchantAddress:null});
+});
