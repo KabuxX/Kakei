@@ -21,7 +21,7 @@ from services.validation import ValidationError
 
 
 def create_app(db_path: Path, front_dir: Path, *, port: int = 8765,
-               timeline_path: Path | None = None, runner_factory=None) -> FastAPI:
+               timeline_path: Path | None = None, runner_factory=None, receipt_location_service_factory=None) -> FastAPI:
     """Build an app with an isolated store for tests or local execution."""
     store = Store(db_path)
     if timeline_path is not None:
@@ -92,6 +92,11 @@ def create_app(db_path: Path, front_dir: Path, *, port: int = 8765,
     async def handle_database_error(_request: Request, _error_value: sqlite3.Error):
         return error_response(500, "database_error", "データベースにアクセスできませんでした。")
 
+    from api.receipt_locations import register_receipt_locations
+    if receipt_location_service_factory is None:
+        register_receipt_locations(app, store)
+    else:
+        register_receipt_locations(app, store, service_factory=receipt_location_service_factory)
     register_receipts(app, store)
     register_agent(app, store, runner_factory)
     register_transactions(app, store)

@@ -19,8 +19,8 @@ class ReceiptLocationStore:
         self.store = Store(db_path)
 
     @staticmethod
-    def _asset(c, thread_id, receipt_id):
-        if not c.execute('SELECT 1 FROM receipt_assets WHERE id=? AND thread_id=?', (receipt_id, thread_id)).fetchone():
+    def _asset(c, thread_id, receipt_id, now=None):
+        if not c.execute('SELECT 1 FROM receipt_assets r JOIN agent_threads t ON t.id=r.thread_id WHERE r.id=? AND r.thread_id=? AND (? IS NULL OR r.expires_at IS NULL OR r.expires_at>?)', (receipt_id, thread_id, now, now)).fetchone():
             raise TrajectoryNotFound('レシートが見つかりません。')
 
     @staticmethod
@@ -39,6 +39,7 @@ class ReceiptLocationStore:
 
     @classmethod
     def _expected(cls, c, thread_id, receipt_id, revision, now, resolution_id=None):
+        cls._asset(c, thread_id, receipt_id, now)
         row = cls._row(c, thread_id, receipt_id, now)
         if not row or type(revision) is not int or row['revision'] != revision or (resolution_id is not None and row['id'] != resolution_id):
             raise TrajectoryConflict('店舗確認が更新されています。')
@@ -55,7 +56,7 @@ class ReceiptLocationStore:
         if status not in ('needs_input', 'resolved') or (status == 'resolved' and (method not in ('receipt_address', 'existing_address') or not value['merchant'] or not value['merchantAddress'])) or (status == 'needs_input' and method is not None):
             raise ValidationError('location', '初回店舗確認を確認してください。')
         with self.store._connection() as c:
-            c.execute('BEGIN IMMEDIATE'); self._asset(c, thread_id, receipt_id)
+            c.execute('BEGIN IMMEDIATE'); self._asset(c, thread_id, receipt_id, now)
             existing = c.execute('SELECT * FROM receipt_location_resolutions WHERE thread_id=? AND receipt_id=?', (thread_id, receipt_id)).fetchone()
             if existing:
                 result = _resolution(existing)
@@ -74,7 +75,7 @@ class ReceiptLocationStore:
             processing_until=?,source_transaction_id=?,expires_at=? WHERE id=?''',
             (json.dumps(value, ensure_ascii=False), location_fingerprint(value), status, method,
              now if status == 'resolved' else None, processing_until, source_transaction_id,
-             now + 86400 if row['expires_at'] <= now else row['expires_at'], row['id']))
+             now + 86400, row['id']))
         return _resolution(c.execute('SELECT * FROM receipt_location_resolutions WHERE id=?', (row['id'],)).fetchone())
 
     def begin_search(self, thread_id, receipt_id, input, revision, *, now, processing_until, source_transaction_id=None):
@@ -91,7 +92,7 @@ class ReceiptLocationStore:
         ids = result.get('placeIds', []); selected = result.get('selectedPlaceId')
         if status not in STATUSES - {'needs_input', 'searching'} or (method is not None and method not in METHODS) or (reason is not None and reason not in REASONS) or not isinstance(ids, list) or len(ids) > 10 or any(not isinstance(p, str) or not p.strip() for p in ids) or len(set(ids)) != len(ids):
             raise ValidationError('location', '検索結果を確認してください。')
-        if (status == 'resolved' and (method != 'google_unique' or len(ids) != 1 or selected != ids[0])) or (status != 'resolved' and (selected is not None or method is not None)) or (status == 'needs_selection' and len(ids) < 2):
+        if (status == 'resolved' and (method != 'google_unique' or len(ids) != 1 or selected != ids[0])) or (status != 'resolved' and (selected is not None or method is not None)) or (status == 'needs_selection' and len(ids) < 1):
             raise ValidationError('location', '検索結果の状態を確認してください。')
         with self.store._connection() as c:
             c.execute('BEGIN IMMEDIATE')
@@ -102,9 +103,9 @@ class ReceiptLocationStore:
                 turn = c.execute("SELECT 1 FROM agent_turns WHERE thread_id=? AND client_message_id=? AND token=? AND status='processing'", tuple(turn_context[k] for k in ('thread_id', 'client_message_id', 'run_token'))).fetchone()
                 if thread_id != turn_context['thread_id'] or not turn:
                     raise TrajectoryConflict('この検索処理は無効になりました。')
-            c.execute('''UPDATE receipt_location_resolutions SET revision=revision+1,status=?,place_ids_json=?,selected_place_id=?,method=?,reason=?,confirmed_at=?,processing_until=NULL
+            c.execute('''UPDATE receipt_location_resolutions SET revision=revision+1,status=?,place_ids_json=?,selected_place_id=?,method=?,reason=?,confirmed_at=?,expires_at=?,processing_until=NULL
                 WHERE id=? AND revision=? AND status='searching' AND input_fingerprint=? AND processing_until>?''',
-                (status, json.dumps(ids), selected, method, reason, now if status == 'resolved' else None, row['id'], revision, row['input_fingerprint'], now))
+                (status, json.dumps(ids), selected, method, reason, now if status == 'resolved' else None, now + 86400, row['id'], revision, row['input_fingerprint'], now))
             return _resolution(c.execute('SELECT * FROM receipt_location_resolutions WHERE id=?', (row['id'],)).fetchone())
 
     def set_selection(self, thread_id, receipt_id, resolution_id, revision, place_id, *, now):
@@ -113,7 +114,7 @@ class ReceiptLocationStore:
             row = self._expected(c, thread_id, receipt_id, revision, now, resolution_id)
             if row['status'] != 'needs_selection' or place_id not in json.loads(row['place_ids_json']):
                 raise TrajectoryConflict('現在の候補から選択してください。')
-            c.execute("UPDATE receipt_location_resolutions SET revision=revision+1,status='resolved',selected_place_id=?,method='google_selected',reason=NULL,confirmed_at=? WHERE id=?", (place_id, now, row['id']))
+            c.execute("UPDATE receipt_location_resolutions SET revision=revision+1,status='resolved',selected_place_id=?,method='google_selected',reason=NULL,confirmed_at=?,expires_at=? WHERE id=?", (place_id, now, now + 86400, row['id']))
             return _resolution(c.execute('SELECT * FROM receipt_location_resolutions WHERE id=?', (row['id'],)).fetchone())
 
     def set_address(self, thread_id, receipt_id, input, revision, *, method, source_transaction_id=None, now):
@@ -124,3 +125,14 @@ class ReceiptLocationStore:
             c.execute('BEGIN IMMEDIATE')
             row = self._expected(c, thread_id, receipt_id, revision, now)
             return self._replace(c, row, value, status='resolved', method=method, now=now, source_transaction_id=source_transaction_id)
+
+    def set_existing_google(self, thread_id, receipt_id, input, revision, place_id, source_transaction_id, *, now):
+        value = normalize_location_input(input)
+        if not value['merchant'] or not isinstance(place_id, str) or not place_id.strip() or not source_transaction_id:
+            raise ValidationError('location', '保存済み地点を確認してください。')
+        with self.store._connection() as c:
+            c.execute('BEGIN IMMEDIATE')
+            row = self._expected(c, thread_id, receipt_id, revision, now)
+            self._replace(c, row, value, status='resolved', method='existing_google', now=now, source_transaction_id=source_transaction_id)
+            c.execute('UPDATE receipt_location_resolutions SET selected_place_id=?,place_ids_json=? WHERE id=?', (place_id, json.dumps([place_id]), row['id']))
+            return _resolution(c.execute('SELECT * FROM receipt_location_resolutions WHERE id=?', (row['id'],)).fetchone())

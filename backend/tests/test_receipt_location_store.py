@@ -46,7 +46,7 @@ class ReceiptLocationStoreTests(unittest.TestCase):
         self.search(location['revision'])
         recovered=self.locations.get('t','r',now=121)
         self.assertEqual(recovered['status'],'unavailable')
-        self.assertEqual(self.locations.get('t','r',now=100+86400)['reason'],'expired')
+        self.assertEqual(self.locations.get('t','r',now=101+86400)['reason'],'expired')
     def test_seed_does_not_overwrite_and_selection_checks_membership(self):
         seeded=self.seed(); self.assertEqual(self.seed(),seeded)
         search=self.search(seeded['revision'])
@@ -75,8 +75,8 @@ class ReceiptLocationStoreTests(unittest.TestCase):
     def test_expired_confirmation_can_be_renewed_but_not_selected(self):
         search=self.search(self.seed()['revision'])
         candidates=self.locations.finish_search('t','r',search['id'],search['revision'],{'status':'needs_selection','placeIds':['p','q']},now=102)
-        with self.assertRaises(TrajectoryConflict): self.locations.set_selection('t','r',candidates['id'],candidates['revision'],'p',now=86500)
-        expired=self.locations.get('t','r',now=86500)
+        with self.assertRaises(TrajectoryConflict): self.locations.set_selection('t','r',candidates['id'],candidates['revision'],'p',now=86502)
+        expired=self.locations.get('t','r',now=86502)
         renewed=self.locations.begin_search('t','r',self.input,expired['revision'],now=86500,processing_until=86520)
         self.assertEqual(renewed['expiresAt'],86500+86400)
         address=self.locations.set_address('t','r',{**self.input,'merchantAddress':'本人住所'},renewed['revision'],method='user_address',now=172900)
@@ -107,3 +107,9 @@ class ReceiptLocationStoreTests(unittest.TestCase):
             self.assertEqual(tuple(c.execute('SELECT * FROM transactions').fetchone()),before)
             c.execute("DELETE FROM transactions WHERE id='tx'")
             self.assertEqual(c.execute('SELECT COUNT(*) FROM transaction_merchant_places').fetchone()[0],0)
+    def test_finish_and_single_selection_renew_daily_expiry(self):
+        search=self.search(self.seed()['revision'])
+        candidates=self.locations.finish_search('t','r',search['id'],search['revision'],{'status':'needs_selection','placeIds':['p']},now=105)
+        self.assertEqual(candidates['expiresAt'],86505)
+        selected=self.locations.set_selection('t','r',candidates['id'],candidates['revision'],'p',now=110)
+        self.assertEqual(selected['expiresAt'],86510)
