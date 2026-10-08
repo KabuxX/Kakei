@@ -237,6 +237,7 @@ def ensure_schema(connection: sqlite3.Connection) -> None:
     """Migrate domain tables before exposing public views in the same transaction."""
     _ensure_domain_schema(connection)
     _create_agent_tables(connection)
+    _create_receipt_location_tables(connection)
     for name in ('transactions', 'transaction_items', 'trajectory_days', 'trajectory_events', 'trajectory_legs', 'trajectory_places'):
         connection.execute(f'DROP VIEW IF EXISTS agent_{name}')
         # Prevent COUNT(*) view flattening from losing its authorizer context.
@@ -282,3 +283,21 @@ def _create_agent_tables(connection: sqlite3.Connection) -> None:
 
     if 'metadata_json' not in {r[1] for r in connection.execute('PRAGMA table_info(agent_messages)')}:
         connection.execute("ALTER TABLE agent_messages ADD COLUMN metadata_json TEXT NOT NULL DEFAULT '{}'")
+
+
+def _create_receipt_location_tables(connection: sqlite3.Connection) -> None:
+    connection.execute("""CREATE TABLE IF NOT EXISTS receipt_location_resolutions (
+        id TEXT PRIMARY KEY,
+        thread_id TEXT NOT NULL REFERENCES agent_threads(id) ON DELETE CASCADE,
+        receipt_id TEXT NOT NULL REFERENCES receipt_assets(id) ON DELETE CASCADE,
+        revision INTEGER NOT NULL,
+        input_json TEXT NOT NULL, input_fingerprint TEXT NOT NULL,
+        status TEXT NOT NULL CHECK(status IN ('needs_input','searching','needs_selection','resolved','not_found','unavailable')),
+        place_ids_json TEXT NOT NULL, selected_place_id TEXT, method TEXT, reason TEXT,
+        confirmed_at REAL, expires_at REAL NOT NULL, processing_until REAL,
+        source_transaction_id TEXT REFERENCES transactions(id) ON DELETE CASCADE,
+        UNIQUE(thread_id,receipt_id))""")
+    connection.execute("""CREATE TABLE IF NOT EXISTS transaction_merchant_places (
+        transaction_id TEXT PRIMARY KEY REFERENCES transactions(id) ON DELETE CASCADE,
+        provider TEXT NOT NULL CHECK(provider='google'), place_id TEXT NOT NULL,
+        method TEXT NOT NULL, input_json TEXT NOT NULL, confirmed_at REAL NOT NULL)""")

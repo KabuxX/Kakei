@@ -17,6 +17,15 @@ class SchemaTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.path = Path(self.temp.name) / "kakei.sqlite3"
 
+    def test_legacy_schema_migrates_without_backfill(self):
+        c = self.legacy_database()
+        ensure_schema(c); c.commit()
+        self.assertEqual(c.execute('SELECT COUNT(*) FROM receipt_location_resolutions').fetchone()[0], 0)
+        self.assertEqual(c.execute('SELECT COUNT(*) FROM transaction_merchant_places').fetchone()[0], 0)
+        self.assertEqual(c.execute('SELECT amount FROM transactions').fetchone()[0], 200)
+        ensure_schema(c); c.commit()
+        self.assertEqual(c.execute('SELECT COUNT(*) FROM transaction_merchant_places').fetchone()[0], 0)
+
     def test_address_migration_preserves_records(self):
         for builder in (self.current_database, self.legacy_database):
             with self.subTest(builder=builder.__name__):
