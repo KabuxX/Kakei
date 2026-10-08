@@ -290,3 +290,10 @@
 @media(max-width:760px){.budget-fields{grid-template-columns:1fr}.budget-dialog{padding:24px}.budget-dialog .dialog-actions{bottom:-24px}.budget-total output{font-size:22px}}
 .demo-badge { background: #ebf0f8; color: #222326; border-radius: 9999px; padding: 8px 12px; font-size: 12px; font-weight: 600; white-space: nowrap; }
 @media (max-width: 600px) { .demo-badge { font-size: 11px; padding: 6px 8px; } }
+.receipt-location {margin:24px 0;padding:24px;background:var(--color-cloud-card,#ebf0f8);border-radius:24px;}
+.receipt-location h3 {margin-top:0;}
+.receipt-location p {color:var(--color-ink,#222326);}
+.receipt-location .agent-actions {flex-wrap:wrap;}
+.receipt-location button {min-height:44px;}
+.receipt-location [tabindex="-1"]:focus {outline:2px solid currentColor;outline-offset:4px;}
+@media(max-width:600px){.receipt-location {padding:16px;}.receipt-location .agent-actions button {width:100%;}}

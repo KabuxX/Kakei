@@ -22,3 +22,11 @@ export const selectPlaceCandidate=async(proposal,revision,candidateId,confirmed)
 export const specifyPlace=async(proposal,revision,placeId,place)=>(await request('POST',`${base}/proposals/${id(proposal)}/places/manual`,{revision,placeId,place})).proposal;
 export const confirmOrder=async(proposal,revision)=>(await request('POST',`${base}/proposals/${id(proposal)}/order/confirmation`,{revision})).proposal;
 export const getProposal=async(proposal)=>(await request('GET',`${base}/proposals/${id(proposal)}`)).proposal;
+// Location calls accept a signal separately so it never becomes request data.
+const locationPath=(thread,receipt)=>`${base}/threads/${id(thread)}/receipts/${id(receipt)}/location`;
+const locationRequest=async(method,path,body,signal)=>(await request(method,path,body,(url,options)=>apiFetch(url,{...options,signal}))).locationResolution;
+export const getReceiptLocation=(thread,receipt,signal)=>locationRequest('GET',locationPath(thread,receipt),undefined,signal);
+export const searchReceiptLocation=(thread,receipt,body,signal)=>locationRequest('POST',locationPath(thread,receipt)+'/search',body,signal);
+export const selectReceiptLocation=(thread,receipt,body,signal)=>locationRequest('POST',locationPath(thread,receipt)+'/selection',body,signal);
+export const confirmReceiptAddress=(thread,receipt,body,signal)=>locationRequest('POST',locationPath(thread,receipt)+'/address',body,signal);
+export const reconfirmReceiptProposal=async(proposal,body)=>(await request('POST',`${base}/proposals/${id(proposal)}/receipt-location`,body)).proposal;

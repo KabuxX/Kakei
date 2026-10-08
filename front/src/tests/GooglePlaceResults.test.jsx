@@ -12,3 +12,10 @@ it('discards slow response when references change',async()=>{
  let resolve;vi.stubGlobal('fetch',vi.fn().mockReturnValue(new Promise(r=>{resolve=r;})));
  const view=render(<GooglePlaceResults placeIds={['one']}/>);view.rerender(<GooglePlaceResults placeIds={[]}/>);resolve({ok:true,json:async()=>({name:'古い候補'})});await Promise.resolve();expect(screen.queryByText('古い候補')).toBeNull();
 });
+it('selects by reference and exposes disabled selected state',async()=>{
+ vi.stubGlobal('fetch',vi.fn().mockResolvedValue({ok:true,json:async()=>({name:'店舗',address:'住所'})}));
+ const select=vi.fn();const view=render(<GooglePlaceResults placeIds={['one']} onSelect={select}/>);
+ const button=await screen.findByRole('button',{name:'この店舗を選択'});button.click();expect(select).toHaveBeenCalledWith('one');
+ view.rerender(<GooglePlaceResults placeIds={['one']} selectedPlaceId="one" disabled onSelect={select}/>);
+ expect(screen.getByRole('button',{name:'選択済み'}).disabled).toBe(true);expect(screen.getByRole('button',{name:'選択済み'}).getAttribute('aria-pressed')).toBe('true');
+});

@@ -1,20 +1,23 @@
 import React from 'react';
 import {afterEach,expect,it,vi} from 'vitest';
-import {cleanup,fireEvent,render,screen} from '@testing-library/react';
+import {cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
 import ReceiptReview from '../components/receipts/ReceiptReview.jsx';
 import * as api from '../lib/agent-api.js';
 vi.mock('../lib/agent-api.js');afterEach(()=>{cleanup();vi.clearAllMocks();});
-it('preserves the existing address for an unedited whitespace receipt address',async()=>{
- const review={receiptId:'r',candidate:{merchant:'店',merchant_address:' \r\n ',total:100,currency:'JPY'},missingFields:[],matches:[{reason:'near',transaction:{id:'A',title:'店',merchantAddress:'住所A'}}]};
- api.proposeReceipt.mockResolvedValue({});
+it('requires confirming the inherited address before preparing a proposal',async()=>{
+ const input={merchant:'店',branch:null,locality:null,merchantAddress:'住所A'};
+ const review={receiptId:'r',candidate:{merchant:'店',merchant_address:' ',total:100,currency:'JPY'},missingFields:[],matches:[{reason:'near',transaction:{id:'A',title:'店',merchantAddress:'住所A'}}],locationResolution:{id:'loc',receiptId:'r',revision:1,input:{...input,merchantAddress:null},status:'needs_input'}};
+ api.confirmReceiptAddress.mockResolvedValue({id:'loc',receiptId:'r',revision:2,input,status:'resolved',sourceTransactionId:'A',expiresAt:Date.now()/1000+3600});api.proposeReceipt.mockResolvedValue({});
  render(<ReceiptReview review={review} threadId="t" busy={false} setBusy={vi.fn()} onProposed={vi.fn()}/>);
  fireEvent.change(screen.getByLabelText('保存先'),{target:{value:'A'}});
- expect(screen.getByLabelText('住所（任意）').value).toBe('住所A');
+ expect(screen.getByRole('button',{name:'変更案を確認'}).disabled).toBe(true);
+ fireEvent.click(screen.getByRole('button',{name:'この住所を確認した'}));
+ await waitFor(()=>expect(screen.getByRole('button',{name:'変更案を確認'}).disabled).toBe(false));
  fireEvent.submit(screen.getByRole('button',{name:'変更案を確認'}).closest('form'));
- expect(api.proposeReceipt.mock.lastCall[1].draft).not.toHaveProperty('merchantAddress');
- fireEvent.change(screen.getByLabelText('住所（任意）'),{target:{value:''}});
- fireEvent.submit(screen.getByRole('button',{name:'変更案を確認'}).closest('form'));
- expect(api.proposeReceipt.mock.lastCall[1].draft.merchantAddress).toBe(null);
+ expect(api.proposeReceipt.mock.lastCall[1].draft.merchantAddress).toBe('住所A');
+ expect(api.proposeReceipt.mock.lastCall[1].location.resolutionId).toBe('loc');
+ fireEvent.change(screen.getByLabelText('原本・本人確認済みの住所'),{target:{value:''}});
+ expect(screen.getByRole('button',{name:'変更案を確認'}).disabled).toBe(true);
 });
 it('requires explicit duplicate selection and preserves missing fields and discrepancy',async()=>{
  const review={receiptId:'r',mimeType:'image/png',candidate:{merchant:'店',date:null,time:null,total:90,currency:'JPY',payment_method:null,items:[{name:'品目',amount:100}]},missingFields:['date','time','payment_method'],itemMismatch:true,matches:[{reason:'near',transaction:{id:'t',title:'食材',date:'2026-10-03T12:00',amount:90}}]};
@@ -36,7 +39,7 @@ it('uses calculated net amounts and keeps original evidence visible after manual
  expect(screen.getByText(/自動計算後に変更されています/)).toBeTruthy();
 });
 it('requires explicit manual verification when tax evidence is inconsistent',()=>{
- const review={receiptId:'r',candidate:{total:100,currency:'JPY',items:[{name:'商品',amount:100}]},missingFields:[],matches:[],calculation:{rows:[],issues:['税区分を確認してください。']},preparedDraft:null};
+ const review={receiptId:'r',locationResolution:{id:'loc',receiptId:'r',revision:1,input:{merchant:'店',merchantAddress:'住所'},status:'resolved',expiresAt:Date.now()/1000+3600},candidate:{merchant:'店',merchant_address:'住所',total:100,currency:'JPY',items:[{name:'商品',amount:100}]},missingFields:[],matches:[],calculation:{rows:[],issues:['税区分を確認してください。']},preparedDraft:null};
  render(<ReceiptReview review={review} threadId="thread" busy={false} setBusy={vi.fn()} onProposed={vi.fn()}/>);
  fireEvent.change(screen.getByRole('combobox',{name:'保存先'}),{target:{value:'new'}});
  expect(screen.getByRole('button',{name:'変更案を確認'}).disabled).toBe(true);
@@ -47,9 +50,31 @@ it('keeps address edits separate for each receipt target',()=>{
  const review={receiptId:'r',candidate:{merchant:'店',total:100,currency:'JPY'},missingFields:[],matches:['A','B'].map(id=>({reason:'near',transaction:{id,title:id,merchantAddress:'住所'+id}}))};
  render(<ReceiptReview review={review} threadId="t" busy={false} setBusy={vi.fn()} onProposed={vi.fn()}/>);
  const select=screen.getByLabelText('保存先');
- fireEvent.change(select,{target:{value:'A'}});expect(screen.getByLabelText('住所（任意）').value).toBe('住所A');
- fireEvent.change(screen.getByLabelText('住所（任意）'),{target:{value:'修正A'}});
- fireEvent.change(select,{target:{value:'B'}});expect(screen.getByLabelText('住所（任意）').value).toBe('住所B');
- fireEvent.change(select,{target:{value:'new'}});expect(screen.getByLabelText('住所（任意）').value).toBe('');
- fireEvent.change(select,{target:{value:'A'}});expect(screen.getByLabelText('住所（任意）').value).toBe('修正A');
+ fireEvent.change(select,{target:{value:'A'}});expect(screen.getByLabelText('原本・本人確認済みの住所').value).toBe('住所A');
+ fireEvent.change(screen.getByLabelText('原本・本人確認済みの住所'),{target:{value:'修正A'}});
+ fireEvent.change(select,{target:{value:'B'}});expect(screen.getByLabelText('原本・本人確認済みの住所').value).toBe('住所B');
+ fireEvent.change(select,{target:{value:'new'}});expect(screen.getByLabelText('原本・本人確認済みの住所').value).toBe('');
+ fireEvent.change(select,{target:{value:'A'}});expect(screen.getByLabelText('原本・本人確認済みの住所').value).toBe('修正A');
+});
+it('blocks_proposal_until_location_resolved_and_preserves_amount_items_while_searching',async()=>{
+ let finish;api.searchReceiptLocation.mockReturnValue(new Promise(resolve=>{finish=resolve;}));
+ const input={merchant:'店',branch:null,locality:null,merchantAddress:null};const resolution={id:'current-resolution',receiptId:'r',revision:1,input,status:'needs_input',expiresAt:Date.now()/1000+3600};
+ const review={receiptId:'r',candidate:{merchant:'店',total:1139,currency:'JPY',items:[{name:'商品',amount:1139}]},missingFields:[],matches:[],locationResolution:resolution};
+ render(<ReceiptReview review={review} threadId="t" busy={false} setBusy={vi.fn()} onProposed={vi.fn()}/>);
+ fireEvent.change(screen.getByLabelText('保存先'),{target:{value:'new'}});fireEvent.click(screen.getByRole('button',{name:'店舗を再検索'}));
+ expect(screen.getByLabelText('金額 1').value).toBe('1139');expect(screen.getByLabelText('品目金額 1').value).toBe('1139');expect(screen.getByRole('button',{name:'変更案を確認'}).disabled).toBe(true);
+ finish({...resolution,revision:2,status:'resolved',method:'google_unique'});await waitFor(()=>expect(screen.getByRole('button',{name:'変更案を確認'}).disabled).toBe(false));
+ fireEvent.change(screen.getByLabelText('金額 1'),{target:{value:'1200'}});fireEvent.change(screen.getByLabelText('品目金額 1'),{target:{value:'1200'}});expect(screen.getByRole('button',{name:'変更案を確認'}).disabled).toBe(false);
+ fireEvent.change(screen.getByLabelText('支店名'),{target:{value:'別支店'}});expect(screen.getByRole('button',{name:'変更案を確認'}).disabled).toBe(true);
+});
+it('reconfirms_same_pending_proposal_and_preserves_source_address',async()=>{
+ const input={merchant:'店',branch:'支店',locality:'地域',merchantAddress:'検索根拠の住所'};
+ const resolution={id:'loc',receiptId:'r',revision:2,input,status:'resolved',method:'google_unique',expiresAt:Date.now()/1000+3600};
+ const review={receiptId:'r',candidate:{merchant:'読取店',total:100,currency:'JPY'},missingFields:[],matches:[],locationResolution:resolution};
+ const proposal={id:'same',revision:3,metadata:{targetChoice:'new',receiptLocation:{input,method:'google_unique'}},commands:[{kind:'transaction.create',data:{merchant:'店',merchantAddress:null,title:'修正内容',amount:200,items:[],type:'expense',category:'その他'}}]};
+ api.reconfirmReceiptProposal.mockResolvedValue({...proposal,revision:4});
+ render(<ReceiptReview review={review} proposal={proposal} threadId="t" busy={false} setBusy={vi.fn()} onProposed={vi.fn()}/>);
+ expect(screen.getByLabelText('金額 1').value).toBe('200');expect(screen.getByLabelText('原本・本人確認済みの住所').value).toBe(input.merchantAddress);
+ fireEvent.submit(screen.getByRole('button',{name:'変更案を確認'}).closest('form'));
+ expect(api.reconfirmReceiptProposal.mock.lastCall[0]).toBe('same');expect(api.reconfirmReceiptProposal.mock.lastCall[1].draft.merchantAddress).toBe(input.merchantAddress);expect(api.proposeReceipt).not.toHaveBeenCalled();
 });

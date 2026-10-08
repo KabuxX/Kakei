@@ -192,3 +192,9 @@ it('restores_result_after_thread_reload',async()=>{
  api.listThreads.mockResolvedValue([{id:'t',title:'作成の会話'}]);api.getThread.mockResolvedValue({id:'t',messages:[{id:'a',role:'assistant',text:'作成済み',trajectoryCreation:autoResult}],proposals:[]});
  const refresh=vi.fn();render(<AgentChat onCommitted={refresh}/>);fireEvent.click(await screen.findByRole('button',{name:'作成の会話'}));await screen.findByText(/1件除外/);expect(refresh).not.toHaveBeenCalled();
 });
+it('reopens a pending receipt proposal without adding a second review',async()=>{
+ const input={merchant:'店',branch:null,locality:null,merchantAddress:'住所'};const review={receiptId:'r',candidate:{merchant:'店',merchant_address:'住所',total:100,currency:'JPY'},missingFields:[],matches:[],locationResolution:{id:'loc',receiptId:'r',revision:1,input,status:'resolved',expiresAt:Date.now()/1000+3600}};
+ const saved={...proposal,threadId:'t',metadata:{receiptId:'r',receiptReview:review,targetChoice:'new',receiptLocation:{input}},commands:[{kind:'transaction.create',data:{title:'修正済み',merchant:'店',merchantAddress:'住所',amount:250,items:[],type:'expense',category:'その他'}}]};
+ const session={status:{available:true},thread:{id:'t',messages:[{id:'m',role:'assistant',text:'確認'}],receiptReviews:[review],proposals:[saved]},busy:false,setBusy:vi.fn(),draft:{text:''},change:vi.fn()};
+ render(<AgentChatView session={session}/>);expect(screen.queryByLabelText('レシートの確認')).toBeNull();fireEvent.click(screen.getByRole('button',{name:'店舗・住所を再確認'}));expect(screen.getAllByLabelText('レシートの確認')).toHaveLength(1);expect(screen.getByLabelText('金額 1').value).toBe('250');
+});

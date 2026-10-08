@@ -1,7 +1,7 @@
 import {apiFetch} from '@kakei/runtime';
 import React,{useEffect,useState} from 'react';
 import {safeUrl} from './PlaceSources.jsx';
-export default function GooglePlaceResults({placeIds=[]}) {
+export default function GooglePlaceResults({placeIds=[],selectedPlaceId,onSelect,disabled=false,onRetry}) {
  const signature=JSON.stringify(placeIds),[attempt,setAttempt]=useState(0),[state,setState]=useState({signature:null,items:[]});
  useEffect(()=>{
   let active=true;const controller=new AbortController();
@@ -17,6 +17,6 @@ export default function GooglePlaceResults({placeIds=[]}) {
  return <div className="google-place-results" aria-label="Googleの地点情報">
   <a href="https://maps.google.com/" target="_blank" rel="noopener noreferrer" className="google-maps-attribution">Google Maps</a>
   {!items.length&&<p role="status">地点情報を読み込んでいます…</p>}
-  {items.map(item=><div key={item.id}>{item.unavailable?<div role="alert"><p>地点情報を取得できませんでした。</p><button type="button" className="secondary-button" onClick={()=>setAttempt(value=>value+1)}>再読み込み</button></div>:<><strong>{item.name}</strong><p>{item.address}</p>{safeUrl(item.googleMapsUri)&&<a href={item.googleMapsUri} target="_blank" rel="noopener noreferrer">Google Mapsで見る</a>}{item.attributions?.map((a,i)=>safeUrl(a.providerUri)?<a key={i} href={a.providerUri} target="_blank" rel="noopener noreferrer">{a.provider}</a>:<span key={i}>{a.provider}</span>)}</>}</div>)}
+  {items.map(item=><div key={item.id}>{item.unavailable?<div role="alert"><p>地点情報を取得できませんでした。</p><button type="button" className="secondary-button" disabled={disabled} onClick={()=>{setAttempt(value=>value+1);onRetry?.();}}>再読み込み</button></div>:<><strong>{item.name}</strong>{onSelect&&<button type="button" className="secondary-button" disabled={disabled} aria-pressed={selectedPlaceId===item.id} onClick={()=>onSelect(item.id)}>{selectedPlaceId===item.id?'選択済み':'この店舗を選択'}</button>}<p>{item.address}</p>{safeUrl(item.googleMapsUri)&&<a href={item.googleMapsUri} target="_blank" rel="noopener noreferrer">Google Mapsで見る</a>}{item.attributions?.map((a,i)=>safeUrl(a.providerUri)?<a key={i} href={a.providerUri} target="_blank" rel="noopener noreferrer">{a.provider}</a>:<span key={i}>{a.provider}</span>)}</>}</div>)}
  </div>;
 }
