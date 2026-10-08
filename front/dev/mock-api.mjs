@@ -1,4 +1,5 @@
 import { normalizeMerchantAddress,parseExpenseDraft } from '../src/lib/transaction-data.js';
+import {mockMerchantPlace,mockPlaceDetails,retainMockMerchantPlace} from './mock-merchant-place-fixtures.mjs';
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { assignEstimatedTransactionDatetimes, isValidTransactionDateTime } from '../src/lib/transaction-datetime.js';
@@ -19,6 +20,8 @@ export function mockApi() {
     configureServer(server) {
       let budgets = {'食費':60000,'住まい':90000,'日用品':25000,'交通':25000,'娯楽':30000,'その他':20000};
       let transactions = assignEstimatedTransactionDatetimes(JSON.parse(readFileSync(fixtureUrl, 'utf8')));
+      const fictional=transactions.find(record=>record.type==='expense');
+      if(fictional)Object.assign(fictional,{merchant:'架空ストア',merchantAddress:null,merchantPlace:mockMerchantPlace});
       const timeline = JSON.parse(readFileSync(new URL('../src/data/september-timeline.json', import.meta.url), 'utf8'));
       const statusFor = (record, place) => !record?.merchantAddress ? 'trajectory_only' : record.merchantAddress.normalize('NFKC').replace(/\s/g,'') === place?.address?.normalize('NFKC').replace(/\s/g,'') ? 'matched' : 'needs_review';
       const contextFor = record => ({transactionId:record.id,places:record.type==='expense'?[...new Set(timeline.days.flatMap(d=>d.events).filter(e=>e.transactionId===record.id).map(e=>e.placeId))].map(id=>({...timeline.places[id],placeId:id,status:statusFor(record,timeline.places[id])})):[]});
@@ -26,6 +29,7 @@ export function mockApi() {
         const path = new URL(request.url, 'http://localhost').pathname;
         if (!path.startsWith('/api/')) return next();
 
+        if(path.startsWith('/api/places/google/')&&request.method==='GET'){const details=mockPlaceDetails(decodeURIComponent(path.split('/').at(-1)));return send(response,details?200:404,details||{error:{code:'not_found'}});}
         if (path === '/api/budget') {
           if (request.method === 'GET') return send(response, 200, {categories: budgets});
           if (request.method !== 'PUT') return send(response, 405, {error: {code: 'method_not_allowed'}});
@@ -55,7 +59,8 @@ export function mockApi() {
               if(record.type!=='expense'||!body||Object.keys(body).sort().join()!=='expected,merchantAddress'||!body.expected||Object.keys(body.expected).sort().join()!=='merchant,merchantAddress')throw new Error('住所と変更前の値を指定してください。');
               const address=normalizeMerchantAddress(body.merchantAddress);
               if(body.expected.merchant!==(record.merchant??null)||body.expected.merchantAddress!==(record.merchantAddress??null))return send(response,409,{error:{message:'取引が変更されました。再読み込みしてください。'}});
-              record.merchantAddress=address;return send(response,200,{transaction:record});
+              const reference=retainMockMerchantPlace(record,{...record,merchantAddress:address});
+              record.merchantAddress=address;if(!reference)delete record.merchantPlace;return send(response,200,{transaction:record});
             }catch(error){return send(response,400,{error:{message:error.message,field:'merchantAddress'}});}
           }
         }
@@ -105,6 +110,7 @@ export function mockApi() {
             const details=draft.type==='expense'?parseExpenseDraft({merchant:draft.merchant,merchantAddress:Object.hasOwn(draft,'merchantAddress')?draft.merchantAddress:old.merchantAddress,paymentMethod:draft.paymentMethod,itemRows:draft.items||[],manualAmount:draft.amount}):{};
             if(!Number.isInteger(draft.amount)||draft.amount<1||draft.amount>999999999)throw new Error('金額を確認してください。');
             const transaction={id,title:draft.title.trim(),type:draft.type,date:draft.date,category:draft.category,amount:draft.amount,...details,timeEstimated:old.date===draft.date&&!draft.confirmTime?old.timeEstimated:false};
+            const reference=retainMockMerchantPlace(old,transaction);if(reference)transaction.merchantPlace=reference;
             transactions[index]=transaction;return send(response,200,{transaction});
           }catch(error){return send(response,400,{error:{code:'validation_error',message:error.message,field:error.field}});}
         }

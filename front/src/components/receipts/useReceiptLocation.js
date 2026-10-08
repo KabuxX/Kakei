@@ -26,6 +26,6 @@ export default function useReceiptLocation({threadId,receiptId,initialResolution
  };
  const payload=captured=>({revision:resolution?.revision??0,input:captured.input});
  const reload=()=>run(signal=>api.getReceiptLocation(threadId,receiptId,signal));
- useEffect(()=>{if(!readOnly&&!initialResolution)reload();},[owner,readOnly]);
+ useEffect(()=>{if(!readOnly&&!initialResolution&&!resolution)reload();},[owner,readOnly,key]);
  return {resolution,pending:state.pending,error:state.error,resolved,search:inherit=>run((signal,c)=>api.searchReceiptLocation(threadId,receiptId,{...payload(c),...(inherit===true&&c.targetRecord?.merchantPlace?{sourceTransactionId:c.target}:{} )},signal)),select:placeId=>matches&&run(signal=>api.selectReceiptLocation(threadId,receiptId,{resolutionId:resolution.id,revision:resolution.revision,placeId},signal)),confirmAddress:()=>run((signal,c)=>api.confirmReceiptAddress(threadId,receiptId,{...payload(c),...(c.targetRecord?.merchantAddress===c.input.merchantAddress?{sourceTransactionId:c.target}:{})},signal)),reload};
 }

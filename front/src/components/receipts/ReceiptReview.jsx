@@ -24,7 +24,7 @@ export default function ReceiptReview({review,threadId,busy,setBusy,onProposed,r
  const targetAddress=review.matches.find(m=>m.transaction.id===target)?.transaction.merchantAddress;
  const displayAddress=Object.hasOwn(addressEdits.current,target)?addressEdits.current[target]:candidateAddress??(proposal?null:targetAddress)??'';
  const locationInput={merchant:command.data.merchant,...details,merchantAddress:displayAddress||null};
- const location=useReceiptLocation({threadId,receiptId:review.receiptId,initialResolution:review.locationResolution,input:locationInput,target:review.matches.find(m=>m.transaction.id===target)?.transaction||target,readOnly});
+ const location=useReceiptLocation({threadId,receiptId:review.receiptId,initialResolution:proposal?null:review.locationResolution,input:locationInput,target:review.matches.find(m=>m.transaction.id===target)?.transaction||target,readOnly});
  const displayCommand={...command,data:{...command.data,merchantAddress:displayAddress}};
  const changeCommand=next=>{
    if(next.data.merchantAddress!==displayAddress)addressEdits.current[target]=next.data.merchantAddress;

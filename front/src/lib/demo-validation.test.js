@@ -34,3 +34,7 @@ it.each(['pending','expired','applied'])('retains %s history with originals and 
  p.result={transactions:[{id:'deleted-historical-transaction'}]};
  expect(()=>validateDemoSnapshot(s)).not.toThrow();expect(()=>createDemoFetch(s)).not.toThrow();
 });
+it('retains independent place source content for reference display',()=>{
+ const s=structuredClone(snapshot);expect(()=>validateDemoSnapshot(s)).not.toThrow();
+ for(const p of Object.values(s.placeLookup)){expect(p.sourceUrl).toMatch(/^https?:/);expect(p.address).toBeTruthy();}
+});

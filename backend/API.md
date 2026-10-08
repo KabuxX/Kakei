@@ -363,3 +363,23 @@ Geoloniaの候補は上記共通フィールドを持つ `version:2,status:addre
 - `PATCH /api/transaction-addresses/{id}`: `{merchantAddress,expected:{merchant,merchantAddress}}`。住所列のみ更新し `{transaction:...}` を返す。expectedは読取値そのもの。店名・住所の競合409、収入/不正入力400。
 
 statusは `matched` / `trajectory_only` / `needs_review`。日別軌跡の各eventに同じ派生値を `locationStatus` として返す（保存コマンドへ含めない）。needs_reviewの旧座標は記録として返るが、新住所の地図表示には使用しない。
+
+## レシートの店舗・住所確認
+
+会話に添付したレシート配下の確認 API は、住所を保存する操作とは独立しています。店舗名・支店名・地域は各200文字、原本または本人確認済み住所は500文字以内です。空の任意入力は `null` に正規化します。
+
+| メソッド | パス | 本文 |
+| --- | --- | --- |
+| GET | `/api/agent/threads/{threadId}/receipts/{receiptId}/location` | なし |
+| POST | 同上 `/search` | `{input, revision, sourceTransactionId?}` |
+| POST | 同上 `/selection` | `{resolutionId, revision, placeId}` |
+| POST | 同上 `/address` | `{input, revision, sourceTransactionId?}` |
+| POST | `/api/agent/proposals/{proposalId}/receipt-location` | `{revision, draft, location}` |
+
+`input` は `{merchant, branch, locality, merchantAddress}`。応答は `{locationResolution}` で、確認 ID・版・入力指紋・状態・候補の Place ID・選択 ID・確認方法・有効期限を返します。Google の名前や住所は確認状態に保存しません。状態は `needs_input/searching/needs_selection/resolved/not_found/unavailable`、確認期限は24時間、候補は最大10件です。
+
+変更案作成 `/api/agent/threads/{threadId}/receipt-proposals` と再確認は `location: {resolutionId, revision, input}` を必須とします。入力と現行版が一致する解決済み確認のみ使用できます。複数候補では店舗選択、候補なしでは再検索または本人住所確認が必要です。未確認のまま保存できません。店舗・住所・支店・地域の変更は再確認が必要で、金額・品目の変更だけなら確認を維持します。再確認は同じ変更案と保存先に結び直します。
+
+Google 採用時は取引の `merchantAddress` が `null`、`merchantPlace` が `{provider: "google", placeId, method}` になります。地点関連は取引ごとに1件です。`GET /api/places/google/{placeId}` は表示時に Details を取得し、`{placeId,name,address,googleMapsUri,attributions,provider}` を `no-store` で返します。Google 住所を取引の住所欄・変更案・会話にコピーしません。通常の店舗・住所変更や収入への変更は関連を解除します。原本・本人住所は住所欄に保存します。
+
+検索は合計20秒、外部要求2回まで、各通信8秒以内。読取と初回検索は同じ180秒のターン期限を共有します。版競合・確認期限切れは409、入力不正は400、選択時取得失敗は503 (`provider_unavailable/provider_configuration/budget_exceeded`)、表示 Details 失敗は502 `place_unavailable`。取得失敗は再試行でき、保存済み参照を消しません。

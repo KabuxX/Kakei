@@ -72,8 +72,9 @@ it('reconfirms_same_pending_proposal_and_preserves_source_address',async()=>{
  const resolution={id:'loc',receiptId:'r',revision:2,input,status:'resolved',method:'google_unique',expiresAt:Date.now()/1000+3600};
  const review={receiptId:'r',candidate:{merchant:'読取店',total:100,currency:'JPY'},missingFields:[],matches:[],locationResolution:resolution};
  const proposal={id:'same',revision:3,metadata:{targetChoice:'new',receiptLocation:{input,method:'google_unique'}},commands:[{kind:'transaction.create',data:{merchant:'店',merchantAddress:null,title:'修正内容',amount:200,items:[],type:'expense',category:'その他'}}]};
- api.reconfirmReceiptProposal.mockResolvedValue({...proposal,revision:4});
+ api.getReceiptLocation.mockResolvedValue(resolution);api.reconfirmReceiptProposal.mockResolvedValue({...proposal,revision:4});
  render(<ReceiptReview review={review} proposal={proposal} threadId="t" busy={false} setBusy={vi.fn()} onProposed={vi.fn()}/>);
+ await waitFor(()=>expect(screen.getByRole('button',{name:'変更案を確認'}).disabled).toBe(false));
  expect(screen.getByLabelText('金額 1').value).toBe('200');expect(screen.getByLabelText('原本・本人確認済みの住所').value).toBe(input.merchantAddress);
  fireEvent.submit(screen.getByRole('button',{name:'変更案を確認'}).closest('form'));
  expect(api.reconfirmReceiptProposal.mock.lastCall[0]).toBe('same');expect(api.reconfirmReceiptProposal.mock.lastCall[1].draft.merchantAddress).toBe(input.merchantAddress);expect(api.proposeReceipt).not.toHaveBeenCalled();
@@ -98,4 +99,28 @@ it('preserves amount and item edits when inherited search resolves later',async(
  expect(screen.getByLabelText('品目金額 1').value).toBe('250');
  fireEvent.submit(screen.getByRole('button',{name:'変更案を確認'}).closest('form'));
  expect(api.proposeReceipt.mock.lastCall[1].draft).toMatchObject({amount:250,items:[{name:'修正品目',amount:250}],merchantAddress:null});
+});
+it('loads current confirmation for pending proposal instead of stale receipt snapshot',async()=>{
+ const input={merchant:'店',branch:null,locality:null,merchantAddress:'住所'};
+ const stale={id:'loc',receiptId:'r',revision:1,input,status:'resolved',expiresAt:Date.now()/1000+3600};
+ const current={...stale,revision:5};api.getReceiptLocation.mockResolvedValue(current);
+ const review={receiptId:'r',candidate:{merchant:'店',total:100,currency:'JPY'},missingFields:[],matches:[],locationResolution:stale};
+ const proposal={id:'same',revision:2,metadata:{targetChoice:'new',receiptLocation:{input,method:'user_address'}},commands:[{kind:'transaction.create',data:{merchant:'店',merchantAddress:'住所',title:'店',amount:100,items:[],type:'expense',category:'その他'}}]};
+ render(<ReceiptReview review={review} proposal={proposal} threadId="t" busy={false} setBusy={vi.fn()} onProposed={vi.fn()}/>);
+ await waitFor(()=>expect(api.getReceiptLocation).toHaveBeenCalledWith('t','r',expect.any(AbortSignal)));
+ await waitFor(()=>expect(screen.getByRole('button',{name:'変更案を確認'}).disabled).toBe(false));
+ fireEvent.submit(screen.getByRole('button',{name:'変更案を確認'}).closest('form'));
+ expect(api.reconfirmReceiptProposal.mock.lastCall[1].location.revision).toBe(5);
+});
+it('keeps edits made while loading current pending confirmation and rejects late initial GET',async()=>{
+ let first,second;api.getReceiptLocation.mockReturnValueOnce(new Promise(resolve=>{first=resolve;})).mockReturnValueOnce(new Promise(resolve=>{second=resolve;}));
+ const input={merchant:'店',branch:null,locality:null,merchantAddress:'住所'},current={id:'loc',receiptId:'r',revision:5,input,status:'resolved',expiresAt:Date.now()/1000+3600};
+ const review={receiptId:'r',candidate:{merchant:'店',total:100,currency:'JPY'},missingFields:[],matches:[],locationResolution:{...current,revision:1}};
+ const proposal={id:'same',revision:2,metadata:{targetChoice:'new',receiptLocation:{input,method:'user_address'}},commands:[{kind:'transaction.create',data:{merchant:'店',merchantAddress:'住所',title:'店',amount:100,items:[],type:'expense',category:'その他'}}]};
+ render(<ReceiptReview review={review} proposal={proposal} threadId="t" busy={false} setBusy={vi.fn()} onProposed={vi.fn()}/>);
+ fireEvent.change(screen.getByLabelText('店舗名'),{target:{value:'編集店舗'}});fireEvent.change(screen.getByLabelText('金額 1'),{target:{value:'250'}});
+ await waitFor(()=>expect(api.getReceiptLocation).toHaveBeenCalledTimes(2));expect(api.getReceiptLocation.mock.calls[0][2].aborted).toBe(true);
+ second(current);await waitFor(()=>expect(screen.getByRole('button',{name:'店舗を再検索'}).disabled).toBe(false));first({...current,revision:1});
+ expect(screen.getByLabelText('店舗名').value).toBe('編集店舗');expect(screen.getByLabelText('金額 1').value).toBe('250');expect(screen.getByRole('button',{name:'変更案を確認'}).disabled).toBe(true);
+ api.confirmReceiptAddress.mockResolvedValue({...current,revision:6,input:{...input,merchant:'編集店舗'}});fireEvent.click(screen.getByRole('button',{name:'この住所を確認した'}));await waitFor(()=>expect(screen.getByRole('button',{name:'変更案を確認'}).disabled).toBe(false));expect(api.confirmReceiptAddress.mock.lastCall[2].revision).toBe(5);
 });

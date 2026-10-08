@@ -1,0 +1,2 @@
+const {defineConfig}=require('@playwright/test');
+module.exports=defineConfig({testDir:'./tests/e2e',workers:1,use:{baseURL:'http://127.0.0.1:8768',browserName:'chromium',locale:'ja-JP',timezoneId:'Asia/Tokyo',viewport:{width:1440,height:900}},webServer:{command:'../backend/.venv/bin/python ../backend/tests/receipt_location_browser_server.py',cwd:__dirname,url:'http://127.0.0.1:8768/api/status',reuseExistingServer:false,timeout:30000}});
