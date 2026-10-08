@@ -59,8 +59,7 @@ export function mockApi() {
               if(record.type!=='expense'||!body||Object.keys(body).sort().join()!=='expected,merchantAddress'||!body.expected||Object.keys(body.expected).sort().join()!=='merchant,merchantAddress')throw new Error('住所と変更前の値を指定してください。');
               const address=normalizeMerchantAddress(body.merchantAddress);
               if(body.expected.merchant!==(record.merchant??null)||body.expected.merchantAddress!==(record.merchantAddress??null))return send(response,409,{error:{message:'取引が変更されました。再読み込みしてください。'}});
-              const reference=retainMockMerchantPlace(record,{...record,merchantAddress:address});
-              record.merchantAddress=address;if(!reference)delete record.merchantPlace;return send(response,200,{transaction:record});
+              record.merchantAddress=address;delete record.merchantPlace;return send(response,200,{transaction:record});
             }catch(error){return send(response,400,{error:{message:error.message,field:'merchantAddress'}});}
           }
         }
