@@ -51,7 +51,7 @@ export default function AgentProposal({proposal,onChange,onCommitted,busy,setBus
   const deleteOnly=proposal.commands.every(command=>command.kind==='trajectory.delete');
   const act=async(fn)=>{if(busy)return;setBusy(true);setError('');try{await fn();}catch(e){setError(e.message||'操作できませんでした。再試行してください。');}finally{setBusy(false);}};
   const approve=()=>act(async()=>{await api.approve(proposal.id,proposal.revision);onChange({...proposal,status:'applied'});await onCommitted();});
-  if(reconfirming&&receipt&&!readOnly)return <ReceiptReview key={proposal.id} review={receipt} proposal={editing?{...proposal,commands:draft}:proposal} threadId={proposal.threadId} busy={busy} setBusy={setBusy} onProposed={next=>{onChange(next);setReconfirming(false);}}/>;
+  if(reconfirming&&receipt&&!readOnly)return <ReceiptReview key={proposal.id} review={receipt} proposal={editing?{...proposal,commands:draft}:proposal} threadId={proposal.threadId} busy={busy} setBusy={setBusy} onProposed={next=>{onChange(next);setDraft(next.commands);setEditing(false);setReconfirming(false);}}/>;
   return <article className="agent-proposal" aria-label="変更案">
     <header><h2>{pending?`確認待ち · 第${proposal.revision}版`:({applied:'保存済み',rejected:'却下済み'}[proposal.status]||'期限切れ')}</h2><p>{readOnly?'保存時点の変更案を表示しています。':<>内容を確認してから保存してください。{pending&&' この案は24時間で期限切れになります。'}</>}</p></header>
     {receipt&&['pending','applied'].includes(proposal.status)&&<section aria-label="レシートの根拠">

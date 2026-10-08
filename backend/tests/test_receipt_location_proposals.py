@@ -164,3 +164,112 @@ class ProposalTests(unittest.TestCase):
                     self.assertEqual(response.status_code,400,response.text)
                     self.assertEqual(response.json()['error']['field'],'revision')
                     self.assertEqual(self.agent.get_proposal(p['id']),p)
+
+    def test_generic_creation_rejects_new_receipt_attachment(self):
+        command = {'kind':'transaction.create','identity':{},'data':{**DRAFT,'receiptIds':[self.receipt]}}
+        with self.assertRaises(ValidationError):
+            self.agent.create_proposal(self.thread, [command])
+        self.assertEqual(self.agent.get_thread(self.thread)['proposals'], [])
+
+    def test_public_generic_revision_rejects_new_attachment_and_forged_binding(self):
+        from fastapi.testclient import TestClient
+        from api.app import create_app
+        command = {'kind':'transaction.create','identity':{},'data':DRAFT}
+        proposal = self.agent.create_proposal(self.thread, [command])
+        commands = [{**command, 'data':{**DRAFT,'receiptIds':[self.receipt]}}]
+        app = create_app(self.store.db_path, Path(self.store.db_path).parent)
+        with TestClient(app, base_url='http://localhost:8765', headers={'origin':'http://localhost:8765'}) as client:
+            response = client.put('/api/agent/proposals/'+proposal['id'], json={
+                'revision':1,'commands':commands,'metadata':{'receiptLocation':{'method':'user_address'}}})
+        self.assertEqual(response.status_code, 400, response.text)
+        self.assertEqual(self.agent.get_proposal(proposal['id']), proposal)
+        self.assertIsNone(self.assets.get_asset(self.receipt)['transaction_id'])
+
+    def test_persisted_legacy_attachment_can_revise_and_approve_but_not_add_another(self):
+        command = {'kind':'transaction.create','identity':{},'data':DRAFT}
+        proposal = self.agent.create_proposal(self.thread, [command])
+        # Simulate an already-issued prefeature row, never the new creation route.
+        command['data'] = {**DRAFT,'receiptIds':[self.receipt]}
+        with self.store._connection() as c:
+            c.execute('UPDATE agent_proposals SET commands_json=? WHERE id=?', (json.dumps([command]), proposal['id']))
+        changed = copy.deepcopy(command)
+        changed['data']['amount'] = 200
+        from test_receipt_upload import pdf
+        extra = self.assets.create_pending(self.thread, validate_receipt(pdf(), 'another.pdf'))['id']
+        forged = copy.deepcopy(changed)
+        forged['data']['receiptIds'].append(extra)
+        with self.assertRaises(ValidationError):
+            self.agent.revise_proposal(proposal['id'], 1, [forged])
+        revised = self.agent.revise_proposal(proposal['id'], 1, [changed])
+        tx = self.store.apply_agent_proposal(revised['id'], revised['revision'])['transactions'][0]
+        self.assertEqual(tx['amount'], 200)
+        self.assertIsNone(tx['merchantAddress'])
+        self.assertEqual(self.assets.get_asset(self.receipt)['transaction_id'], tx['id'])
+
+    def test_preupgrade_whole_state_hash_survives_selection_manual_and_revision(self):
+        import hashlib
+        from services.agent_changes import read_state, canonical
+        from test_agent_places import COMMAND, CANDIDATE
+        with self.store._connection() as c:
+            state = read_state(c)
+            state.pop('merchantPlaces', None)
+            old_version = hashlib.sha256(canonical(state).encode()).hexdigest()
+        proposal = self.agent.create_proposal(self.thread, [COMMAND], place_candidates=[{
+            'placeId':'unknown-store','query':'店舗','candidates':[CANDIDATE]}])
+        metadata = proposal['metadata']; metadata['sourceVersion'] = old_version
+        with self.store._connection() as c:
+            c.execute('UPDATE agent_proposals SET metadata_json=? WHERE id=?', (json.dumps(metadata), proposal['id']))
+        proposal = self.agent.select_place_candidate(proposal['id'], 1, 'candidate-a')
+        proposal = self.agent.select_place_candidate(proposal['id'], proposal['revision'], manual={'name':'本人店舗','coordinates':[140,36]}, place_id='unknown-store')
+        proposal = self.agent.revise_proposal(proposal['id'], proposal['revision'], proposal['commands'])
+        self.assertEqual(proposal['revision'], 4)
+
+    def test_source_version_detects_reference_add_change_and_removal(self):
+        from services.agent_places import source_version, check_source
+        tx = self.store.create_transaction(DRAFT)
+        with self.store._connection() as c:
+            empty = source_version(c)
+            binding = {'provider':'google','placeId':'one','method':'google_selected','input':{'merchant':'店'},'confirmedAt':time.time()}
+            write_merchant_place(c, tx['id'], binding)
+            with self.assertRaises(TrajectoryConflict): check_source(c, {'sourceVersion':empty})
+            one = source_version(c)
+            write_merchant_place(c, tx['id'], {**binding,'confirmedAt':binding['confirmedAt']+1})
+            with self.assertRaises(TrajectoryConflict): check_source(c, {'sourceVersion':one})
+            current = source_version(c)
+            c.execute('DELETE FROM transaction_merchant_places WHERE transaction_id=?', (tx['id'],))
+            with self.assertRaises(TrajectoryConflict): check_source(c, {'sourceVersion':current})
+
+    def test_malformed_binding_returns_validation_error_without_writes(self):
+        self.review_turn(); proposal = self.proposal(self.resolve())
+        original = proposal['metadata']
+        for field, invalid in [('resolutionId',None),('revision',True),('confirmedAt',None),('expiresAt','later'),('selectedPlaceId',[]),('method',[]),('inputFingerprint',1),('sourceTransactionId',[]),('target',[]),('input',[])]:
+            for missing in (False, True):
+                with self.subTest(field=field, missing=missing):
+                    metadata = copy.deepcopy(original)
+                    if missing: metadata['receiptLocation'].pop(field)
+                    else: metadata['receiptLocation'][field] = invalid
+                    from services.receipt_location_proposals import validate_receipt_location
+                    with self.assertRaises(ValidationError):
+                        validate_receipt_location(metadata, proposal['commands'][0], now=time.time())
+        metadata = copy.deepcopy(original)
+        metadata['receiptLocation'].pop('confirmedAt')
+        with self.store._connection() as c:
+            c.execute('UPDATE agent_proposals SET metadata_json=? WHERE id=?', (json.dumps(metadata), proposal['id']))
+        with self.assertRaises(ValidationError): self.store.apply_agent_proposal(proposal['id'], 1)
+        self.assertEqual(self.store.list_transactions(), [])
+
+    def test_public_message_cannot_create_generic_receipt_proposal(self):
+        from fastapi.testclient import TestClient
+        from api.app import create_app
+        command = {'kind':'transaction.create','identity':{},'data':{**DRAFT,'receiptIds':[self.receipt]}}
+        class GenericRunner:
+            async def run_turn(self, *args, **kwargs):
+                return {'text':'確認','commands':[command], 'metadata':{'receiptLocation':{'method':'user_address'}}}
+        app = create_app(self.store.db_path, Path(self.store.db_path).parent, runner_factory=lambda store:GenericRunner())
+        with TestClient(app, base_url='http://localhost:8765', headers={'origin':'http://localhost:8765'}) as client:
+            response = client.post('/api/agent/threads/'+self.thread+'/messages', json={
+                'clientMessageId':'generic','text':'先ほどの原本を添付して登録'})
+        self.assertEqual(response.status_code, 400, response.text)
+        self.assertEqual(self.agent.get_thread(self.thread)['proposals'], [])
+        self.assertEqual(self.store.list_transactions(), [])
+        self.assertIsNone(self.assets.get_asset(self.receipt)['transaction_id'])

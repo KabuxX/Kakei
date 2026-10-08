@@ -19,3 +19,17 @@ it('selects by reference and exposes disabled selected state',async()=>{
  view.rerender(<GooglePlaceResults placeIds={['one']} selectedPlaceId="one" disabled onSelect={select}/>);
  expect(screen.getByRole('button',{name:'選択済み'}).disabled).toBe(true);expect(screen.getByRole('button',{name:'選択済み'}).getAttribute('aria-pressed')).toBe('true');
 });
+it('resolved receipt retries failed Details while keeping selection disabled',async()=>{
+ const {default:ReceiptLocation}=await import('../components/receipts/ReceiptLocation.jsx');
+ const {fireEvent}=await import('@testing-library/react');
+ vi.stubGlobal('fetch',vi.fn().mockResolvedValueOnce({ok:false}).mockResolvedValueOnce({ok:true,json:async()=>({name:'回復した店舗',address:'回復した住所'})}));
+ const input={merchant:'店',branch:null,locality:null,merchantAddress:null};
+ const select=vi.fn(),reload=vi.fn();
+ render(<ReceiptLocation input={input} onInputChange={vi.fn()} location={{resolution:{input,status:'resolved',method:'google_unique',placeIds:['one'],selectedPlaceId:'one'},pending:false,resolved:true,select,reload}}/>);
+ const retry=await screen.findByRole('button',{name:'再読み込み'});
+ expect(retry.disabled).toBe(false);
+ fireEvent.click(retry);
+ expect(await screen.findByText('回復した住所')).toBeTruthy();
+ const selected=screen.getByRole('button',{name:'選択済み'});
+ expect(selected.disabled).toBe(true);fireEvent.click(selected);expect(select).not.toHaveBeenCalled();
+});

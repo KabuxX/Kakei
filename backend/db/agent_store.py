@@ -112,7 +112,7 @@ class AgentStore:
             c.execute('BEGIN IMMEDIATE')
             return self._create_proposal(c, thread_id, commands, place_candidates)
 
-    def _create_proposal(self, c, thread_id, commands, place_candidates=None):
+    def _create_proposal(self, c, thread_id, commands, place_candidates=None, *, receipt_binding=None):
         from services.agent_changes import prepare_changes
         commands = command_dicts(commands)
         identifier, now = str(uuid.uuid4()), time.time()
@@ -120,6 +120,13 @@ class AgentStore:
         self._expire(c)
         from db.receipt_store import ReceiptStore
         ReceiptStore.validate_commands(c, commands, thread_id)
+        if receipt_binding is None and any(command['data'].get('receiptIds') for command in commands):
+            raise ValidationError('location', 'レシート確認で店舗・住所を確認してから変更案を作成してください。')
+        if receipt_binding is not None:
+            from services.receipt_location_proposals import validate_receipt_location
+            if len(commands) != 1:
+                raise ValidationError('location', 'レシート変更案の内容を確認してください。')
+            validate_receipt_location({'receiptLocation':receipt_binding}, commands[0], now=now)
         from services.agent_places import preview as place_preview, source_version
         metadata = {'placeCandidates': place_candidates, 'sourceVersion': source_version(c)} if place_candidates else {}
         preview = place_preview(c, commands, metadata)
@@ -241,6 +248,8 @@ class AgentStore:
             ReceiptStore.validate_commands(c, commands, row['thread_id'])
             from services.agent_places import check_source, preview as place_preview, validate_bound_places
             metadata = json.loads(row['metadata_json'])
+            from services.receipt_location_proposals import reject_new_receipt_attachments
+            reject_new_receipt_attachments(json.loads(row['commands_json']), commands)
             check_source(c, metadata)
             if 'receiptLocation' in metadata:
                 from services.receipt_location_proposals import validate_receipt_location
@@ -314,7 +323,7 @@ class AgentStore:
             from services.receipt_location_proposals import bind_receipt_location, receipt_location_address
             binding = bind_receipt_location(c, thread_id, receipt_id, target, draft, location, now=time.time())
             command['data']['merchantAddress'] = receipt_location_address(binding)
-            proposal = self._create_proposal(c, thread_id, [command])
+            proposal = self._create_proposal(c, thread_id, [command], receipt_binding=binding)
             from services.receipt_location_proposals import receipt_location_preview
             receipt_location_preview(c,proposal,binding)
             c.execute('UPDATE agent_proposals SET before_json=?,after_json=? WHERE id=?',(dumps(proposal['before']),dumps(proposal['after']),proposal['id']))

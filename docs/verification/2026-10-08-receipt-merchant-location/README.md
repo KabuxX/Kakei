@@ -6,18 +6,20 @@
 
 | チェック | 結果 |
 | --- | --- |
-| バックエンド全体 | 504 tests、成功 |
-| frontend 全体 | 52 files / 293 tests、成功 |
-| mock・DEMO 最終追試 | 3 files / 26 tests、成功 |
-| 新レシート店舗 E2E | 5 tests、成功 |
+| バックエンド全体 | 511 tests、成功 |
+| frontend 全体 | 53 files / 297 tests、成功 |
+| mock・DEMO 前回追試（今回の全体にも含む） | 3 files / 26 tests、成功 |
+| 新レシート店舗 E2E | 7 tests、成功 |
 | 既存税・iPhone・Agent 削除 E2E | 5 tests 成功、任意ローカル写真1件スキップ |
 | 通常 build / DEMO build | 成功。通常 `front/dist` と `front/dist-demo` は別出力 |
 | git diff --check | 成功 |
 
+最終レビュー修正後に全体テストと両ビルドを再実行した。公開 API の通常作成・変更では新しいレシート添付を拒否し、旧発行済み変更案の編集・承認と旧 sourceVersion による候補選択・手入力・変更を検証した。確認済み入力を持つ未提案レシートを開き直す操作、解決済み Google 候補の Details 取得失敗からの再試行、内容修正から再確認した後の編集状態解除も回帰テストで確認した。
+
 backend のテストは親環境の locked 依存を共有する `backend/.venv/bin/python` と `KAKEI_DB_PATH` の一時パスで実行した。frontend のポートを使うテストは sandbox の EPERM 後、承認済みコマンドで実行した。
 
 ```sh
-KAKEI_DB_PATH="$(mktemp -d)/kakei.sqlite3" backend/.venv/bin/python -m unittest discover -s backend/tests -v
+KAKEI_DB_PATH=/private/tmp/kakei-final-receipt-fix-validation.sqlite3 /Users/spco/Kakei/backend/.venv/bin/python -m unittest discover -s backend/tests -v
 cd front
 npm test
 npm run build
@@ -48,4 +50,4 @@ npm test -- src/lib/mock-merchant-place.test.js src/lib/demo-api.test.js src/lib
 
 ## 限界
 
-実サービスへの接続、物理 iPhone のソフトウェアキーボード、実写真を指定する任意テストは未実施。電話幅は Chromium viewport とキーボード操作で確認した。画面全体のコントラスト測定・スクリーンリーダー監査は実施していない。既存の Node module type 警告、DEMO の chunk size 警告、Playwright の NO_COLOR/FORCE_COLOR 警告は残る。mock は架空の保存済み店舗参照と固定 Details のみを持ち、Agent 全体の mock 機能は追加していない。
+実サービスへの接続、物理 iPhone のソフトウェアキーボード、実写真を指定する任意テストは未実施。電話幅は Chromium viewport とキーボード操作で確認した。画面全体のコントラスト測定・スクリーンリーダー監査は実施していない。ベースラインからの SQLite ResourceWarning と、Task 4 の単独実行で記録された LangSmith deprecation warning は今回導入した警告とは扱わず、抑制していない。既存の Node module type 警告、DEMO の chunk size 警告、Playwright の NO_COLOR/FORCE_COLOR 警告は残る。mock は架空の保存済み店舗参照と固定 Details のみを持ち、Agent 全体の mock 機能は追加していない。

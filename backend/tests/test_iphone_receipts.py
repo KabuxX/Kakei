@@ -2,6 +2,7 @@
 import base64
 import hashlib
 import io
+import json
 import struct
 import sys
 import tempfile
@@ -76,10 +77,16 @@ class PhoneUploadTests(unittest.TestCase):
         data = phone_photo('HEIF')
         receipt = self.receipts.create_pending(self.thread, validate_receipt(data, 'photo.heic'))
         agent = AgentStore(self.app.state.store.db_path)
-        proposal = agent.create_proposal(self.thread, [{'kind': 'transaction.create', 'identity': {},
+        command = {'kind': 'transaction.create', 'identity': {},
             'data': {'title': '写真の取引', 'date': '2026-10-06T12:00', 'type': 'expense',
                      'category': '食費', 'amount': 408, 'merchant': '店舗',
-                     'paymentMethod': 'cash', 'receiptIds': [receipt['id']]}}])
+                     'paymentMethod': 'cash'}}
+        proposal = agent.create_proposal(self.thread, [command])
+        # Already-issued legacy proposal: new generic creation cannot attach files.
+        command['data']['receiptIds'] = [receipt['id']]
+        with self.app.state.store._connection() as connection:
+            connection.execute('UPDATE agent_proposals SET commands_json=? WHERE id=?',
+                               (json.dumps([command]), proposal['id']))
         self.app.state.store.apply_agent_proposal(proposal['id'], 1)
         url = f"/api/receipts/{receipt['id']}"
         self.assertEqual(self.client.get(url).content, data)

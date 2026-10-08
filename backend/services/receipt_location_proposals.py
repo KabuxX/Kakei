@@ -1,4 +1,6 @@
 """Bind server-owned receipt confirmations and apply references atomically."""
+import math
+
 from db.receipt_location_store import ReceiptLocationStore, _resolution
 from db.merchant_place_store import write_merchant_place, clear_merchant_place, read_merchant_place
 from db.store import TrajectoryConflict
@@ -43,13 +45,40 @@ def bind_receipt_location(connection, thread_id, receipt_id, target, draft, loca
     return binding
 
 
+def reject_new_receipt_attachments(previous, commands):
+    """Keep already-issued attachments, but route new ones through confirmation."""
+    def attachments(values):
+        return {
+            (command['kind'], command['identity'].get('id'), receipt_id)
+            for command in values
+            for receipt_id in command['data'].get('receiptIds', [])
+        }
+    if not attachments(commands) <= attachments(previous):
+        raise ValidationError('location', '新しいレシートは店舗・住所を確認してから添付してください。')
+
+
 def validate_receipt_location(metadata: dict, command: dict, *, now) -> None:
     if 'receiptLocation' not in metadata:
         return  # Only already-issued legacy proposals lack this metadata.
     binding = metadata['receiptLocation']
-    required = {'input','inputFingerprint','method','selectedPlaceId','expiresAt','sourceTransactionId','target'}
+    required = {'resolutionId','revision','confirmedAt','input','inputFingerprint','method','selectedPlaceId','expiresAt','sourceTransactionId','target'}
     if not isinstance(binding,dict) or not required <= binding.keys():
         raise ValidationError('location','店舗確認を再確認してください。')
+    strings_valid = all(isinstance(binding[key], str) and binding[key]
+                        for key in ('resolutionId', 'inputFingerprint', 'method', 'target'))
+    optional_strings_valid = all(binding[key] is None or (isinstance(binding[key], str) and binding[key])
+                                 for key in ('selectedPlaceId', 'sourceTransactionId'))
+    times_valid = all(type(binding[key]) in (int, float) and math.isfinite(binding[key])
+                      for key in ('confirmedAt', 'expiresAt'))
+    revision_valid = type(binding['revision']) is int and binding['revision'] > 0
+    value = binding['input']
+    input_valid = (isinstance(value, dict)
+                   and {'merchant', 'branch', 'locality', 'merchantAddress'} <= value.keys()
+                   and isinstance(value['merchant'], str)
+                   and all(value[key] is None or isinstance(value[key], str)
+                           for key in ('branch', 'locality', 'merchantAddress')))
+    if not (strings_valid and optional_strings_valid and times_valid and revision_valid and input_valid):
+        raise ValidationError('location', '店舗確認を再確認してください。')
     target = 'new' if command['kind'] == 'transaction.create' else command['identity'].get('id')
     if binding['expiresAt'] <= now:
         raise ValidationError('location', '店舗確認の期限が切れています。再確認してください。')

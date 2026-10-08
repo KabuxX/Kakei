@@ -124,3 +124,27 @@ it('keeps edits made while loading current pending confirmation and rejects late
  expect(screen.getByLabelText('店舗名').value).toBe('編集店舗');expect(screen.getByLabelText('金額 1').value).toBe('250');expect(screen.getByRole('button',{name:'変更案を確認'}).disabled).toBe(true);
  api.confirmReceiptAddress.mockResolvedValue({...current,revision:6,input:{...input,merchant:'編集店舗'}});fireEvent.click(screen.getByRole('button',{name:'この住所を確認した'}));await waitFor(()=>expect(screen.getByRole('button',{name:'変更案を確認'}).disabled).toBe(false));expect(api.confirmReceiptAddress.mock.lastCall[2].revision).toBe(5);
 });
+it('reopens confirmed source fields and preserves financial and local edits on refresh',()=>{
+ const input={merchant:'訂正した店舗',branch:'本人支店',locality:'本人地域',merchantAddress:'本人確認した住所'};
+ const resolution={id:'loc',receiptId:'r',revision:4,input,status:'resolved',method:'user_address',sourceTransactionId:null,expiresAt:Date.now()/1000+3600};
+ const review={receiptId:'r',candidate:{merchant:'OCR店舗',merchant_address:'OCR住所',total:100,currency:'JPY',items:[{name:'商品',amount:100}]},preparedDraft:{amount:120,items:[{name:'計算済品目',amount:120}]},missingFields:[],matches:[],locationResolution:resolution};
+ const props={review,threadId:'t',busy:false,setBusy:vi.fn(),onProposed:vi.fn()};
+ const view=render(<ReceiptReview {...props}/>);
+ expect(screen.getByLabelText('店舗名').value).toBe(input.merchant);
+ expect(screen.getByLabelText('原本・本人確認済みの住所').value).toBe(input.merchantAddress);
+ expect(screen.getByLabelText('支店名').value).toBe(input.branch);
+ expect(screen.getByLabelText('地域').value).toBe(input.locality);
+ expect(screen.getByLabelText('金額 1').value).toBe('120');
+ fireEvent.change(screen.getByLabelText('保存先'),{target:{value:'new'}});
+ expect(screen.getByRole('button',{name:'変更案を確認'}).disabled).toBe(false);
+ fireEvent.change(screen.getByLabelText('店舗名'),{target:{value:'編集中の店舗'}});
+ fireEvent.change(screen.getByLabelText('原本・本人確認済みの住所'),{target:{value:'編集中の住所'}});
+ fireEvent.change(screen.getByLabelText('金額 1'),{target:{value:'250'}});
+ fireEvent.change(screen.getByLabelText('品目金額 1'),{target:{value:'250'}});
+ view.rerender(<ReceiptReview {...props} review={{...review,locationResolution:{...resolution}}}/>);
+ expect(screen.getByLabelText('店舗名').value).toBe('編集中の店舗');
+ expect(screen.getByLabelText('原本・本人確認済みの住所').value).toBe('編集中の住所');
+ expect(screen.getByLabelText('金額 1').value).toBe('250');
+ expect(screen.getByLabelText('品目金額 1').value).toBe('250');
+ expect(screen.getByRole('button',{name:'変更案を確認'}).disabled).toBe(true);
+});

@@ -20,3 +20,11 @@ it('focuses_error_summary_and_announces_status',async()=>{
  render(React.createElement(ReceiptLocation,{location:{resolution:null,pending:false,error,resolved:false},input,onInputChange:vi.fn()}));
  expect(screen.getByRole('alert')).toBe(document.activeElement);expect(screen.getByLabelText('支店名').getAttribute('aria-invalid')).toBe('true');expect(screen.getByRole('status').textContent).toContain('店舗名');
 });
+it('explains classified unavailable reasons with recovery actions',async()=>{
+ const {default:ReceiptLocation}=await import('../components/receipts/ReceiptLocation.jsx');const React=await import('react');const {render,screen}=await import('@testing-library/react');
+ for(const [reason,description] of [['provider_configuration','設定'],['provider_unavailable','通信'],['budget_exceeded','時間'],['expired','期限'],['cancelled','中断']]){
+  const view=render(React.createElement(ReceiptLocation,{location:{resolution:{status:'unavailable',reason},pending:false,resolved:false},input,onInputChange:vi.fn()}));
+  expect(screen.getByRole('status').textContent).toContain(description);
+  expect(screen.getByRole('button',{name:'この住所を確認した'}).disabled).toBe(false);view.unmount();
+ }
+});

@@ -1,4 +1,4 @@
-import io, sys, tempfile, unittest, time
+import io, json, sys, tempfile, unittest, time
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
@@ -52,7 +52,14 @@ class ReceiptUploadTests(unittest.TestCase):
 
     def receipt_proposal(self, receipt_id, thread=None, target=None):
         draft={'title':'食材','date':'2026-10-03T12:00','type':'expense','category':'食費','merchant':'店','amount':100,'paymentMethod':'cash','receiptIds':[receipt_id]}
-        return self.agent.create_proposal(thread or self.thread,[{'kind':'transaction.update' if target else 'transaction.create','identity':{'id':target} if target else {},'data':draft}])
+        # Simulate an already-issued legacy row; new generic attachment is forbidden.
+        command={'kind':'transaction.update' if target else 'transaction.create','identity':{'id':target} if target else {},'data':draft}
+        with self.app.state.store._connection() as c:
+            ReceiptStore.validate_commands(c, [command], thread or self.thread)
+        proposal=self.agent.create_proposal(thread or self.thread,[{**command,'data':{k:v for k,v in draft.items() if k!='receiptIds'}}])
+        with self.app.state.store._connection() as c:
+            c.execute('UPDATE agent_proposals SET commands_json=? WHERE id=?',(json.dumps([command]),proposal['id']))
+        return self.agent.get_proposal(proposal['id'])
     def test_approval_attaches_receipt_once_and_delete_cleans_asset(self):
         identifier=self.upload().json()['id'];proposal=self.receipt_proposal(identifier)
         first=self.app.state.store.apply_agent_proposal(proposal['id'],1)

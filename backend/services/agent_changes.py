@@ -28,7 +28,11 @@ def read_state(connection):
     for identifier, binding in places.items():
         if identifier in records:
             records[identifier]['merchantPlace'] = merchant_place_projection(binding)
-    return {'transactions': records, 'timeline': read_trajectory_timeline(connection), 'merchantPlaces':places}
+    state = {'transactions': records, 'timeline': read_trajectory_timeline(connection)}
+    # Preserve prefeature whole-state hashes until a saved reference exists.
+    if places:
+        state['merchantPlaces'] = places
+    return state
 
 
 def baseline_value(state, key):
@@ -92,7 +96,7 @@ def prepare_changes(connection, commands):
             if old and old['date'] == record['date'] and not confirm:
                 record['timeEstimated'] = old['timeEstimated']
             from db.merchant_place_store import should_clear_merchant_place, merchant_place_projection
-            binding = state['merchantPlaces'].get(identifier)
+            binding = state.get('merchantPlaces', {}).get(identifier)
             if old and binding:
                 if should_clear_merchant_place(old, record):
                     state['merchantPlaces'].pop(identifier, None)
