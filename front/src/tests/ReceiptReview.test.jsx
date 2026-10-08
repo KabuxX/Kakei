@@ -1,9 +1,40 @@
 import React from 'react';
 import {afterEach,expect,it,vi} from 'vitest';
 import {cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import ReceiptReview from '../components/receipts/ReceiptReview.jsx';
 import * as api from '../lib/agent-api.js';
 vi.mock('../lib/agent-api.js');afterEach(()=>{cleanup();vi.clearAllMocks();});
+it('lets users clear and retype item amounts without inserting zero',async()=>{
+ const user=userEvent.setup();
+ const review={receiptId:'r',candidate:{merchant:'店',merchant_address:'住所',date:'2026-10-07',time:'15:14',total:100,currency:'JPY',payment_method:'cash',items:[{name:'商品',amount:100}]},missingFields:[],matches:[],locationResolution:{id:'loc',receiptId:'r',revision:1,input:{merchant:'店',merchantAddress:'住所'},status:'resolved',expiresAt:Date.now()/1000+3600}};
+ api.proposeReceipt.mockResolvedValue({});
+ render(<ReceiptReview review={review} threadId="t" busy={false} setBusy={vi.fn()} onProposed={vi.fn()}/>);
+ await user.selectOptions(screen.getByLabelText('保存先'),'new');
+ const item=screen.getByLabelText('品目金額 1');
+ await user.clear(item);
+ expect(item.value).toBe('');
+ expect(screen.getByRole('button',{name:'変更案を確認'}).disabled).toBe(true);
+ await user.type(item,'125');
+ expect(item.value).toBe('125');
+ const total=screen.getByLabelText('金額 1');
+ await user.clear(total);
+ expect(total.value).toBe('');
+ await user.type(total,'125');
+ await user.click(screen.getByLabelText('時刻を確認しました'));
+ await user.click(screen.getByRole('button',{name:'変更案を確認'}));
+ expect(api.proposeReceipt.mock.lastCall[1].draft).toMatchObject({amount:125,items:[{name:'商品',amount:125}]});
+});
+it('blocks empty total amounts even when no items are saved',async()=>{
+ const user=userEvent.setup();
+ const review={receiptId:'r',candidate:{merchant:'店',merchant_address:'住所',total:100,currency:'JPY',items:[]},missingFields:[],matches:[],locationResolution:{id:'loc',receiptId:'r',revision:1,input:{merchant:'店',merchantAddress:'住所'},status:'resolved',expiresAt:Date.now()/1000+3600}};
+ render(<ReceiptReview review={review} threadId="t" busy={false} setBusy={vi.fn()} onProposed={vi.fn()}/>);
+ await user.selectOptions(screen.getByLabelText('保存先'),'new');
+ await user.clear(screen.getByLabelText('金額 1'));
+ expect(screen.getByRole('button',{name:'変更案を確認'}).disabled).toBe(true);
+ fireEvent.submit(screen.getByRole('button',{name:'変更案を確認'}).closest('form'));
+ expect(api.proposeReceipt).not.toHaveBeenCalled();
+});
 it('requires confirming the inherited address before preparing a proposal',async()=>{
  const input={merchant:'店',branch:null,locality:null,merchantAddress:'住所A'};
  const review={receiptId:'r',candidate:{merchant:'店',merchant_address:' ',total:100,currency:'JPY'},missingFields:[],matches:[{reason:'near',transaction:{id:'A',title:'店',merchantAddress:'住所A'}}],locationResolution:{id:'loc',receiptId:'r',revision:1,input:{...input,merchantAddress:null},status:'needs_input'}};

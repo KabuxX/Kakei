@@ -32,8 +32,9 @@ export default function ReceiptReview({review,threadId,busy,setBusy,onProposed,r
  };
  useEffect(()=>{if(error)errorSummary.current?.focus();},[error]);
  const mismatch=command.data.items?.length && (command.data.items.reduce((s,i)=>s+Number(i.amount),0)!==Number(command.data.amount)||command.data.items.some(i=>i.amount<=0));
+ const invalidAmounts=[command.data.amount,...(command.data.items||[]).map(item=>item.amount)].some(amount=>!Number.isInteger(amount)||amount<=0);
  const url=receiptUrl(review.receiptId,threadId);
- const submit=async(e)=>{e.preventDefault();if(busy||!location.resolved||(needsVerification&&!verified))return;setBusy(true);setError('');try{const draft={...command.data,merchantAddress:locationInput.merchantAddress};const binding={resolutionId:location.resolution.id,revision:location.resolution.revision,input:location.resolution.input};onProposed(proposal?await api.reconfirmReceiptProposal(proposal.id,{revision:proposal.revision,draft,location:binding}):await api.proposeReceipt(threadId,{receiptId:review.receiptId,target,currency,draft,location:binding}));}catch(e){setError(e.message);}finally{setBusy(false);}};
+ const submit=async(e)=>{e.preventDefault();if(busy||invalidAmounts||mismatch||!location.resolved||(needsVerification&&!verified))return;setBusy(true);setError('');try{const draft={...command.data,merchantAddress:locationInput.merchantAddress};const binding={resolutionId:location.resolution.id,revision:location.resolution.revision,input:location.resolution.input};onProposed(proposal?await api.reconfirmReceiptProposal(proposal.id,{revision:proposal.revision,draft,location:binding}):await api.proposeReceipt(threadId,{receiptId:review.receiptId,target,currency,draft,location:binding}));}catch(e){setError(e.message);}finally{setBusy(false);}};
  if(readOnly)return <article className="agent-proposal receipt-review" aria-label="レシートの読み取り結果"><h2>レシートの読み取り結果</h2>{review.mimeType?.startsWith('image/')&&<img className="receipt-preview" alt="レシートのプレビュー" src={receiptPreviewUrl(review.receiptId,threadId)}/>}<p><a href={url} target="_blank" rel="noreferrer">レシート原本を開く</a></p><ReceiptCalculation review={review} current={command.data}/><RecordView value={candidate}/></article>;
  return <article className="agent-proposal receipt-review" aria-label="レシートの確認"><h2>レシートを確認</h2>
  {review.mimeType?.startsWith('image/')&&<img className="receipt-preview" alt="レシートのプレビュー" src={receiptPreviewUrl(review.receiptId,threadId)}/>}
@@ -49,6 +50,6 @@ export default function ReceiptReview({review,threadId,busy,setBusy,onProposed,r
  {command.data.items.length>0&&<button type="button" className="secondary-button" onClick={()=>setCommand({...command,data:{...command.data,items:[]}})}>品目を保存しない</button>}
  {error&&<p ref={errorSummary} tabIndex="-1" role="alert" className="agent-error">{error}</p>}
  {needsVerification&&<label className="agent-checkbox"><input type="checkbox" checked={verified} onChange={e=>setVerified(e.target.checked)}/>原本と照合し、金額・品目を確認しました</label>}
- <button className="primary-button" disabled={busy||!location.resolved||!target||!!mismatch||currency!=='JPY'||(needsVerification&&!verified)}>変更案を確認</button>
+ <button className="primary-button" disabled={busy||invalidAmounts||!location.resolved||!target||!!mismatch||currency!=='JPY'||(needsVerification&&!verified)}>変更案を確認</button>
  </form></article>;
 }
